@@ -12,6 +12,7 @@ urlpatterns = [
     path('cart/', views.cart_detail, name='cart_detail'),
     path('remove/<int:item_id>/', views.remove_from_cart, name='remove_from_cart'),
     path('optimize/', views.optimize_cart, name='optimize_cart'),
+    path('product/<int:product_id>/', views.product_detail, name='product_detail'),
     
     # Registrácia
     path('register/', views.register, name='register'),
