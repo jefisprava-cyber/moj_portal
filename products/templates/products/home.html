@@ -11,11 +11,11 @@
 
     <nav class="bg-white shadow-md sticky top-0 z-50">
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="/" class="text-2xl font-black text-blue-600 tracking-tighter">MOJ<span class="text-gray-800">PORTAL</span></a>
+            <a href="/" class="text-2xl font-black text-blue-600 tracking-tighter italic">MOJ<span class="text-gray-800">PORTAL</span></a>
             
             <div class="flex items-center space-x-6">
                 <form action="{% url 'home' %}" method="get" class="hidden md:flex items-center bg-gray-100 rounded-full px-4 py-1">
-                    <input type="text" name="q" placeholder="Hľadať produkt..." class="bg-transparent border-none focus:ring-0 text-sm w-64 outline-none">
+                    <input type="text" name="q" placeholder="Hľadať produkt..." class="bg-transparent border-none focus:ring-0 text-sm w-48 lg:w-64 outline-none">
                     <button type="submit"><i class="fa fa-search text-gray-400"></i></button>
                 </form>
 
@@ -29,35 +29,50 @@
                 </a>
 
                 {% if user.is_authenticated %}
-                    <span class="text-sm font-medium text-gray-600">Ahoj, {{ user.username }}</span>
+                    <div class="flex items-center space-x-4 border-l pl-6">
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest leading-none">Prihlásený</p>
+                            <p class="text-sm font-bold text-gray-800">{{ user.username }}</p>
+                        </div>
+                        <form action="{% url 'logout' %}" method="post" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="bg-gray-100 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                                <i class="fa fa-sign-out-alt"></i>
+                            </button>
+                        </form>
+                    </div>
                 {% else %}
-                    <a href="{% url 'login' %}" class="text-sm font-bold text-gray-700 hover:text-blue-600">Prihlásiť sa</a>
+                    <a href="{% url 'login' %}" class="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100">
+                        Prihlásiť sa
+                    </a>
                 {% endif %}
             </div>
         </div>
     </nav>
 
     <header class="bg-blue-600 py-12 text-center text-white mb-10">
-        <h1 class="text-4xl font-extrabold mb-2">Najlepšie ceny na jednom mieste</h1>
-        <p class="text-blue-100">Porovnávame a optimalizujeme nákup za vás.</p>
+        <h1 class="text-4xl font-extrabold mb-2 tracking-tight">Najlepšie ceny na jednom mieste</h1>
+        <p class="text-blue-100 opacity-90">Porovnávame a optimalizujeme nákup za vás.</p>
     </header>
 
     <main class="container mx-auto px-6 mb-20">
         
         <div class="flex justify-between items-end mb-8 border-b pb-4">
-            <h2 class="text-2xl font-bold text-gray-800">Ponuka produktov</h2>
-            <p class="text-gray-500 text-sm">Zobrazených {{ produkty|length }} položiek</p>
+            <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Ponuka produktov</h2>
+            <p class="text-gray-500 text-sm font-medium">{{ produkty|length }} položiek</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {% for p in produkty %}
-            <div class="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col transform hover:-translate-y-1">
+            <div class="bg-white rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col transform hover:-translate-y-1">
                 
-                <div class="h-56 bg-white flex items-center justify-center relative group p-4">
+                <div class="h-56 bg-white flex items-center justify-center relative group p-6">
                     {% if p.image_url %}
                         <img src="{{ p.image_url }}" alt="{{ p.name }}" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110">
                     {% else %}
-                        <i class="fa fa-image text-5xl text-gray-200"></i>
+                        <div class="w-full h-full bg-gray-50 rounded-2xl flex items-center justify-center">
+                            <i class="fa fa-image text-4xl text-gray-200"></i>
+                        </div>
                     {% endif %}
                     <span class="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-black text-blue-600 uppercase tracking-widest shadow-sm border border-gray-100">
                         {{ p.shop_name }}
@@ -67,22 +82,22 @@
                 <div class="p-6 flex-grow flex flex-col">
                     <h3 class="font-bold text-lg text-gray-800 mb-2 leading-tight h-12 overflow-hidden">{{ p.name }}</h3>
                     
-                    <div class="flex flex-col space-y-2 mt-2 mb-4">
+                    <div class="flex flex-col space-y-2 mt-2 mb-6">
                         <span class="text-[11px] font-bold text-green-600 uppercase tracking-wide flex items-center">
-                            <i class="fa fa-truck mr-1.5"></i> Doručenie do {{ p.delivery_days }} dní
+                            <i class="fa fa-truck mr-1.5 text-xs"></i> Doručenie do {{ p.delivery_days }} dní
                         </span>
                         <a href="{{ p.url }}" target="_blank" class="text-[11px] font-bold text-gray-400 hover:text-blue-600 transition flex items-center uppercase tracking-wide">
-                            <i class="fa fa-external-link-alt mr-1.5"></i> Pozrieť v obchode
+                            <i class="fa fa-external-link-alt mr-1.5 text-xs"></i> Pozrieť v obchode
                         </a>
                     </div>
 
                     <div class="mt-auto flex justify-between items-center">
-                        <span class="text-3xl font-black text-gray-900">{{ p.price }} <span class="text-sm text-blue-600">€</span></span>
+                        <span class="text-3xl font-black text-gray-900">{{ p.price }} <span class="text-sm text-blue-600 italic">€</span></span>
                     </div>
                 </div>
 
                 <div class="p-6 pt-0">
-                    <a href="{% url 'add_to_cart' p.id %}" class="w-full block text-center bg-gray-900 text-white font-bold py-3.5 rounded-2xl hover:bg-blue-600 transition-colors transform active:scale-95 shadow-lg">
+                    <a href="{% url 'add_to_cart' p.id %}" class="w-full block text-center bg-gray-900 text-white font-bold py-4 rounded-2xl hover:bg-blue-600 transition-all transform active:scale-95 shadow-xl shadow-gray-200">
                         <i class="fa fa-cart-plus mr-2"></i> Do košíka
                     </a>
                 </div>
@@ -90,14 +105,15 @@
             {% empty %}
             <div class="col-span-full py-20 text-center">
                 <i class="fa fa-search text-5xl text-gray-200 mb-4"></i>
-                <p class="text-gray-500">Nenašli sme žiadne produkty, skúste iné hľadanie.</p>
+                <p class="text-gray-500 font-medium">Nenašli sme žiadne produkty, skúste iné hľadanie.</p>
             </div>
             {% endfor %}
         </div>
     </main>
 
-    <footer class="bg-gray-900 text-gray-400 py-10 text-center">
-        <p class="text-sm">&copy; 2026 Môj Portál. Všetky práva vyhradené.</p>
+    <footer class="bg-gray-900 text-gray-400 py-12 text-center">
+        <div class="text-xl font-black text-white mb-4 tracking-tighter italic">MOJ<span class="text-blue-500">PORTAL</span></div>
+        <p class="text-xs uppercase tracking-widest font-bold opacity-50">&copy; 2026 Všetky práva vyhradené</p>
     </footer>
 
 </body>
