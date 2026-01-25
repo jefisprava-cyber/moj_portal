@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <title>Môj Košík</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-10">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-xl">
+        <div class="flex justify-between items-center mb-8 border-b pb-4">
+            <h1 class="text-3xl font-bold text-blue-800">🛒 Váš nákupný zoznam</h1>
+            <a href="{% url 'home' %}" class="text-blue-500 hover:underline">← Pokračovať v nákupe</a>
+        </div>
+
+        {% if items %}
+            <table class="w-full text-left mb-8">
+                <thead>
+                    <tr class="bg-gray-50 text-gray-600 uppercase text-xs font-bold">
+                        <th class="p-4">Produkt</th>
+                        <th class="p-4">Obchod</th>
+                        <th class="p-4">Cena</th>
+                        <th class="p-4">Akcia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr class="border-b hover:bg-gray-50 transition">
+                        <td class="p-4 font-bold">{{ item.product.name }}</td>
+                        <td class="p-4 text-gray-500">{{ item.product.shop_name }}</td>
+                        <td class="p-4 text-green-600 font-bold text-lg">{{ item.product.price }} €</td>
+                        <td class="p-4">
+                            <a href="{% url 'remove_from_cart' item.id %}" class="text-red-500 hover:text-red-700 font-bold text-sm">Zmazať</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="bg-blue-50 p-8 rounded-2xl border-2 border-blue-100 text-center">
+                <h3 class="text-xl font-bold text-blue-900 mb-2">🚀 Optimalizátor košíka</h3>
+                <p class="mb-6 text-blue-700">Skontrolujeme ceny v ostatných obchodoch a poštovné.</p>
+                <a href="{% url 'optimize_cart' %}" class="inline-block bg-blue-600 text-white px-10 py-4 rounded-full font-bold hover:bg-blue-700 shadow-lg transform hover:scale-105 transition">
+                    ✨ Spustiť výpočet najvýhodnejšej kombinácie
+                </a>
+            </div>
+        {% else %}
+            <div class="text-center py-20">
+                <p class="text-gray-400 text-xl mb-6 font-medium">Košík je zatiaľ prázdny 😢</p>
+                <a href="{% url 'home' %}" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 shadow-md transition">Späť na nákupy</a>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

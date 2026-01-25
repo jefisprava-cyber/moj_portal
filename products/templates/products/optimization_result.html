@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <title>Analýza nákupu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-6 md:p-12">
+
+    <div class="max-w-5xl mx-auto">
+        <div class="flex justify-between items-center mb-8 border-b pb-4">
+            <h1 class="text-3xl font-extrabold text-gray-900 uppercase">📊 Analýza nákupu</h1>
+            <a href="{% url 'cart_detail' %}" class="text-blue-600 hover:underline">← Späť do košíka</a>
+        </div>
+
+        {% if not lepsia_alternativa %}
+            <div class="bg-red-100 border-l-4 border-red-500 p-4 mb-6">
+                <p class="text-red-700"><strong>DEBUG:</strong> Systém nenašiel žiadnu lepšiu alternatívu v databáze.</p>
+            </div>
+        {% endif %}
+
+        {% if lepsia_alternativa %}
+        <div class="bg-green-100 border-2 border-green-500 text-green-800 p-8 rounded-2xl mb-10 shadow-lg animate-pulse">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                <div>
+                    <h2 class="text-2xl font-bold italic">💡 NAŠLI SME ÚSPORU!</h2>
+                    <p class="mt-2 text-lg">
+                        Prejdite do obchodu <strong>{{ lepsia_alternativa.obchod }}</strong> a ušetrite až 
+                        <span class="font-black text-2xl underline">{{ lepsia_alternativa.uspora }} €</span>!
+                    </p>
+                </div>
+                <div class="bg-white px-8 py-4 rounded-xl shadow-md text-center border-2 border-green-500">
+                    <p class="text-xs uppercase text-gray-500">Nová cena s dopravou</p>
+                    <p class="text-4xl font-black text-green-600">{{ lepsia_alternativa.nova_cena }} €</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div class="lg:col-span-2 space-y-6">
+                {% for obchod, data in baliky.items %}
+                <div class="bg-white rounded-xl shadow-sm border p-6">
+                    <h2 class="font-bold text-xl mb-4 border-b pb-2">📦 Balík: {{ obchod }}</h2>
+                    <ul class="space-y-2">
+                        {% for produkt in data.produkty %}
+                        <li class="flex justify-between">
+                            <span>{{ produkt.name }}</span>
+                            <span class="font-bold">{{ produkt.price }} €</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <div class="mt-4 text-right text-sm text-gray-500 italic">Poštovné: {{ data.postovne }} €</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="lg:col-span-1">
+                <div class="bg-blue-600 text-white p-8 rounded-2xl shadow-2xl sticky top-10">
+                    <h3 class="text-xl font-bold mb-6 border-b border-blue-400 pb-2">Súhrn</h3>
+                    <div class="space-y-3 mb-8">
+                        <div class="flex justify-between opacity-80"><span>Tovar:</span><span>{{ celkova_cena_tovaru }} €</span></div>
+                        <div class="flex justify-between opacity-80"><span>Doprava:</span><span>{{ celkove_postovne }} €</span></div>
+                        <div class="flex justify-between text-2xl font-black pt-4 border-t border-blue-400">
+                            <span>SPOLU:</span><span>{{ celkova_suma }} €</span>
+                        </div>
+                    </div>
+                    <button class="w-full bg-white text-blue-600 py-4 rounded-xl font-black text-lg hover:bg-gray-100 transition shadow-xl">💳 KÚPIŤ TERAZ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
