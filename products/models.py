@@ -47,7 +47,7 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='nova')
     
     # NOVÉ: Poznámka pre predajcu
-    note = models.TextField(blank=True, null=True)
+    note = models.TextField(blank=True, null=True, verbose_name="Poznámka k objednávke")
 
     class Meta:
         ordering = ['-created_at']
