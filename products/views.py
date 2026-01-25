@@ -3,28 +3,77 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from .models import Product, CartItem
 
-# POMOCNÁ FUNKCIA: Získa produkty pre košík (spoločné pre zobrazenie aj optimalizáciu)
+# POMOCNÁ FUNKCIA: Získa produkty pre košík
 def get_cart_products(request):
     products = []
     if request.user.is_authenticated:
         items = CartItem.objects.filter(user=request.user)
         for item in items:
-            # Uložíme si aj ID záznamu v DB, aby fungovalo mazanie
             p = item.product
             p.cart_item_id = item.id 
             products.append(p)
     else:
-        # Pre hostí berieme ID produktov zo Session
         guest_cart = request.session.get('guest_cart', [])
         for p_id in guest_cart:
             p = get_object_or_404(Product, id=p_id)
-            # Pre hostí použijeme produkt ID ako cart_item_id
             p.cart_item_id = p.id 
             products.append(p)
     return products
 
-# 1. HLAVNÁ STRÁNKA
+# 1. HLAVNÁ STRÁNKA (S AUTOMATICKÝM GENEROVANÍM PRODUKTOV PRE RENDER)
 def home(request):
+    # --- AUTO-SEED: Ak je DB prázdna (typické pre Render Free Tier po deployi), vytvoríme dáta ---
+    if Product.objects.count() == 0:
+        import random
+        # Zoznam vzorových produktov na naplnenie databázy
+        sample_products = [
+            ("iPhone 15 Pro", 1199.00, "iStore", "iphone"),
+            ("Samsung Galaxy S24", 899.00, "Alza", "samsung-galaxy"),
+            ("MacBook Air M3", 1299.00, "iStyle", "laptop"),
+            ("Sony WH-1000XM5", 349.00, "Datart", "headphones"),
+            ("Dyson V15 Detect", 699.00, "Nay", "vacuum-cleaner"),
+            ("PlayStation 5 Slim", 549.00, "Brloh", "playstation"),
+            ("GoPro HERO12", 399.00, "Alza", "action-camera"),
+            ("iPad Air 5", 649.00, "iStore", "tablet"),
+            ("Logitech MX Master 3S", 99.00, "Alza", "mouse"),
+            ("Samsung Odyssey G9", 1199.00, "Datart", "monitor"),
+            ("JBL Charge 5", 149.00, "Nay", "speaker"),
+            ("Apple Watch Series 9", 429.00, "iStyle", "smartwatch"),
+        ]
+        
+        for name, price, shop, category in sample_products:
+            # Vytvorenie produktu
+            p = Product.objects.create(
+                name=name,
+                price=price,
+                shop_name=shop,
+                delivery_days=random.randint(1, 4), # Náhodné doručenie
+                url="https://www.google.com/search?q=" + name.replace(" ", "+") # Fiktívny link
+            )
+            # Priradenie dynamického obrázka
+            p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
+            p.save()
+            
+    # --- AUTO-FIX: Ak produkty existujú, ale chýbajú im obrázky (poistka) ---
+    elif Product.objects.filter(image_url__isnull=True).exists():
+        for p in Product.objects.filter(image_url__isnull=True):
+            category = "electronics" # Predvolená kategória
+            lower_name = p.name.lower()
+            
+            # Jednoduchá detekcia kategórie podľa názvu
+            if "iphone" in lower_name: category = "iphone"
+            elif "samsung" in lower_name: category = "smartphone"
+            elif "macbook" in lower_name or "notebook" in lower_name: category = "laptop"
+            elif "sluchadla" in lower_name or "sony" in lower_name: category = "headphones"
+            elif "tv" in lower_name or "televizor" in lower_name: category = "tv"
+            
+            p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
+            if p.delivery_days == 0:
+                import random
+                p.delivery_days = random.randint(1, 4)
+            p.save()
+    # -------------------------------------------------------------
+
     hladany_vyraz = request.GET.get('q')
     vsetky_produkty = Product.objects.filter(name__icontains=hladany_vyraz) if hladany_vyraz else Product.objects.all()
     
@@ -36,12 +85,11 @@ def home(request):
         
     return render(request, 'products/home.html', {'produkty': vsetky_produkty, 'pocet_v_kosiku': pocet})
 
-# 2. PRIDANIE DO KOŠÍKA (Už nepotrebuje login)
+# 2. PRIDANIE DO KOŠÍKA
 def add_to_cart(request, product_id):
     if request.user.is_authenticated:
         CartItem.objects.create(user=request.user, product_id=product_id)
     else:
-        # Uložíme do "pamäte" prehliadača
         cart = request.session.get('guest_cart', [])
         cart.append(product_id)
         request.session['guest_cart'] = cart
@@ -53,7 +101,6 @@ def remove_from_cart(request, item_id):
     if request.user.is_authenticated:
         get_object_or_404(CartItem, id=item_id, user=request.user).delete()
     else:
-        # Odstránime jedno ID zo zoznamu v Session
         cart = request.session.get('guest_cart', [])
         if item_id in cart:
             cart.remove(item_id)
@@ -64,7 +111,6 @@ def remove_from_cart(request, item_id):
 # 4. ZOBRAZENIE KOŠÍKA
 def cart_detail(request):
     items = get_cart_products(request)
-    # Naformátujeme to pre šablónu, aby "p.product" stále fungovalo
     formatted_items = [{'product': p, 'id': p.cart_item_id} for p in items]
     return render(request, 'products/cart.html', {'items': formatted_items})
 
@@ -90,7 +136,7 @@ def optimize_cart(request):
 
     aktualna_celkova = suma_tovaru + (len(baliky) * 3.90)
 
-    # HĽADANIE ALTERNATÍVY (logika ostáva rovnaká)
+    # HĽADANIE ALTERNATÍVY
     lepsia_alternativa = None
     najlepšia_nova_suma = aktualna_celkova
     vsetky_shopy = Product.objects.values_list('shop_name', flat=True).distinct()
@@ -132,15 +178,11 @@ def register(request):
             user = form.save()
             
             # --- LOGIKA PRELIATIA KOŠÍKA ---
-            # Získame produkty, ktoré si užívateľ naklikal ako hosť
             guest_cart = request.session.get('guest_cart', [])
-            
             if guest_cart:
                 for product_id in guest_cart:
-                    # Každý produkt zo session uložíme do databázy pod novým userom
                     CartItem.objects.create(user=user, product_id=product_id)
                 
-                # Keď sme všetko skopírovali, vymažeme hosťovský košík zo session
                 del request.session['guest_cart']
                 request.session.modified = True
             # -------------------------------
