@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <title>Pokladňa | Môj Portál</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 py-12">
+    <div class="container mx-auto px-6 max-w-4xl">
+        <a href="{% url 'cart_detail' %}" class="text-blue-600 font-bold mb-6 inline-block">
+            <i class="fa fa-arrow-left mr-2"></i> Späť do košíka
+        </a>
+        
+        <h1 class="text-3xl font-black mb-10">Dokončenie objednávky</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div class="md:col-span-2">
+                <form method="post" class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
+                    {% csrf_token %}
+                    <h2 class="text-xl font-bold mb-6 italic">Dodacie údaje</h2>
+                    {{ form.as_p }}
+                    <button type="submit" class="w-full mt-8 bg-green-600 text-white font-black py-4 rounded-2xl hover:bg-green-700 transition shadow-xl">
+                        POTVRDIŤ OBJEDNÁVKU ({{ total_price }} €)
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-3xl border border-gray-100 h-fit">
+                <h3 class="font-bold mb-4">Váš košík</h3>
+                {% for item in cart_items %}
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="text-gray-600">{{ item.name }}</span>
+                    <span class="font-bold">{{ item.price }} €</span>
+                </div>
+                {% endfor %}
+                <div class="border-t pt-4 mt-4 font-black text-xl flex justify-between">
+                    <span>Celkom:</span>
+                    <span>{{ total_price }} €</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
