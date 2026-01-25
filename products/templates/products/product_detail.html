@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ p.name }} | Najlepšia cena</title>
+    <meta name="description" content="{{ seo_description }}">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      "name": "{{ p.name }}",
+      "image": "{{ p.image_url }}",
+      "description": "{{ seo_description }}",
+      "brand": {
+        "@type": "Brand",
+        "name": "{{ p.shop_name }}"
+      },
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": "EUR",
+        "price": "{{ p.price }}",
+        "availability": "https://schema.org/InStock"
+      }
+    }
+    </script>
+</head>
+<body class="bg-gray-50 font-sans leading-normal tracking-normal flex flex-col min-h-screen">
+
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="/" class="text-2xl font-black text-blue-600 tracking-tighter italic">MOJ<span class="text-gray-800">PORTAL</span></a>
+            
+            <div class="flex items-center space-x-6">
+                <a href="{% url 'cart_detail' %}" class="relative text-gray-700 hover:text-blue-600 transition">
+                    <i class="fa fa-shopping-cart text-2xl"></i>
+                    {% if pocet_v_kosiku > 0 %}
+                    <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                        {{ pocet_v_kosiku }}
+                    </span>
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="bg-gray-100 py-3 border-b border-gray-200">
+        <div class="container mx-auto px-6">
+            <p class="text-xs text-gray-500 font-bold uppercase tracking-widest">
+                <a href="/" class="hover:text-blue-600">Domov</a> 
+                <span class="mx-2">/</span> 
+                <span class="text-gray-800 truncate">{{ p.name }}</span>
+            </p>
+        </div>
+    </div>
+
+    <main class="container mx-auto px-6 py-10 flex-grow">
+        
+        <div class="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100 flex flex-col md:flex-row mb-12">
+            
+            <div class="md:w-1/2 bg-white p-10 flex items-center justify-center border-b md:border-b-0 md:border-r border-gray-100 relative min-h-[400px]">
+                {% if p.image_url %}
+                    <img src="{{ p.image_url }}" alt="{{ p.name }}" class="max-h-[400px] w-full object-contain transition-transform hover:scale-105 duration-500">
+                {% else %}
+                    <i class="fa fa-image text-9xl text-gray-200"></i>
+                {% endif %}
+                
+                <span class="absolute top-6 left-6 bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-blue-100">
+                    {{ p.shop_name }}
+                </span>
+            </div>
+
+            <div class="md:w-1/2 p-8 md:p-12 flex flex-col justify-center bg-gray-50/30">
+                <h1 class="text-3xl md:text-4xl font-black text-gray-900 mb-4 leading-tight">{{ p.name }}</h1>
+                
+                <div class="flex flex-wrap items-center gap-4 mb-6">
+                    <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center">
+                        <i class="fa fa-check-circle mr-2"></i> Na sklade
+                    </span>
+                    <span class="text-sm text-gray-500 font-medium flex items-center">
+                        <i class="fa fa-truck mr-2"></i> Doručenie do {{ p.delivery_days }} dní
+                    </span>
+                </div>
+
+                <p class="text-gray-600 mb-8 leading-relaxed text-sm md:text-base">
+                    {{ seo_description }}
+                    <br><br>
+                    Tento produkt pre vás sledujeme v obchode <strong>{{ p.shop_name }}</strong>. 
+                    Vložte ho do košíka a zistite, či sa dá skombinovať s iným tovarom pre lacnejšie poštovné.
+                </p>
+
+                <div class="border-t border-b border-gray-200 py-6 mb-8">
+                    <span class="block text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Cena s DPH</span>
+                    <span class="text-4xl font-black text-gray-900">{{ p.price }} €</span>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="{% url 'add_to_cart' p.id %}" class="flex-1 bg-gray-900 text-white text-center font-bold py-4 rounded-2xl hover:bg-blue-600 transition-all shadow-xl hover:shadow-blue-200 transform active:scale-95">
+                        <i class="fa fa-cart-plus mr-2"></i> Pridať do košíka
+                    </a>
+                    <a href="/" class="px-8 py-4 border-2 border-gray-200 text-gray-500 font-bold rounded-2xl hover:border-gray-400 hover:text-gray-700 text-center transition">
+                        Späť
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {% if podobne_produkty %}
+        <div class="mt-16 border-t pt-10">
+            <h2 class="text-2xl font-bold text-gray-800 mb-8">Mohlo by vás zaujímať</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {% for similar in podobne_produkty %}
+                <a href="{% url 'product_detail' similar.id %}" class="block bg-white rounded-2xl p-4 shadow-sm hover:shadow-xl transition border border-gray-100 group">
+                    <div class="h-40 flex items-center justify-center mb-4 overflow-hidden relative">
+                        {% if similar.image_url %}
+                            <img src="{{ similar.image_url }}" alt="{{ similar.name }}" class="h-full object-contain group-hover:scale-110 transition-transform duration-300">
+                        {% else %}
+                            <i class="fa fa-box text-gray-300 text-3xl"></i>
+                        {% endif %}
+                        <span class="absolute top-2 left-2 text-[10px] font-bold bg-gray-100 px-2 py-1 rounded text-gray-500">{{ similar.shop_name }}</span>
+                    </div>
+                    <h3 class="font-bold text-gray-800 text-sm truncate mb-1">{{ similar.name }}</h3>
+                    <p class="text-blue-600 font-black">{{ similar.price }} €</p>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <footer class="bg-gray-900 text-gray-400 py-10 text-center mt-auto">
+        <p class="text-sm">&copy; 2026 Môj Portál. SEO Optimalizované.</p>
+    </footer>
+
+</body>
+</html>
