@@ -1,194 +1,117 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login
-from .models import Product, CartItem
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Váš Košík | Môj Portál</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 font-sans leading-normal tracking-normal">
 
-# POMOCNÁ FUNKCIA: Získa produkty pre košík
-def get_cart_products(request):
-    products = []
-    if request.user.is_authenticated:
-        items = CartItem.objects.filter(user=request.user)
-        for item in items:
-            p = item.product
-            p.cart_item_id = item.id 
-            products.append(p)
-    else:
-        guest_cart = request.session.get('guest_cart', [])
-        for p_id in guest_cart:
-            p = get_object_or_404(Product, id=p_id)
-            p.cart_item_id = p.id 
-            products.append(p)
-    return products
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="/" class="text-2xl font-black text-blue-600 tracking-tighter italic">MOJ<span class="text-gray-800">PORTAL</span></a>
+            <a href="/" class="text-sm font-bold text-gray-500 hover:text-blue-600 transition">
+                <i class="fa fa-arrow-left mr-2"></i> Späť do obchodu
+            </a>
+        </div>
+    </nav>
 
-# 1. HLAVNÁ STRÁNKA (S AUTOMATICKÝM GENEROVANÍM PRODUKTOV PRE RENDER)
-def home(request):
-    # --- AUTO-SEED: Ak je DB prázdna (typické pre Render Free Tier po deployi), vytvoríme dáta ---
-    if Product.objects.count() == 0:
-        import random
-        # Zoznam vzorových produktov na naplnenie databázy
-        sample_products = [
-            ("iPhone 15 Pro", 1199.00, "iStore", "iphone"),
-            ("Samsung Galaxy S24", 899.00, "Alza", "samsung-galaxy"),
-            ("MacBook Air M3", 1299.00, "iStyle", "laptop"),
-            ("Sony WH-1000XM5", 349.00, "Datart", "headphones"),
-            ("Dyson V15 Detect", 699.00, "Nay", "vacuum-cleaner"),
-            ("PlayStation 5 Slim", 549.00, "Brloh", "playstation"),
-            ("GoPro HERO12", 399.00, "Alza", "action-camera"),
-            ("iPad Air 5", 649.00, "iStore", "tablet"),
-            ("Logitech MX Master 3S", 99.00, "Alza", "mouse"),
-            ("Samsung Odyssey G9", 1199.00, "Datart", "monitor"),
-            ("JBL Charge 5", 149.00, "Nay", "speaker"),
-            ("Apple Watch Series 9", 429.00, "iStyle", "smartwatch"),
-        ]
-        
-        for name, price, shop, category in sample_products:
-            # Vytvorenie produktu
-            p = Product.objects.create(
-                name=name,
-                price=price,
-                shop_name=shop,
-                delivery_days=random.randint(1, 4), # Náhodné doručenie
-                url="https://www.google.com/search?q=" + name.replace(" ", "+") # Fiktívny link
-            )
-            # Priradenie dynamického obrázka
-            p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
-            p.save()
+    <main class="container mx-auto px-6 py-12">
+        <h1 class="text-3xl font-black text-gray-800 mb-10 tracking-tight">Váš nákupný košík</h1>
+
+        <div class="flex flex-col lg:flex-row gap-12">
             
-    # --- AUTO-FIX: Ak produkty existujú, ale chýbajú im obrázky (poistka) ---
-    elif Product.objects.filter(image_url__isnull=True).exists():
-        for p in Product.objects.filter(image_url__isnull=True):
-            category = "electronics" # Predvolená kategória
-            lower_name = p.name.lower()
-            
-            # Jednoduchá detekcia kategórie podľa názvu
-            if "iphone" in lower_name: category = "iphone"
-            elif "samsung" in lower_name: category = "smartphone"
-            elif "macbook" in lower_name or "notebook" in lower_name: category = "laptop"
-            elif "sluchadla" in lower_name or "sony" in lower_name: category = "headphones"
-            elif "tv" in lower_name or "televizor" in lower_name: category = "tv"
-            
-            p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
-            if p.delivery_days == 0:
-                import random
-                p.delivery_days = random.randint(1, 4)
-            p.save()
-    # -------------------------------------------------------------
+            <div class="lg:w-2/3">
+                {% if items %}
+                    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="divide-y divide-gray-100">
+                            {% for item in items %}
+                            <div class="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                <div class="flex items-center space-x-6">
+                                    <div class="w-20 h-20 bg-white rounded-2xl border border-gray-100 p-2 flex-shrink-0">
+                                        {% if item.product.image_url %}
+                                            <img src="{{ item.product.image_url }}" alt="{{ item.product.name }}" class="w-full h-full object-contain">
+                                        {% else %}
+                                            <div class="w-full h-full flex items-center justify-center text-gray-200">
+                                                <i class="fa fa-box text-2xl"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div>
+                                        <h3 class="font-bold text-gray-800 text-lg leading-tight mb-1">{{ item.product.name }}</h3>
+                                        <div class="flex items-center space-x-3">
+                                            <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest">{{ item.product.shop_name }}</p>
+                                            <span class="text-[11px] font-bold text-green-600 flex items-center">
+                                                <i class="fa fa-truck mr-1"></i> {{ item.product.delivery_days }} dni
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center space-x-8">
+                                    <span class="text-xl font-black text-gray-900 whitespace-nowrap">{{ item.product.price }} €</span>
+                                    <a href="{% url 'remove_from_cart' item.id %}" class="text-gray-300 hover:text-red-500 transition-colors p-2">
+                                        <i class="fa fa-trash-can text-lg"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="bg-white rounded-[2.5rem] p-20 text-center border-2 border-dashed border-gray-200">
+                        <div class="bg-gray-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i class="fa fa-shopping-basket text-4xl text-gray-300"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-700">Váš košík je prázdny</h3>
+                        <p class="text-gray-500 mt-2 max-w-sm mx-auto">Pridajte si produkty do košíka a my vám nájdeme najlepšiu cestu, ako ušetriť.</p>
+                        <a href="/" class="mt-8 inline-block bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100">
+                            Prehliadať ponuku
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
 
-    hladany_vyraz = request.GET.get('q')
-    vsetky_produkty = Product.objects.filter(name__icontains=hladany_vyraz) if hladany_vyraz else Product.objects.all()
-    
-    # Počítanie kusov (DB + Session)
-    if request.user.is_authenticated:
-        pocet = CartItem.objects.filter(user=request.user).count()
-    else:
-        pocet = len(request.session.get('guest_cart', []))
-        
-    return render(request, 'products/home.html', {'produkty': vsetky_produkty, 'pocet_v_kosiku': pocet})
+            {% if items %}
+            <div class="lg:w-1/3">
+                <div class="bg-white rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 p-8 sticky top-28">
+                    <h2 class="text-xl font-bold text-gray-800 mb-6 border-b border-gray-50 pb-4 tracking-tight">Sumár nákupu</h2>
+                    
+                    <div class="space-y-4 mb-8">
+                        <div class="flex justify-between text-gray-600 font-medium">
+                            <span>Počet položiek:</span>
+                            <span class="font-black text-gray-900">{{ items|length }} ks</span>
+                        </div>
+                        
+                        <div class="p-5 bg-blue-50 rounded-2xl border border-blue-100 relative overflow-hidden">
+                            <i class="fa fa-lightbulb absolute -right-2 -bottom-2 text-4xl text-blue-100 rotate-12"></i>
+                            <p class="text-[10px] text-blue-600 font-black uppercase tracking-widest mb-1 relative">Tip pre vás</p>
+                            <p class="text-sm text-blue-800 leading-relaxed relative">
+                                Máte v košíku produkty z viacerých obchodov. Skúste optimalizáciu a ušetrite na poštovnom!
+                            </p>
+                        </div>
+                    </div>
 
-# 2. PRIDANIE DO KOŠÍKA
-def add_to_cart(request, product_id):
-    if request.user.is_authenticated:
-        CartItem.objects.create(user=request.user, product_id=product_id)
-    else:
-        cart = request.session.get('guest_cart', [])
-        cart.append(product_id)
-        request.session['guest_cart'] = cart
-        request.session.modified = True
-    return redirect('home')
+                    <a href="{% url 'optimize_cart' %}" class="w-full block text-center bg-gray-900 text-white font-black py-5 rounded-2xl hover:bg-blue-600 transition-all shadow-xl shadow-gray-200 transform hover:-translate-y-1 active:scale-95">
+                        <i class="fa fa-magic mr-2 text-yellow-400"></i> OPTIMALIZOVAŤ NÁKUP
+                    </a>
+                    
+                    <p class="mt-4 text-[10px] text-gray-400 text-center uppercase tracking-widest font-bold">
+                        Vypočítame najvýhodnejšiu cestu
+                    </p>
+                </div>
+            </div>
+            {% endif %}
 
-# 3. ZMAZANIE Z KOŠÍKA
-def remove_from_cart(request, item_id):
-    if request.user.is_authenticated:
-        get_object_or_404(CartItem, id=item_id, user=request.user).delete()
-    else:
-        cart = request.session.get('guest_cart', [])
-        if item_id in cart:
-            cart.remove(item_id)
-            request.session['guest_cart'] = cart
-            request.session.modified = True
-    return redirect('cart_detail')
+        </div>
+    </main>
 
-# 4. ZOBRAZENIE KOŠÍKA
-def cart_detail(request):
-    items = get_cart_products(request)
-    formatted_items = [{'product': p, 'id': p.cart_item_id} for p in items]
-    return render(request, 'products/cart.html', {'items': formatted_items})
+    <footer class="py-12 text-center text-gray-300 text-xs font-bold uppercase tracking-widest">
+        MojPortal &copy; 2026
+    </footer>
 
-# 5. OPTIMALIZÁTOR
-def optimize_cart(request):
-    moj_kosik = get_cart_products(request)
-    if not moj_kosik: 
-        return redirect('home')
-
-    baliky = {}
-    suma_tovaru = 0
-    zoznam_mien = {}
-
-    for p in moj_kosik:
-        meno = p.name.strip().lower()
-        zoznam_mien[meno] = zoznam_mien.get(meno, 0) + 1
-        
-        if p.shop_name not in baliky:
-            baliky[p.shop_name] = {'produkty': [], 'cena_tovaru': 0, 'postovne': 3.90}
-        baliky[p.shop_name]['produkty'].append(p)
-        baliky[p.shop_name]['cena_tovaru'] += float(p.price)
-        suma_tovaru += float(p.price)
-
-    aktualna_celkova = suma_tovaru + (len(baliky) * 3.90)
-
-    # HĽADANIE ALTERNATÍVY
-    lepsia_alternativa = None
-    najlepšia_nova_suma = aktualna_celkova
-    vsetky_shopy = Product.objects.values_list('shop_name', flat=True).distinct()
-
-    for shop in vsetky_shopy:
-        suma_v_shope = 0
-        nasli_sme_vsetko = True
-        for meno_produkt, pocet in zoznam_mien.items():
-            p_alt = Product.objects.filter(name__iexact=meno_produkt, shop_name=shop).first()
-            if p_alt:
-                suma_v_shope += float(p_alt.price) * pocet
-            else:
-                nasli_sme_vsetko = False
-                break
-        
-        if nasli_sme_vsetko:
-            nova_suma = suma_v_shope + 3.90
-            if nova_suma < najlepšia_nova_suma:
-                najlepšia_nova_suma = nova_suma
-                lepsia_alternativa = {
-                    'obchod': shop,
-                    'nova_cena': round(nova_suma, 2),
-                    'uspora': round(aktualna_celkova - nova_suma, 2)
-                }
-
-    return render(request, 'products/optimization_result.html', {
-        'baliky': baliky,
-        'celkova_cena_tovaru': round(suma_tovaru, 2),
-        'celkove_postovne': round(len(baliky) * 3.90, 2),
-        'celkova_suma': round(aktualna_celkova, 2),
-        'lepsia_alternativa': lepsia_alternativa
-    })
-
-# 6. REGISTRÁCIA S PRELIATÍM KOŠÍKA
-def register(request):
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            
-            # --- LOGIKA PRELIATIA KOŠÍKA ---
-            guest_cart = request.session.get('guest_cart', [])
-            if guest_cart:
-                for product_id in guest_cart:
-                    CartItem.objects.create(user=user, product_id=product_id)
-                
-                del request.session['guest_cart']
-                request.session.modified = True
-            # -------------------------------
-
-            login(request, user)
-            return redirect('home')
-    else:
-        form = UserCreationForm()
-    return render(request, 'registration/register.html', {'form': form})
+</body>
+</html>
