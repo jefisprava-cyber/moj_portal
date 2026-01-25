@@ -124,12 +124,27 @@ def optimize_cart(request):
         'lepsia_alternativa': lepsia_alternativa
     })
 
-# 6. REGISTRÁCIA
+# 6. REGISTRÁCIA S PRELIATÍM KOŠÍKA
 def register(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
+            
+            # --- LOGIKA PRELIATIA KOŠÍKA ---
+            # Získame produkty, ktoré si užívateľ naklikal ako hosť
+            guest_cart = request.session.get('guest_cart', [])
+            
+            if guest_cart:
+                for product_id in guest_cart:
+                    # Každý produkt zo session uložíme do databázy pod novým userom
+                    CartItem.objects.create(user=user, product_id=product_id)
+                
+                # Keď sme všetko skopírovali, vymažeme hosťovský košík zo session
+                del request.session['guest_cart']
+                request.session.modified = True
+            # -------------------------------
+
             login(request, user)
             return redirect('home')
     else:
