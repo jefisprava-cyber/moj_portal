@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
+from django.contrib.auth.models import User  # <-- TOTO JE ONO
 from .models import Product, CartItem
 import random
 
@@ -27,7 +28,16 @@ def get_cart_products(request):
 # --- HLAVNÉ VIEWS ---
 
 def home(request):
-    # 1. AUTO-SEED: Ak je DB prázdna, vytvoríme produkty
+    # 1. AUTO-ADMIN: Vytvorenie superusera (Spustí sa, ak neexistuje)
+    # Toto ti umožní prihlásiť sa do /admin menom 'admin' a heslom 'admin123'
+    try:
+        if not User.objects.filter(username='admin').exists():
+            User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
+            print("✅ Superuser 'admin' bol úspešne vytvorený!")
+    except Exception as e:
+        print(f"⚠️ Chyba pri vytváraní admina: {e}")
+
+    # 2. AUTO-SEED: Ak je DB prázdna, vytvoríme produkty
     if Product.objects.count() == 0:
         sample_products = [
             ("iPhone 15 Pro", 1199.00, "iStore", "iphone"),
@@ -51,9 +61,9 @@ def home(request):
             p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
             p.save()
 
-    # 2. AUTO-FIX: Oprava existujúcich produktov (aby sa zobrazovali obrázky)
+    # 3. AUTO-FIX: Oprava obrázkov pre existujúce produkty
     for p in Product.objects.all():
-        if not p.image_url or "alza" in p.image_url: # Prepíšeme aj Alza linky, lebo nefungujú
+        if not p.image_url or "alza" in p.image_url:
             category = "electronics"
             if "iphone" in p.name.lower(): category = "iphone"
             elif "samsung" in p.name.lower(): category = "smartphone"
@@ -74,7 +84,7 @@ def home(request):
         
     return render(request, 'products/home.html', {'produkty': vsetky_produkty, 'pocet_v_kosiku': pocet})
 
-# --- KOŠÍK A OSTATNÉ FUNKCIE ---
+# --- OSTATNÉ FUNKCIE ---
 
 def add_to_cart(request, product_id):
     if request.user.is_authenticated:
@@ -166,7 +176,6 @@ def register(request):
         form = UserCreationForm()
     return render(request, 'registration/register.html', {'form': form})
 
-# --- DETAIL PRODUKTU (NOVÉ) ---
 def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     
@@ -175,10 +184,8 @@ def product_detail(request, product_id):
     else:
         pocet_v_kosiku = len(request.session.get('guest_cart', []))
     
-    # SEO popis
     seo_description = f"Najlepšia cena pre {product.name}. Kúpte výhodne od predajcu {product.shop_name} za {product.price} €."
     
-    # Podobné produkty (podľa prvého slova v názve)
     klucove_slovo = product.name.split()[0]
     podobne_produkty = Product.objects.filter(name__icontains=klucove_slovo).exclude(id=product.id)[:4]
 
