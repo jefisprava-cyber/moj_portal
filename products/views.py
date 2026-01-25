@@ -187,3 +187,4 @@ def product_detail(request, product_id):
         'pocet_v_kosiku': pocet_v_kosiku,
         'seo_description': seo_description,
         'podobne_produkty': podobne_produkty
+    })
