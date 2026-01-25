@@ -24,6 +24,15 @@ class CartItem(models.Model):
 
 # --- MODEL PRE OBJEDNÁVKU ---
 class Order(models.Model):
+    # Definícia stavov objednávky
+    STATUS_CHOICES = (
+        ('nova', 'Nová / Prijatá'),
+        ('spracovava_sa', 'Spracováva sa'),
+        ('odoslana', 'Odoslaná'),
+        ('dorucena', 'Doručená'),
+        ('zrusena', 'Zrušená'),
+    )
+
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     full_name = models.CharField(max_length=100)
     email = models.EmailField()
@@ -33,6 +42,12 @@ class Order(models.Model):
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
     paid = models.BooleanField(default=False)
+    
+    # NOVÉ: Stav objednávky
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='nova')
+    
+    # NOVÉ: Poznámka pre predajcu
+    note = models.TextField(blank=True, null=True)
 
     class Meta:
         ordering = ['-created_at']
