@@ -15,45 +15,57 @@ def get_cart_products(request):
     else:
         guest_cart = request.session.get('guest_cart', [])
         for p_id in guest_cart:
-            p = get_object_or_404(Product, id=p_id)
-            p.cart_item_id = p.id 
-            products.append(p)
+            # Ošetríme prípad, ak produkt už neexistuje
+            try:
+                p = Product.objects.get(id=p_id)
+                p.cart_item_id = p.id 
+                products.append(p)
+            except Product.DoesNotExist:
+                continue
     return products
 
 # --- HLAVNÉ VIEWS ---
 
 def home(request):
-    # 1. AUTO-SEED: Naplnenie databázy reálnymi produktmi (ak je prázdna)
+    # 1. AUTO-SEED: Ak je DB prázdna, vytvoríme produkty
     if Product.objects.count() == 0:
         import random
-        
-        # Zoznam REÁLNYCH produktov s funkčnými obrázkami
-        real_products = [
-            # Názov, Cena, Obchod, Obrázok URL
-            ("iPhone 15 128GB Black", 949.00, "Alza", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=RI048b1"),
-            ("Samsung Galaxy S24 256GB", 899.00, "Datart", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=SAMO0251b1"),
-            ("MacBook Air M3 13\" Midnight", 1299.00, "iStore", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=NL242a1a1"),
-            ("Sony WH-1000XM5 Black", 299.00, "Muziker", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=JEb625a1"),
-            ("PlayStation 5 Slim Edition", 549.00, "Brloh", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=MSX005b1"),
-            ("Dyson V15 Detect Absolute", 699.00, "Nay", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=DYSv15det"),
-            ("GoPro HERO12 Black", 399.00, "Alza", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=OG350d1"),
-            ("LEGO Star Wars Millennium Falcon", 169.00, "Dráčik", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=LOf75257"),
-            ("Logitech MX Master 3S", 99.00, "Alza", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=MG302c1"),
-            ("Samsung Odyssey G9 OLED", 1199.00, "Datart", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=WC055p5"),
-            ("AirPods Pro 2. generácia", 249.00, "iStyle", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=JEb618b1"),
-            ("JBL Flip 6 Black", 119.00, "Nay", "https://cdn.alza.sk/ImgW.ashx?fd=f16&cd=JBT850a1"),
+        # Používame "bezpečné" obrázky z LoremFlickr (Alza blokuje hotlinking)
+        sample_products = [
+            ("iPhone 15 Pro", 1199.00, "iStore", "iphone"),
+            ("Samsung Galaxy S24", 899.00, "Alza", "samsung-galaxy"),
+            ("MacBook Air M3", 1299.00, "iStyle", "laptop"),
+            ("Sony WH-1000XM5", 349.00, "Datart", "headphones"),
+            ("Dyson V15 Detect", 699.00, "Nay", "vacuum-cleaner"),
+            ("PlayStation 5 Slim", 549.00, "Brloh", "playstation"),
         ]
         
-        for name, price, shop, image in real_products:
-            Product.objects.create(
+        for name, price, shop, category in sample_products:
+            p = Product.objects.create(
                 name=name,
                 price=price,
                 shop_name=shop,
-                image_url=image,
                 delivery_days=random.randint(1, 4),
                 url="https://www.google.com/search?q=" + name.replace(" ", "+")
             )
+            # Priradenie obrázka s "lock" parametrom, aby sa nemenil pri refreshi
+            p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
+            p.save()
 
+    # 2. AUTO-FIX: Oprava existujúcich produktov (ak majú staré/nefunkčné linky)
+    # Toto sa spustí vždy a opraví obrázky, ak nie sú z LoremFlickr
+    for p in Product.objects.all():
+        if not p.image_url or "loremflickr" not in p.image_url:
+            category = "electronics"
+            if "iphone" in p.name.lower(): category = "iphone"
+            elif "samsung" in p.name.lower(): category = "smartphone"
+            elif "macbook" in p.name.lower(): category = "laptop"
+            elif "playstation" in p.name.lower(): category = "playstation"
+            
+            p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
+            p.save()
+
+    # Zvyšok view ostáva rovnaký
     hladany_vyraz = request.GET.get('q')
     vsetky_produkty = Product.objects.filter(name__icontains=hladany_vyraz) if hladany_vyraz else Product.objects.all()
     
@@ -64,7 +76,9 @@ def home(request):
         
     return render(request, 'products/home.html', {'produkty': vsetky_produkty, 'pocet_v_kosiku': pocet})
 
-# --- OSTATNÉ FUNKCIE ---
+# --- OSTATNÉ FUNKCIE (add_to_cart, remove, atď.) ---
+# (Sem skopíruj zvyšok funkcií z predchádzajúceho kódu: add_to_cart, remove_from_cart, cart_detail, optimize_cart, register, product_detail)
+# Aby som ti ušetril scrollovanie, tu sú v skrátenej forme, ale ty tam nechaj tie plné verzie, čo máš.
 
 def add_to_cart(request, product_id):
     if request.user.is_authenticated:
@@ -94,57 +108,42 @@ def cart_detail(request):
 
 def optimize_cart(request):
     moj_kosik = get_cart_products(request)
-    if not moj_kosik: 
-        return redirect('home')
-
+    if not moj_kosik: return redirect('home')
     baliky = {}
     suma_tovaru = 0
     zoznam_mien = {}
-
     for p in moj_kosik:
         meno = p.name.strip().lower()
-        kluc = meno.split()[0] 
+        kluc = meno.split()[0]
         zoznam_mien[kluc] = zoznam_mien.get(kluc, 0) + 1
-        
         if p.shop_name not in baliky:
             baliky[p.shop_name] = {'produkty': [], 'cena_tovaru': 0, 'postovne': 3.90}
         baliky[p.shop_name]['produkty'].append(p)
         baliky[p.shop_name]['cena_tovaru'] += float(p.price)
         suma_tovaru += float(p.price)
-
     aktualna_celkova = suma_tovaru + (len(baliky) * 3.90)
-
-    # HĽADANIE ALTERNATÍVY
+    
     lepsia_alternativa = None
     najlepšia_nova_suma = aktualna_celkova
     vsetky_shopy = Product.objects.values_list('shop_name', flat=True).distinct()
-
     for shop in vsetky_shopy:
         suma_v_shope = 0
         nasli_sme_vsetko = True
         for kluc_produkt, pocet in zoznam_mien.items():
             p_alt = Product.objects.filter(name__icontains=kluc_produkt, shop_name=shop).first()
-            if p_alt:
-                suma_v_shope += float(p_alt.price) * pocet
+            if p_alt: suma_v_shope += float(p_alt.price) * pocet
             else:
                 nasli_sme_vsetko = False
                 break
-        
         if nasli_sme_vsetko:
             nova_suma = suma_v_shope + 3.90
             if nova_suma < najlepšia_nova_suma:
                 najlepšia_nova_suma = nova_suma
-                lepsia_alternativa = {
-                    'obchod': shop,
-                    'nova_cena': round(nova_suma, 2),
-                    'uspora': round(aktualna_celkova - nova_suma, 2)
-                }
-
+                lepsia_alternativa = {'obchod': shop, 'nova_cena': round(nova_suma, 2), 'uspora': round(aktualna_celkova - nova_suma, 2)}
+                
     return render(request, 'products/optimization_result.html', {
-        'baliky': baliky,
-        'celkova_cena_tovaru': round(suma_tovaru, 2),
-        'celkove_postovne': round(len(baliky) * 3.90, 2),
-        'celkova_suma': round(aktualna_celkova, 2),
+        'baliky': baliky, 'celkova_cena_tovaru': round(suma_tovaru, 2),
+        'celkove_postovne': round(len(baliky) * 3.90, 2), 'celkova_suma': round(aktualna_celkova, 2),
         'lepsia_alternativa': lepsia_alternativa
     })
 
@@ -164,3 +163,22 @@ def register(request):
     else:
         form = UserCreationForm()
     return render(request, 'registration/register.html', {'form': form})
+    
+# Nezabudni pridať aj ten product_detail, ak ho už máš v urls.py!
+def product_detail(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    if request.user.is_authenticated:
+        pocet_v_kosiku = CartItem.objects.filter(user=request.user).count()
+    else:
+        pocet_v_kosiku = len(request.session.get('guest_cart', []))
+    
+    seo_description = f"Najlepšia cena pre {product.name}. Kúpte výhodne od predajcu {product.shop_name} za {product.price} €."
+    klucove_slovo = product.name.split()[0]
+    podobne_produkty = Product.objects.filter(name__icontains=klucove_slovo).exclude(id=product.id)[:4]
+
+    return render(request, 'products/product_detail.html', {
+        'p': product,
+        'pocet_v_kosiku': pocet_v_kosiku,
+        'seo_description': seo_description,
+        'podobne_produkty': podobne_produkty
+    })
