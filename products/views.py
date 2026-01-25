@@ -1,8 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
-from django.contrib.auth.models import User  # <-- TOTO JE ONO
-from .models import Product, CartItem
+from django.contrib.auth.models import User
+from .models import Product, CartItem, Order, OrderItem
+from .forms import OrderForm
 import random
 
 # --- POMOCNÉ FUNKCIE ---
@@ -28,16 +29,15 @@ def get_cart_products(request):
 # --- HLAVNÉ VIEWS ---
 
 def home(request):
-    # 1. AUTO-ADMIN: Vytvorenie superusera (Spustí sa, ak neexistuje)
-    # Toto ti umožní prihlásiť sa do /admin menom 'admin' a heslom 'admin123'
+    # 1. AUTO-ADMIN (Vytvorí admin/admin123 pri prvom načítaní)
     try:
         if not User.objects.filter(username='admin').exists():
             User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
-            print("✅ Superuser 'admin' bol úspešne vytvorený!")
+            print("✅ Superuser 'admin' vytvorený.")
     except Exception as e:
-        print(f"⚠️ Chyba pri vytváraní admina: {e}")
+        print(f"⚠️ Admin error: {e}")
 
-    # 2. AUTO-SEED: Ak je DB prázdna, vytvoríme produkty
+    # 2. AUTO-SEED (Naplnenie prázdnej databázy)
     if Product.objects.count() == 0:
         sample_products = [
             ("iPhone 15 Pro", 1199.00, "iStore", "iphone"),
@@ -49,42 +49,40 @@ def home(request):
             ("GoPro HERO12", 399.00, "Alza", "camera"),
             ("iPad Air 5", 649.00, "iStore", "tablet"),
         ]
-        
         for name, price, shop, category in sample_products:
             p = Product.objects.create(
-                name=name,
-                price=price,
-                shop_name=shop,
+                name=name, price=price, shop_name=shop,
                 delivery_days=random.randint(1, 4),
                 url="https://www.google.com/search?q=" + name.replace(" ", "+")
             )
             p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
             p.save()
 
-    # 3. AUTO-FIX: Oprava obrázkov pre existujúce produkty
+    # 3. AUTO-FIX (Oprava obrázkov)
     for p in Product.objects.all():
-        if not p.image_url or "alza" in p.image_url:
-            category = "electronics"
-            if "iphone" in p.name.lower(): category = "iphone"
-            elif "samsung" in p.name.lower(): category = "smartphone"
-            elif "macbook" in p.name.lower(): category = "laptop"
-            elif "playstation" in p.name.lower(): category = "playstation"
-            elif "dyson" in p.name.lower(): category = "technics"
-            
-            p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
+        if not p.image_url or "loremflickr" not in p.image_url:
+            cat = "electronics"
+            n = p.name.lower()
+            if "iphone" in n: cat = "iphone"
+            elif "samsung" in n: cat = "smartphone"
+            elif "macbook" in n: cat = "laptop"
+            p.image_url = f"https://loremflickr.com/400/400/{cat}?lock={p.id}"
             p.save()
 
     hladany_vyraz = request.GET.get('q')
     vsetky_produkty = Product.objects.filter(name__icontains=hladany_vyraz) if hladany_vyraz else Product.objects.all()
+    pocet = CartItem.objects.filter(user=request.user).count() if request.user.is_authenticated else len(request.session.get('guest_cart', []))
     
-    if request.user.is_authenticated:
-        pocet = CartItem.objects.filter(user=request.user).count()
-    else:
-        pocet = len(request.session.get('guest_cart', []))
-        
     return render(request, 'products/home.html', {'produkty': vsetky_produkty, 'pocet_v_kosiku': pocet})
 
-# --- OSTATNÉ FUNKCIE ---
+# --- PRODUKTY A KOŠÍK ---
+
+def product_detail(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    pocet = CartItem.objects.filter(user=request.user).count() if request.user.is_authenticated else len(request.session.get('guest_cart', []))
+    seo = f"Najlepšia cena pre {product.name}. Kúpte výhodne od {product.shop_name} za {product.price} €."
+    podobne = Product.objects.filter(name__icontains=product.name.split()[0]).exclude(id=product.id)[:4]
+    return render(request, 'products/product_detail.html', {'p': product, 'pocet_v_kosiku': pocet, 'seo_description': seo, 'podobne_produkty': podobne})
 
 def add_to_cart(request, product_id):
     if request.user.is_authenticated:
@@ -109,8 +107,41 @@ def remove_from_cart(request, item_id):
 
 def cart_detail(request):
     items = get_cart_products(request)
-    formatted_items = [{'product': p, 'id': p.cart_item_id} for p in items]
-    return render(request, 'products/cart.html', {'items': formatted_items})
+    formatted = [{'product': p, 'id': p.cart_item_id} for p in items]
+    return render(request, 'products/cart.html', {'items': formatted})
+
+# --- POKLADŇA (CHECKOUT) ---
+
+def checkout(request):
+    cart_items = get_cart_products(request)
+    if not cart_items: return redirect('home')
+
+    total_price = sum(float(item.price) for item in cart_items)
+
+    if request.method == 'POST':
+        form = OrderForm(request.POST)
+        if form.is_valid():
+            order = form.save(commit=False)
+            if request.user.is_authenticated: order.user = request.user
+            order.total_price = total_price
+            order.save()
+
+            for p in cart_items:
+                OrderItem.objects.create(order=order, product=p, price=p.price, quantity=1)
+
+            if request.user.is_authenticated:
+                CartItem.objects.filter(user=request.user).delete()
+            else:
+                if 'guest_cart' in request.session: del request.session['guest_cart']
+                request.session.modified = True
+
+            return render(request, 'products/order_success.html', {'order': order})
+    else:
+        form = OrderForm(initial={'email': request.user.email} if request.user.is_authenticated else {})
+
+    return render(request, 'products/checkout.html', {'form': form, 'cart_items': cart_items, 'total_price': round(total_price, 2)})
+
+# --- OPTIMALIZÁCIA ---
 
 def optimize_cart(request):
     moj_kosik = get_cart_products(request)
@@ -124,7 +155,6 @@ def optimize_cart(request):
         meno = p.name.strip().lower()
         kluc = meno.split()[0]
         zoznam_mien[kluc] = zoznam_mien.get(kluc, 0) + 1
-        
         if p.shop_name not in baliky:
             baliky[p.shop_name] = {'produkty': [], 'cena_tovaru': 0, 'postovne': 3.90}
         baliky[p.shop_name]['produkty'].append(p)
@@ -132,7 +162,6 @@ def optimize_cart(request):
         suma_tovaru += float(p.price)
         
     aktualna_celkova = suma_tovaru + (len(baliky) * 3.90)
-    
     lepsia_alternativa = None
     najlepšia_nova_suma = aktualna_celkova
     vsetky_shopy = Product.objects.values_list('shop_name', flat=True).distinct()
@@ -146,7 +175,6 @@ def optimize_cart(request):
             else:
                 nasli_sme_vsetko = False
                 break
-        
         if nasli_sme_vsetko:
             nova_suma = suma_v_shope + 3.90
             if nova_suma < najlepšia_nova_suma:
@@ -165,33 +193,9 @@ def register(request):
         if form.is_valid():
             user = form.save()
             guest_cart = request.session.get('guest_cart', [])
-            if guest_cart:
-                for product_id in guest_cart:
-                    CartItem.objects.create(user=user, product_id=product_id)
-                del request.session['guest_cart']
-                request.session.modified = True
+            for p_id in guest_cart: CartItem.objects.create(user=user, product_id=p_id)
+            if 'guest_cart' in request.session: del request.session['guest_cart']
             login(request, user)
             return redirect('home')
-    else:
-        form = UserCreationForm()
+    else: form = UserCreationForm()
     return render(request, 'registration/register.html', {'form': form})
-
-def product_detail(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-    
-    if request.user.is_authenticated:
-        pocet_v_kosiku = CartItem.objects.filter(user=request.user).count()
-    else:
-        pocet_v_kosiku = len(request.session.get('guest_cart', []))
-    
-    seo_description = f"Najlepšia cena pre {product.name}. Kúpte výhodne od predajcu {product.shop_name} za {product.price} €."
-    
-    klucove_slovo = product.name.split()[0]
-    podobne_produkty = Product.objects.filter(name__icontains=klucove_slovo).exclude(id=product.id)[:4]
-
-    return render(request, 'products/product_detail.html', {
-        'p': product,
-        'pocet_v_kosiku': pocet_v_kosiku,
-        'seo_description': seo_description,
-        'podobne_produkty': podobne_produkty
-    })

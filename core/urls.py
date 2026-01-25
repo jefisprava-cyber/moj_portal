@@ -13,6 +13,7 @@ urlpatterns = [
     path('remove/<int:item_id>/', views.remove_from_cart, name='remove_from_cart'),
     path('optimize/', views.optimize_cart, name='optimize_cart'),
     path('product/<int:product_id>/', views.product_detail, name='product_detail'),
+    path('checkout/', views.checkout, name='checkout'),
     
     # Registrácia
     path('register/', views.register, name='register'),

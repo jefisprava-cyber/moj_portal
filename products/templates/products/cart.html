@@ -84,7 +84,7 @@
                             <span>Počet položiek:</span>
                             <span class="font-black text-gray-900">{{ items|length }} ks</span>
                         </div>
-                        
+
                         <div class="p-5 bg-blue-50 rounded-2xl border border-blue-100 relative overflow-hidden">
                             <i class="fa fa-lightbulb absolute -right-2 -bottom-2 text-4xl text-blue-100 rotate-12"></i>
                             <p class="text-[10px] text-blue-600 font-black uppercase tracking-widest mb-1 relative">Tip pre vás</p>
@@ -94,12 +94,18 @@
                         </div>
                     </div>
 
-                    <a href="{% url 'optimize_cart' %}" class="w-full block text-center bg-gray-900 text-white font-black py-5 rounded-2xl hover:bg-blue-600 transition-all shadow-xl shadow-gray-200 transform hover:-translate-y-1 active:scale-95">
-                        <i class="fa fa-magic mr-2 text-yellow-400"></i> OPTIMALIZOVAŤ NÁKUP
-                    </a>
+                    <div class="space-y-4">
+                        <a href="{% url 'optimize_cart' %}" class="w-full block text-center bg-gray-900 text-white font-black py-4 rounded-2xl hover:bg-blue-600 transition-all shadow-lg transform active:scale-95">
+                            <i class="fa fa-magic mr-2 text-yellow-400"></i> OPTIMALIZOVAŤ NÁKUP
+                        </a>
+
+                        <a href="{% url 'checkout' %}" class="w-full block text-center bg-green-600 text-white font-black py-5 rounded-2xl hover:bg-green-700 transition-all shadow-xl shadow-green-100 transform hover:-translate-y-1 active:scale-95">
+                            <i class="fa fa-credit-card mr-2"></i> PREJSŤ K POKLADNI
+                        </a>
+                    </div>
                     
-                    <p class="mt-4 text-[10px] text-gray-400 text-center uppercase tracking-widest font-bold">
-                        Vypočítame najvýhodnejšiu cestu
+                    <p class="mt-6 text-[10px] text-gray-400 text-center uppercase tracking-widest font-bold">
+                        Bezpečný nákup cez MojPortal
                     </p>
                 </div>
             </div>
