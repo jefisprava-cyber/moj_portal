@@ -6,6 +6,23 @@ from .models import Product, CartItem, Order, OrderItem
 from .forms import OrderForm
 import random
 
+# --- KONFIGURÁCIA POŠTOVNÉHO ---
+# Tu si môžeš hromadne meniť ceny dopravy pre jednotlivé obchody
+SHIPPING_PRICES = {
+    "Alza": 4.90,
+    "iStore": 5.00,
+    "iStyle": 5.50,
+    "Nay": 3.90,
+    "Datart": 3.90,
+    "Brloh": 4.50,
+}
+DEFAULT_SHIPPING = 3.90  # Cena pre obchody, ktoré nie sú v zozname vyššie
+
+def get_shipping_cost(shop_name):
+    """Pomocná funkcia na zistenie ceny dopravy pre obchod"""
+    return SHIPPING_PRICES.get(shop_name, DEFAULT_SHIPPING)
+
+
 # --- POMOCNÉ FUNKCIE ---
 def get_cart_products(request):
     products = []
@@ -121,6 +138,7 @@ def checkout(request):
     
     final_items_to_order = []
 
+    # Logika výberu produktov (A vs B)
     if is_optimized and target_shop:
         for original_p in cart_items:
             search_name = original_p.name.split()[0]
@@ -132,9 +150,13 @@ def checkout(request):
     else:
         final_items_to_order = cart_items
 
+    # Výpočet cien
     total_items_price = sum(float(item.price) for item in final_items_to_order)
+    
+    # NOVÉ: Výpočet dynamického poštovného podľa obchodov
     unique_shops = set(item.shop_name for item in final_items_to_order)
-    shipping_cost = len(unique_shops) * 3.90
+    shipping_cost = sum(get_shipping_cost(shop) for shop in unique_shops)
+    
     grand_total = total_items_price + shipping_cost
 
     if request.method == 'POST':
@@ -180,39 +202,75 @@ def optimize_cart(request):
     suma_tovaru = 0
     zoznam_mien = {}
     
+    # Premenná pre celkové poštovné pôvodnej cesty
+    aktualne_postovne_total = 0
+
+    max_dni_povodna = 0
+    
+    # 1. Analýza pôvodného košíka
     for p in moj_kosik:
         meno = p.name.strip().lower()
         kluc = meno.split()[0]
         zoznam_mien[kluc] = zoznam_mien.get(kluc, 0) + 1
+        
+        shop_postovne = get_shipping_cost(p.shop_name)
+
         if p.shop_name not in baliky:
-            baliky[p.shop_name] = {'produkty': [], 'cena_tovaru': 0, 'postovne': 3.90}
+            # Ak je to nový obchod v zozname, prirátame jeho poštovné
+            baliky[p.shop_name] = {'produkty': [], 'cena_tovaru': 0, 'postovne': shop_postovne}
+            aktualne_postovne_total += shop_postovne
+            
         baliky[p.shop_name]['produkty'].append(p)
         baliky[p.shop_name]['cena_tovaru'] += float(p.price)
         suma_tovaru += float(p.price)
         
-    aktualna_celkova = suma_tovaru + (len(baliky) * 3.90)
+        if p.delivery_days > max_dni_povodna:
+            max_dni_povodna = p.delivery_days
+        
+    aktualna_celkova = suma_tovaru + aktualne_postovne_total
+    
+    # 2. Hľadanie alternatív
     lepsia_alternativa = None
     najlepšia_nova_suma = aktualna_celkova
     vsetky_shopy = Product.objects.values_list('shop_name', flat=True).distinct()
     
     for shop in vsetky_shopy:
         suma_v_shope = 0
+        max_dni_nova = 0
         nasli_sme_vsetko = True
+        
         for kluc_produkt, pocet in zoznam_mien.items():
             p_alt = Product.objects.filter(name__icontains=kluc_produkt, shop_name=shop).first()
-            if p_alt: suma_v_shope += float(p_alt.price) * pocet
+            if p_alt: 
+                suma_v_shope += float(p_alt.price) * pocet
+                if p_alt.delivery_days > max_dni_nova:
+                    max_dni_nova = p_alt.delivery_days
             else:
                 nasli_sme_vsetko = False
                 break
+                
         if nasli_sme_vsetko:
-            nova_suma = suma_v_shope + 3.90
-            if nova_suma < najlepšia_nova_suma:
-                najlepšia_nova_suma = nova_suma
-                lepsia_alternativa = {'obchod': shop, 'nova_cena': round(nova_suma, 2), 'uspora': round(aktualna_celkova - nova_suma, 2)}
+            # NOVÉ: Použijeme cenu dopravy pre tento konkrétny obchod
+            shipping_this_shop = get_shipping_cost(shop)
+            nova_suma = suma_v_shope + shipping_this_shop
+            
+            # Podmienka: cena je nižšia ALEBO rovnaká (lepšie mať 1 balík)
+            if nova_suma <= aktualna_celkova:
+                 if nova_suma < najlepšia_nova_suma or lepsia_alternativa is None:
+                    najlepšia_nova_suma = nova_suma
+                    lepsia_alternativa = {
+                        'obchod': shop, 
+                        'nova_cena': round(nova_suma, 2), 
+                        'uspora': round(aktualna_celkova - nova_suma, 2),
+                        'dni_dorucenia': max_dni_nova
+                    }
                 
     return render(request, 'products/optimization_result.html', {
-        'baliky': baliky, 'celkova_cena_tovaru': round(suma_tovaru, 2),
-        'celkove_postovne': round(len(baliky) * 3.90, 2), 'celkova_suma': round(aktualna_celkova, 2),
+        'baliky': baliky, 
+        'celkova_cena_tovaru': round(suma_tovaru, 2),
+        'celkove_postovne': round(aktualne_postovne_total, 2), 
+        'celkova_suma': round(aktualna_celkova, 2),
+        'max_dni_povodna': max_dni_povodna,
         'lepsia_alternativa': lepsia_alternativa
     })
 

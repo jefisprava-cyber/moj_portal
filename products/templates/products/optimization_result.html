@@ -21,8 +21,8 @@
     <main class="container mx-auto px-6 py-12 max-w-6xl">
         
         <div class="text-center mb-12">
-            <h1 class="text-4xl font-black text-gray-900 mb-4 tracking-tight">Ako si želáte objednať?</h1>
-            <p class="text-gray-500 text-lg">Porovnali sme váš výber s najlepšou možnou alternatívou na trhu.</p>
+            <h1 class="text-4xl font-black text-gray-900 mb-4 tracking-tight">Dve cesty k vašej objednávke</h1>
+            <p class="text-gray-500 text-lg">Vyberte si medzi pôvodným nákupom alebo našou optimalizovanou ponukou.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -30,7 +30,7 @@
             <div class="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 flex flex-col overflow-hidden relative">
                 <div class="p-8 border-b border-gray-50">
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Možnosť A</span>
-                    <h2 class="text-2xl font-bold text-gray-800 mt-1">Váš pôvodný výber</h2>
+                    <h2 class="text-2xl font-bold text-gray-800 mt-1">Pôvodný mix obchodov</h2>
                 </div>
                 
                 <div class="p-8 flex-grow bg-gray-50/30">
@@ -46,6 +46,13 @@
                         {% endfor %}
                     </ul>
                     
+                    <div class="flex items-center text-gray-500 mb-4 px-2">
+                        <i class="fa fa-truck mr-3 text-gray-400"></i>
+                        <span class="text-sm">
+                            Všetko doručené do <span class="font-bold text-gray-800">{{ max_dni_povodna }} dní</span>
+                        </span>
+                    </div>
+
                     <div class="space-y-2 text-sm text-gray-500 px-2">
                         <div class="flex justify-between">
                             <span>Suma za tovar:</span>
@@ -77,26 +84,37 @@
                     
                     <div class="p-8 border-b border-blue-50">
                         <span class="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Možnosť B</span>
-                        <h2 class="text-2xl font-bold text-gray-800 mt-1">Optimalizovaný nákup</h2>
+                        <h2 class="text-2xl font-bold text-gray-800 mt-1">Smart nákup z jedného miesta</h2>
                     </div>
 
                     <div class="p-8 flex-grow bg-blue-50/20">
                         <div class="bg-white p-6 rounded-3xl border border-blue-100 shadow-sm mb-6">
                             <div class="flex items-center justify-between mb-4">
-                                <span class="text-xs font-black text-blue-600 uppercase tracking-widest">Všetko z jedného miesta</span>
-                                <i class="fa fa-magic text-blue-600"></i>
+                                <span class="text-xs font-black text-blue-600 uppercase tracking-widest">Všetko odosiela</span>
+                                <i class="fa fa-box-open text-blue-600"></i>
                             </div>
                             <p class="text-3xl font-black text-gray-900 mb-1 uppercase tracking-tight">{{ lepsia_alternativa.obchod }}</p>
-                            <p class="text-sm text-gray-500">Všetky produkty sú v tomto obchode dostupné.</p>
+                            
+                            <div class="flex items-center mt-3 text-sm">
+                                <i class="fa fa-clock text-blue-500 mr-2"></i>
+                                <span class="text-gray-600">
+                                    Odhad doručenia: 
+                                    <span class="font-bold text-gray-900">do {{ lepsia_alternativa.dni_dorucenia }} dní</span>
+                                </span>
+                            </div>
                         </div>
 
                         <div class="bg-green-100 p-4 rounded-2xl border border-green-200 flex items-center mb-8">
                             <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white mr-4 shadow-lg shadow-green-200 flex-shrink-0">
-                                <i class="fa fa-piggy-bank"></i>
+                                <i class="fa fa-check"></i>
                             </div>
                             <div>
-                                <p class="text-[10px] font-black text-green-700 uppercase leading-none mb-1">Celková úspora</p>
-                                <p class="text-2xl font-black text-green-700">{{ lepsia_alternativa.uspora }} €</p>
+                                <p class="text-[10px] font-black text-green-700 uppercase leading-none mb-1">Výhoda pre vás</p>
+                                {% if lepsia_alternativa.uspora > 0 %}
+                                    <p class="text-lg font-bold text-green-800">Ušetríte {{ lepsia_alternativa.uspora }} €</p>
+                                {% else %}
+                                    <p class="text-lg font-bold text-green-800">Menej balíkov, menej starostí</p>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -114,11 +132,11 @@
                     </div>
                 {% else %}
                     <div class="p-12 flex flex-col items-center justify-center h-full text-center bg-gray-50">
-                        <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-6">
-                            <i class="fa fa-trophy text-yellow-500 text-3xl"></i>
+                        <div class="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mb-6">
+                            <i class="fa fa-search text-gray-400 text-3xl"></i>
                         </div>
-                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Máte najlepšiu cenu!</h2>
-                        <p class="text-gray-500 mb-8">Nenašli sme žiadnu lacnejšiu kombináciu obchodov.</p>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Žiadna lepšia cesta</h2>
+                        <p class="text-gray-500 mb-8">Váš aktuálny výber je už ten najlepší možný.</p>
                         <a href="{% url 'checkout' %}" class="w-full text-center py-4 bg-gray-900 text-white font-bold rounded-xl">
                             Pokračovať v objednávke
                         </a>
@@ -129,7 +147,7 @@
         </div>
 
         <p class="text-center mt-12 text-xs text-gray-400 font-bold uppercase tracking-widest">
-            <i class="fa fa-lock mr-1"></i> Bezpečné spracovanie objednávky cez MojPortal
+            <i class="fa fa-lock mr-1"></i> Garantovaná bezpečnosť nákupu
         </p>
 
     </main>
