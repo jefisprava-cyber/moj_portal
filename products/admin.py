@@ -1,38 +1,33 @@
 from django.contrib import admin
-from django.utils.safestring import mark_safe
 from .models import Category, Product, Offer, CartItem, Order, OrderItem
 
-# Ponuky sa editujú priamo vnútri Produktu
+# 1. Toto zobrazí produkty vo vnútri Objednávky
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    extra = 0 # Nezobrazuje prázdne riadky navyše
+    readonly_fields = ['offer', 'price', 'quantity'] # Aby sa to nedalo prepísať
+    can_delete = False
+
+# 2. Nastavenie zobrazenia Objednávky
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ['id', 'full_name', 'email', 'total_price', 'status', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['full_name', 'email', 'id']
+    list_editable = ['status']
+    inlines = [OrderItemInline] # <--- TOTO JE KĽÚČOVÉ
+
+# 3. Zvyšok (Produkt, Ponuky...)
 class OfferInline(admin.TabularInline):
     model = Offer
     extra = 1
-    fields = ['shop_name', 'price', 'delivery_days', 'url']
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'category', 'count_offers', 'cheapest_price_display']
-    list_filter = ['category']
+    list_display = ['name', 'category']
     search_fields = ['name']
-    inlines = [OfferInline] # Toto zobrazí ponuky v detaile produktu
-
-    def count_offers(self, obj):
-        return obj.offers.count()
-    count_offers.short_description = "Počet e-shopov"
-
-    def cheapest_price_display(self, obj):
-        cheapest = obj.get_cheapest_offer()
-        return f"{cheapest.price} €" if cheapest else "-"
-    cheapest_price_display.short_description = "Najlepšia cena"
-
-@admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
-    list_display = ['id', 'status', 'full_name', 'total_price', 'created_at']
-    list_editable = ['status']
-    inlines = [] # Položky riešime nižšie
-
-    # Keďže sme zmenili OrderItem, musíme si tu spraviť vlastný inline alebo to nechať tak
-    # Pre jednoduchosť to zatiaľ necháme bez inline editácie položiek, len základ
+    inlines = [OfferInline]
 
 admin.site.register(Category)
 admin.site.register(Offer)
-admin.site.register(CartItem)
+# CartItem ani OrderItem nemusíme registrovať zvlášť, sú súčasťou iných
