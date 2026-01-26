@@ -2,111 +2,111 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.contrib.auth.models import User
-from .models import Product, CartItem, Order, OrderItem
+from .models import Category, Product, Offer, CartItem, Order, OrderItem
 from .forms import OrderForm
 import random
 
-# --- KONFIGURÁCIA POŠTOVNÉHO ---
-# Tu si môžeš hromadne meniť ceny dopravy pre jednotlivé obchody
+# --- CENNÍK DOPRAVY ---
 SHIPPING_PRICES = {
-    "Alza": 4.90,
-    "iStore": 5.00,
-    "iStyle": 5.50,
-    "Nay": 3.90,
-    "Datart": 3.90,
-    "Brloh": 4.50,
+    "Alza": 4.90, "iStore": 5.00, "iStyle": 5.50,
+    "Nay": 3.90, "Datart": 3.90, "Brloh": 4.50,
 }
-DEFAULT_SHIPPING = 3.90  # Cena pre obchody, ktoré nie sú v zozname vyššie
+DEFAULT_SHIPPING = 3.90
 
 def get_shipping_cost(shop_name):
-    """Pomocná funkcia na zistenie ceny dopravy pre obchod"""
     return SHIPPING_PRICES.get(shop_name, DEFAULT_SHIPPING)
 
-
-# --- POMOCNÉ FUNKCIE ---
-def get_cart_products(request):
-    products = []
+def get_cart_offers(request):
+    offers = []
     if request.user.is_authenticated:
         items = CartItem.objects.filter(user=request.user)
         for item in items:
-            p = item.product
-            p.cart_item_id = item.id 
-            products.append(p)
+            o = item.offer
+            o.cart_item_id = item.id
+            offers.append(o)
     else:
         guest_cart = request.session.get('guest_cart', [])
-        for p_id in guest_cart:
+        for offer_id in guest_cart:
             try:
-                p = Product.objects.get(id=p_id)
-                p.cart_item_id = p.id 
-                products.append(p)
-            except Product.DoesNotExist:
-                continue
-    return products
+                o = Offer.objects.get(id=offer_id)
+                o.cart_item_id = o.id
+                offers.append(o)
+            except Offer.DoesNotExist: continue
+    return offers
 
-# --- HLAVNÉ VIEWS ---
+# --- HLAVNÉ ---
 
 def home(request):
     # 1. AUTO-ADMIN
-    try:
-        if not User.objects.filter(username='admin').exists():
-            User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
-            print("✅ Superuser 'admin' vytvorený.")
-    except Exception as e:
-        print(f"⚠️ Admin error: {e}")
+    if not User.objects.filter(username='admin').exists():
+        User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
 
-    # 2. AUTO-SEED
+    # 2. AUTO-SEED (Nová štruktúra: Kategória -> Produkt -> Ponuky)
     if Product.objects.count() == 0:
-        sample_products = [
-            ("iPhone 15 Pro", 1199.00, "iStore", "iphone"),
-            ("Samsung Galaxy S24", 899.00, "Alza", "samsung-galaxy"),
-            ("MacBook Air M3", 1299.00, "iStyle", "laptop"),
-            ("Sony WH-1000XM5", 349.00, "Datart", "headphones"),
-            ("Dyson V15 Detect", 699.00, "Nay", "vacuum-cleaner"),
-            ("PlayStation 5 Slim", 549.00, "Brloh", "playstation"),
-            ("GoPro HERO12", 399.00, "Alza", "camera"),
-            ("iPad Air 5", 649.00, "iStore", "tablet"),
+        cat_elek = Category.objects.create(name="Elektronika", slug="elektronika")
+        cat_mobil = Category.objects.create(name="Mobily", slug="mobily", parent=cat_elek)
+        cat_laptop = Category.objects.create(name="Notebooky", slug="notebooky", parent=cat_elek)
+        
+        products_data = [
+            ("iPhone 15 Pro", cat_mobil, "iphone"),
+            ("Samsung Galaxy S24", cat_mobil, "samsung-galaxy"),
+            ("MacBook Air M3", cat_laptop, "laptop"),
+            ("Sony WH-1000XM5", cat_elek, "headphones"),
         ]
-        for name, price, shop, category in sample_products:
+        
+        shops = ["Alza", "Nay", "iStyle", "Datart"]
+        
+        for name, cat, img_key in products_data:
             p = Product.objects.create(
-                name=name, price=price, shop_name=shop,
-                delivery_days=random.randint(1, 4),
-                url="https://www.google.com/search?q=" + name.replace(" ", "+")
+                name=name, category=cat, 
+                image_url=f"https://loremflickr.com/400/400/{img_key}?lock={random.randint(1,100)}"
             )
-            p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
-            p.save()
+            # Vytvoríme 2-4 ponuky pre každý produkt
+            chosen_shops = random.sample(shops, random.randint(2, 4))
+            base_price = random.randint(300, 1200)
+            
+            for shop in chosen_shops:
+                Offer.objects.create(
+                    product=p,
+                    shop_name=shop,
+                    price=base_price + random.randint(-50, 50),
+                    delivery_days=random.randint(1, 5),
+                    url=f"https://google.com"
+                )
 
-    # 3. AUTO-FIX
-    for p in Product.objects.all():
-        if not p.image_url or "loremflickr" not in p.image_url:
-            cat = "electronics"
-            n = p.name.lower()
-            if "iphone" in n: cat = "iphone"
-            elif "samsung" in n: cat = "smartphone"
-            elif "macbook" in n: cat = "laptop"
-            p.image_url = f"https://loremflickr.com/400/400/{cat}?lock={p.id}"
-            p.save()
-
+    # Zobrazovanie pre Home Page
     hladany_vyraz = request.GET.get('q')
-    vsetky_produkty = Product.objects.filter(name__icontains=hladany_vyraz) if hladany_vyraz else Product.objects.all()
+    if hladany_vyraz:
+        produkty = Product.objects.filter(name__icontains=hladany_vyraz)
+    else:
+        produkty = Product.objects.all()
+
+    # Pre každý produkt nájdeme najlepšiu ponuku na zobrazenie "od X €"
+    for p in produkty:
+        cheapest = p.offers.order_by('price').first()
+        p.price_display = cheapest.price if cheapest else 0
+        p.shop_display = cheapest.shop_name if cheapest else ""
+        p.delivery_display = cheapest.delivery_days if cheapest else 0
+        p.best_offer_id = cheapest.id if cheapest else None
+
     pocet = CartItem.objects.filter(user=request.user).count() if request.user.is_authenticated else len(request.session.get('guest_cart', []))
     
-    return render(request, 'products/home.html', {'produkty': vsetky_produkty, 'pocet_v_kosiku': pocet})
+    return render(request, 'products/home.html', {'produkty': produkty, 'pocet_v_kosiku': pocet})
 
-# --- PRODUKTY A KOŠÍK ---
+# --- DETAIL A KOŠÍK ---
 
 def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
+    offers = product.offers.all().order_by('price')
     pocet = CartItem.objects.filter(user=request.user).count() if request.user.is_authenticated else len(request.session.get('guest_cart', []))
-    seo = f"Najlepšia cena pre {product.name}. Kúpte výhodne od {product.shop_name} za {product.price} €."
-    podobne = Product.objects.filter(name__icontains=product.name.split()[0]).exclude(id=product.id)[:4]
-    return render(request, 'products/product_detail.html', {'p': product, 'pocet_v_kosiku': pocet, 'seo_description': seo, 'podobne_produkty': podobne})
+    return render(request, 'products/product_detail.html', {'p': product, 'offers': offers, 'pocet_v_kosiku': pocet})
 
-def add_to_cart(request, product_id):
+def add_to_cart(request, offer_id): # Prijíma ID Ponuky
     if request.user.is_authenticated:
-        CartItem.objects.create(user=request.user, product_id=product_id)
+        CartItem.objects.create(user=request.user, offer_id=offer_id)
     else:
         cart = request.session.get('guest_cart', [])
-        cart.append(product_id)
+        cart.append(offer_id)
         request.session['guest_cart'] = cart
         request.session.modified = True
     return redirect('home')
@@ -116,48 +116,115 @@ def remove_from_cart(request, item_id):
         get_object_or_404(CartItem, id=item_id, user=request.user).delete()
     else:
         cart = request.session.get('guest_cart', [])
-        if item_id in cart:
+        if item_id in cart: 
             cart.remove(item_id)
             request.session['guest_cart'] = cart
             request.session.modified = True
     return redirect('cart_detail')
 
 def cart_detail(request):
-    items = get_cart_products(request)
-    formatted = [{'product': p, 'id': p.cart_item_id} for p in items]
+    offers = get_cart_offers(request)
+    formatted = [{'offer': o, 'id': o.cart_item_id} for o in offers]
     return render(request, 'products/cart.html', {'items': formatted})
 
-# --- POKLADŇA (CHECKOUT) ---
+# --- OPTIMALIZÁCIA ---
+
+def optimize_cart(request):
+    cart_offers = get_cart_offers(request)
+    if not cart_offers: return redirect('home')
+    
+    baliky = {}
+    total_goods = 0
+    total_shipping = 0
+    max_days_orig = 0
+    
+    # 1. Analýza košíka
+    for o in cart_offers:
+        shop = o.shop_name
+        if shop not in baliky:
+            shipping = get_shipping_cost(shop)
+            baliky[shop] = {'produkty': [], 'cena_tovaru': 0, 'postovne': shipping}
+            total_shipping += shipping
+        
+        baliky[shop]['produkty'].append(o)
+        baliky[shop]['cena_tovaru'] += float(o.price)
+        total_goods += float(o.price)
+        
+        if o.delivery_days > max_days_orig:
+            max_days_orig = o.delivery_days
+            
+    current_total = total_goods + total_shipping
+    
+    # 2. Hľadanie alternatív (Jeden obchod so všetkým)
+    required_products = list(set([o.product for o in cart_offers]))
+    all_shops = Offer.objects.values_list('shop_name', flat=True).distinct()
+    
+    best_alt = None
+    best_price = current_total
+    
+    for shop in all_shops:
+        shop_total_price = 0
+        shop_max_days = 0
+        found_all = True
+        
+        for prod in required_products:
+            # Má tento obchod ponuku pre tento produkt?
+            offer = prod.offers.filter(shop_name=shop).first()
+            if offer:
+                shop_total_price += float(offer.price)
+                if offer.delivery_days > shop_max_days:
+                    shop_max_days = offer.delivery_days
+            else:
+                found_all = False
+                break
+        
+        if found_all:
+            shipping = get_shipping_cost(shop)
+            final_shop_price = shop_total_price + shipping
+            
+            # Ak je cena nižšia alebo rovnaká (preferujeme jeden balík)
+            if final_shop_price <= current_total:
+                if final_shop_price < best_price or best_alt is None:
+                    best_price = final_shop_price
+                    best_alt = {
+                        'obchod': shop,
+                        'nova_cena': round(final_shop_price, 2),
+                        'uspora': round(current_total - final_shop_price, 2),
+                        'dni_dorucenia': shop_max_days
+                    }
+
+    return render(request, 'products/optimization_result.html', {
+        'baliky': baliky,
+        'celkova_cena_tovaru': round(total_goods, 2),
+        'celkove_postovne': round(total_shipping, 2),
+        'celkova_suma': round(current_total, 2),
+        'max_dni_povodna': max_days_orig,
+        'lepsia_alternativa': best_alt
+    })
+
+# --- CHECKOUT ---
 
 def checkout(request):
-    cart_items = get_cart_products(request)
-    if not cart_items: return redirect('home')
+    cart_offers = get_cart_offers(request)
+    if not cart_offers: return redirect('home')
 
     is_optimized = request.GET.get('optimized') == 'true'
     target_shop = request.GET.get('shop')
     
-    final_items_to_order = []
+    final_offers = []
 
-    # Logika výberu produktov (A vs B)
     if is_optimized and target_shop:
-        for original_p in cart_items:
-            search_name = original_p.name.split()[0]
-            alt_product = Product.objects.filter(name__icontains=search_name, shop_name=target_shop).first()
-            if alt_product:
-                final_items_to_order.append(alt_product)
-            else:
-                final_items_to_order.append(original_p)
+        required_products = set([o.product for o in cart_offers])
+        for prod in required_products:
+            alt = prod.offers.filter(shop_name=target_shop).first()
+            final_offers.append(alt if alt else cart_offers[0]) 
     else:
-        final_items_to_order = cart_items
+        final_offers = cart_offers
 
-    # Výpočet cien
-    total_items_price = sum(float(item.price) for item in final_items_to_order)
-    
-    # NOVÉ: Výpočet dynamického poštovného podľa obchodov
-    unique_shops = set(item.shop_name for item in final_items_to_order)
-    shipping_cost = sum(get_shipping_cost(shop) for shop in unique_shops)
-    
-    grand_total = total_items_price + shipping_cost
+    goods_price = sum(float(o.price) for o in final_offers)
+    shops = set(o.shop_name for o in final_offers)
+    shipping = sum(get_shipping_cost(s) for s in shops)
+    grand_total = goods_price + shipping
 
     if request.method == 'POST':
         form = OrderForm(request.POST)
@@ -165,19 +232,14 @@ def checkout(request):
             order = form.save(commit=False)
             if request.user.is_authenticated: order.user = request.user
             order.total_price = grand_total
-            
-            if is_optimized:
-                prefix = f"[CESTA B - {target_shop}] "
-                order.note = prefix + (order.note if order.note else "")
-            
+            if is_optimized: order.note = f"[CESTA B - {target_shop}] " + (order.note or "")
             order.save()
 
-            for p in final_items_to_order:
-                OrderItem.objects.create(order=order, product=p, price=p.price, quantity=1)
+            for o in final_offers:
+                OrderItem.objects.create(order=order, offer=o, price=o.price, quantity=1)
 
-            if request.user.is_authenticated:
-                CartItem.objects.filter(user=request.user).delete()
-            else:
+            if request.user.is_authenticated: CartItem.objects.filter(user=request.user).delete()
+            else: 
                 if 'guest_cart' in request.session: del request.session['guest_cart']
                 request.session.modified = True
 
@@ -186,92 +248,8 @@ def checkout(request):
         form = OrderForm(initial={'email': request.user.email} if request.user.is_authenticated else {})
 
     return render(request, 'products/checkout.html', {
-        'form': form, 
-        'cart_items': final_items_to_order, 
-        'total_price': round(grand_total, 2),
-        'is_optimized': is_optimized
-    })
-
-# --- OPTIMALIZÁCIA ---
-
-def optimize_cart(request):
-    moj_kosik = get_cart_products(request)
-    if not moj_kosik: return redirect('home')
-    
-    baliky = {}
-    suma_tovaru = 0
-    zoznam_mien = {}
-    
-    # Premenná pre celkové poštovné pôvodnej cesty
-    aktualne_postovne_total = 0
-
-    max_dni_povodna = 0
-    
-    # 1. Analýza pôvodného košíka
-    for p in moj_kosik:
-        meno = p.name.strip().lower()
-        kluc = meno.split()[0]
-        zoznam_mien[kluc] = zoznam_mien.get(kluc, 0) + 1
-        
-        shop_postovne = get_shipping_cost(p.shop_name)
-
-        if p.shop_name not in baliky:
-            # Ak je to nový obchod v zozname, prirátame jeho poštovné
-            baliky[p.shop_name] = {'produkty': [], 'cena_tovaru': 0, 'postovne': shop_postovne}
-            aktualne_postovne_total += shop_postovne
-            
-        baliky[p.shop_name]['produkty'].append(p)
-        baliky[p.shop_name]['cena_tovaru'] += float(p.price)
-        suma_tovaru += float(p.price)
-        
-        if p.delivery_days > max_dni_povodna:
-            max_dni_povodna = p.delivery_days
-        
-    aktualna_celkova = suma_tovaru + aktualne_postovne_total
-    
-    # 2. Hľadanie alternatív
-    lepsia_alternativa = None
-    najlepšia_nova_suma = aktualna_celkova
-    vsetky_shopy = Product.objects.values_list('shop_name', flat=True).distinct()
-    
-    for shop in vsetky_shopy:
-        suma_v_shope = 0
-        max_dni_nova = 0
-        nasli_sme_vsetko = True
-        
-        for kluc_produkt, pocet in zoznam_mien.items():
-            p_alt = Product.objects.filter(name__icontains=kluc_produkt, shop_name=shop).first()
-            if p_alt: 
-                suma_v_shope += float(p_alt.price) * pocet
-                if p_alt.delivery_days > max_dni_nova:
-                    max_dni_nova = p_alt.delivery_days
-            else:
-                nasli_sme_vsetko = False
-                break
-                
-        if nasli_sme_vsetko:
-            # NOVÉ: Použijeme cenu dopravy pre tento konkrétny obchod
-            shipping_this_shop = get_shipping_cost(shop)
-            nova_suma = suma_v_shope + shipping_this_shop
-            
-            # Podmienka: cena je nižšia ALEBO rovnaká (lepšie mať 1 balík)
-            if nova_suma <= aktualna_celkova:
-                 if nova_suma < najlepšia_nova_suma or lepsia_alternativa is None:
-                    najlepšia_nova_suma = nova_suma
-                    lepsia_alternativa = {
-                        'obchod': shop, 
-                        'nova_cena': round(nova_suma, 2), 
-                        'uspora': round(aktualna_celkova - nova_suma, 2),
-                        'dni_dorucenia': max_dni_nova
-                    }
-                
-    return render(request, 'products/optimization_result.html', {
-        'baliky': baliky, 
-        'celkova_cena_tovaru': round(suma_tovaru, 2),
-        'celkove_postovne': round(aktualne_postovne_total, 2), 
-        'celkova_suma': round(aktualna_celkova, 2),
-        'max_dni_povodna': max_dni_povodna,
-        'lepsia_alternativa': lepsia_alternativa
+        'form': form, 'cart_items': final_offers, 
+        'total_price': round(grand_total, 2), 'is_optimized': is_optimized
     })
 
 def register(request):
@@ -280,7 +258,7 @@ def register(request):
         if form.is_valid():
             user = form.save()
             guest_cart = request.session.get('guest_cart', [])
-            for p_id in guest_cart: CartItem.objects.create(user=user, product_id=p_id)
+            for oid in guest_cart: CartItem.objects.create(user=user, offer_id=oid)
             if 'guest_cart' in request.session: del request.session['guest_cart']
             login(request, user)
             return redirect('home')

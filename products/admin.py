@@ -1,58 +1,38 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
-from .models import Product, CartItem, Order, OrderItem
+from .models import Category, Product, Offer, CartItem, Order, OrderItem
 
-# 1. Zobrazenie položiek v objednávke s tlačidlom priamo do e-shopu
-class OrderItemInline(admin.TabularInline):
-    model = OrderItem
-    extra = 0
-    # 'go_to_shop' je naša nová funkcia nižšie
-    fields = ['product', 'price', 'quantity', 'go_to_shop']
-    readonly_fields = ['product', 'price', 'quantity', 'go_to_shop']
+# Ponuky sa editujú priamo vnútri Produktu
+class OfferInline(admin.TabularInline):
+    model = Offer
+    extra = 1
+    fields = ['shop_name', 'price', 'delivery_days', 'url']
 
-    def go_to_shop(self, obj):
-        if obj.product.url:
-            return mark_safe(f'<a href="{obj.product.url}" target="_blank" style="background: #2563eb; color: white; padding: 5px 10px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 11px;">🔗 OTVORIŤ E-SHOP</a>')
-        return "Bez odkazu"
-    
-    go_to_shop.short_description = 'Akcia'
-
-# 2. Hlavná správa objednávok
-@admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
-    # Čo uvidíš v zozname všetkých objednávok
-    list_display = ['id', 'status', 'full_name', 'total_price', 'created_at', 'paid']
-    # Možnosť prepnúť stav a platbu priamo v zozname (bez rozkliknutia)
-    list_editable = ['status', 'paid']
-    list_filter = ['status', 'paid', 'created_at']
-    search_fields = ['full_name', 'email', 'id']
-    inlines = [OrderItemInline]
-    
-    # Usporiadanie polí v detaile objednávky do logických blokov
-    fieldsets = (
-        ('Stav objednávky', {
-            'fields': ('status', 'paid', 'total_price', 'created_at')
-        }),
-        ('Informácie o zákazníkovi', {
-            'fields': ('full_name', 'email', 'address', 'city', 'zip_code')
-        }),
-        ('Dôležitá poznámka', {
-            'fields': ('note',),
-        }),
-    )
-    # Tieto polia nemôžeš prepísať, len vidieť
-    readonly_fields = ['created_at', 'total_price']
-
-# 3. Zobrazenie tvojich produktov s náhľadom obrázka
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'price', 'shop_name', 'image_preview']
-    search_fields = ['name', 'shop_name']
+    list_display = ['name', 'category', 'count_offers', 'cheapest_price_display']
+    list_filter = ['category']
+    search_fields = ['name']
+    inlines = [OfferInline] # Toto zobrazí ponuky v detaile produktu
 
-    def image_preview(self, obj):
-        if obj.image_url:
-            return mark_safe(f'<img src="{obj.image_url}" width="40" height="40" style="border-radius: 4px;" />')
-        return "-"
-    image_preview.short_description = 'Obr.'
+    def count_offers(self, obj):
+        return obj.offers.count()
+    count_offers.short_description = "Počet e-shopov"
 
+    def cheapest_price_display(self, obj):
+        cheapest = obj.get_cheapest_offer()
+        return f"{cheapest.price} €" if cheapest else "-"
+    cheapest_price_display.short_description = "Najlepšia cena"
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ['id', 'status', 'full_name', 'total_price', 'created_at']
+    list_editable = ['status']
+    inlines = [] # Položky riešime nižšie
+
+    # Keďže sme zmenili OrderItem, musíme si tu spraviť vlastný inline alebo to nechať tak
+    # Pre jednoduchosť to zatiaľ necháme bez inline editácie položiek, len základ
+
+admin.site.register(Category)
+admin.site.register(Offer)
 admin.site.register(CartItem)
