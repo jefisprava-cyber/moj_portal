@@ -3,116 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Môj Portál | Produkty</title>
+    <title>Môj Portál | Agregátor cien</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-gray-50 font-sans leading-normal tracking-normal">
+<body class="bg-gray-50 font-sans leading-relaxed">
 
-    <nav class="bg-white shadow-md sticky top-0 z-50">
+    <nav class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100">
         <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="/" class="text-2xl font-black text-blue-600 tracking-tighter italic">MOJ<span class="text-gray-800">PORTAL</span></a>
+            <a href="/" class="text-2xl font-black text-blue-600 tracking-tighter italic hover:opacity-80 transition">
+                MOJ<span class="text-gray-900">PORTAL</span>
+            </a>
             
-            <div class="flex items-center space-x-6">
-                <form action="{% url 'home' %}" method="get" class="hidden md:flex items-center bg-gray-100 rounded-full px-4 py-1">
-                    <input type="text" name="q" placeholder="Hľadať produkt..." class="bg-transparent border-none focus:ring-0 text-sm w-48 lg:w-64 outline-none">
-                    <button type="submit"><i class="fa fa-search text-gray-400"></i></button>
-                </form>
-
-                <a href="{% url 'cart_detail' %}" class="relative text-gray-700 hover:text-blue-600 transition">
-                    <i class="fa fa-shopping-cart text-2xl"></i>
+            <a href="{% url 'cart_detail' %}" class="relative group">
+                <div class="bg-gray-100 hover:bg-blue-50 text-gray-800 hover:text-blue-600 px-5 py-3 rounded-xl font-bold transition flex items-center gap-2">
+                    <i class="fa fa-shopping-bag"></i>
+                    <span class="hidden md:inline">Košík</span>
                     {% if pocet_v_kosiku > 0 %}
-                    <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                    <span class="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full absolute -top-1 -right-1 border-2 border-white">
                         {{ pocet_v_kosiku }}
                     </span>
                     {% endif %}
-                </a>
-
-                {% if user.is_authenticated %}
-                    <div class="flex items-center space-x-4 border-l pl-6">
-                        <div class="text-right">
-                            <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest leading-none">Prihlásený</p>
-                            <p class="text-sm font-bold text-gray-800">{{ user.username }}</p>
-                        </div>
-                        <form action="{% url 'logout' %}" method="post" class="inline">
-                            {% csrf_token %}
-                            <button type="submit" class="bg-gray-100 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
-                                <i class="fa fa-sign-out-alt"></i>
-                            </button>
-                        </form>
-                    </div>
-                {% else %}
-                    <a href="{% url 'login' %}" class="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100">
-                        Prihlásiť sa
-                    </a>
-                {% endif %}
-            </div>
+                </div>
+            </a>
         </div>
     </nav>
 
-    <header class="bg-blue-600 py-12 text-center text-white mb-10">
-        <h1 class="text-4xl font-extrabold mb-2 tracking-tight">Najlepšie ceny na jednom mieste</h1>
-        <p class="text-blue-100 opacity-90">Porovnávame a optimalizujeme nákup za vás.</p>
+    <header class="bg-white pt-16 pb-20 px-6 text-center relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+        
+        <h1 class="text-4xl md:text-6xl font-black text-gray-900 mb-6 tracking-tight">
+            Všetky e-shopy.<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Jeden nákup.</span>
+        </h1>
+        <p class="text-gray-500 text-lg mb-10 max-w-xl mx-auto">
+            Nájdite najlepšiu cenu a nechajte nás optimalizovať vašu objednávku pre najnižšie poštovné.
+        </p>
+
+        <form method="get" class="max-w-2xl mx-auto relative">
+            <i class="fa fa-search absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 text-xl"></i>
+            <input type="text" name="q" placeholder="Čo hľadáte? (napr. iPhone, Vysávač...)" 
+                   class="w-full pl-14 pr-6 py-5 rounded-full border-2 border-gray-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none text-lg font-medium shadow-xl shadow-blue-100/50 transition"
+                   value="{{ request.GET.q|default:'' }}">
+            <button type="submit" class="absolute right-3 top-3 bottom-3 bg-gray-900 text-white px-8 rounded-full font-bold hover:bg-gray-800 transition">
+                Hľadať
+            </button>
+        </form>
     </header>
 
-    <main class="container mx-auto px-6 mb-20">
+    <main class="container mx-auto px-6 py-16">
         
-        <div class="flex justify-between items-end mb-8 border-b pb-4">
-            <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Ponuka produktov</h2>
-            <p class="text-gray-500 text-sm font-medium">{{ produkty|length }} položiek</p>
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-xl font-bold text-gray-800">Odporúčané produkty</h2>
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">{{ produkty|length }} výsledkov</span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {% for p in produkty %}
-            <div class="bg-white rounded-[2rem] shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col transform hover:-translate-y-1">
+            <div class="group bg-white rounded-3xl p-4 hover:shadow-2xl hover:shadow-blue-100 transition duration-300 border border-transparent hover:border-blue-50 relative flex flex-col">
                 
-                <a href="{% url 'product_detail' p.id %}" class="block h-56 bg-white flex items-center justify-center relative group p-6 cursor-pointer">
-                    {% if p.image_url %}
-                        <img src="{{ p.image_url }}" alt="{{ p.name }}" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110">
-                    {% else %}
-                        <div class="w-full h-full bg-gray-50 rounded-2xl flex items-center justify-center">
-                            <i class="fa fa-image text-4xl text-gray-200"></i>
-                        </div>
-                    {% endif %}
-                    <span class="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-black text-blue-600 uppercase tracking-widest shadow-sm border border-gray-100">
-                        {{ p.shop_name }}
-                    </span>
-                </a>
-
-                <div class="p-6 flex-grow flex flex-col">
-                    <a href="{% url 'product_detail' p.id %}" class="hover:text-blue-600 transition-colors">
-                        <h3 class="font-bold text-lg text-gray-800 mb-2 leading-tight h-12 overflow-hidden">{{ p.name }}</h3>
-                    </a>
+                <div class="relative h-64 bg-gray-50 rounded-2xl overflow-hidden mb-4">
+                    <img src="{{ p.image_url }}" alt="{{ p.name }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                     
-                    <div class="flex flex-col space-y-2 mt-2 mb-6">
-                        <span class="text-[11px] font-bold text-green-600 uppercase tracking-wide flex items-center">
-                            <i class="fa fa-truck mr-1.5 text-xs"></i> Doručenie do {{ p.delivery_days }} dní
-                        </span>
+                    <div class="absolute top-3 left-3 bg-white/90 backdrop-blur text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm border border-gray-100 uppercase tracking-wide">
+                        {{ p.shop_name }}
                     </div>
 
-                    <div class="mt-auto flex justify-between items-center">
-                        <span class="text-3xl font-black text-gray-900">{{ p.price }} <span class="text-sm text-blue-600 italic">€</span></span>
+                    {% if p.delivery_days <= 2 %}
+                    <div class="absolute top-3 right-3 bg-green-500 text-white text-[10px] font-black px-2 py-1 rounded-md shadow-sm uppercase tracking-widest">
+                        <i class="fa fa-bolt mr-1"></i> Rýchlo
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="px-2 flex-grow">
+                    <h3 class="font-bold text-gray-900 text-lg leading-tight mb-2 group-hover:text-blue-600 transition">
+                        <a href="{% url 'product_detail' p.id %}">
+                            {{ p.name }}
+                        </a>
+                    </h3>
+                    <div class="flex items-center text-xs text-gray-400 font-medium mb-4">
+                        <i class="fa fa-truck mr-1.5"></i> 
+                        Doručenie do {{ p.delivery_days }} dní
                     </div>
                 </div>
 
-                <div class="p-6 pt-0">
-                    <a href="{% url 'add_to_cart' p.id %}" class="w-full block text-center bg-gray-900 text-white font-bold py-4 rounded-2xl hover:bg-blue-600 transition-all transform active:scale-95 shadow-xl shadow-gray-200">
-                        <i class="fa fa-cart-plus mr-2"></i> Do košíka
+                <div class="mt-auto px-2 flex items-center justify-between pt-4 border-t border-gray-50">
+                    <div>
+                        <span class="block text-[10px] text-gray-400 font-bold uppercase">Cena</span>
+                        <span class="text-xl font-black text-gray-900">{{ p.price }} €</span>
+                    </div>
+                    <a href="{% url 'add_to_cart' p.id %}" class="bg-gray-900 hover:bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center transition shadow-lg transform active:scale-90">
+                        <i class="fa fa-plus"></i>
                     </a>
                 </div>
             </div>
             {% empty %}
-            <div class="col-span-full py-20 text-center">
-                <i class="fa fa-search text-5xl text-gray-200 mb-4"></i>
-                <p class="text-gray-500 font-medium">Nenašli sme žiadne produkty, skúste iné hľadanie.</p>
+            <div class="col-span-full text-center py-20">
+                <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="fa fa-ghost text-gray-400 text-4xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800">Nič sa nenašlo</h3>
+                <p class="text-gray-500">Skúste hľadať niečo iné, napr. "iPhone".</p>
             </div>
             {% endfor %}
         </div>
+
     </main>
 
-    <footer class="bg-gray-900 text-gray-400 py-12 text-center">
-        <div class="text-xl font-black text-white mb-4 tracking-tighter italic">MOJ<span class="text-blue-500">PORTAL</span></div>
-        <p class="text-xs uppercase tracking-widest font-bold opacity-50">&copy; 2026 Všetky práva vyhradené</p>
+    <footer class="bg-white border-t border-gray-100 py-12 mt-12 text-center">
+        <p class="text-gray-400 text-sm font-medium">
+            &copy; 2026 MojPortal. Všetky práva vyhradené.
+        </p>
     </footer>
 
 </body>
