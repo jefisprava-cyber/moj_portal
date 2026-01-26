@@ -29,7 +29,7 @@ def get_cart_products(request):
 # --- HLAVNÉ VIEWS ---
 
 def home(request):
-    # 1. AUTO-ADMIN (Vytvorí admin/admin123 pri prvom načítaní)
+    # 1. AUTO-ADMIN
     try:
         if not User.objects.filter(username='admin').exists():
             User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
@@ -37,7 +37,7 @@ def home(request):
     except Exception as e:
         print(f"⚠️ Admin error: {e}")
 
-    # 2. AUTO-SEED (Naplnenie prázdnej databázy)
+    # 2. AUTO-SEED
     if Product.objects.count() == 0:
         sample_products = [
             ("iPhone 15 Pro", 1199.00, "iStore", "iphone"),
@@ -58,7 +58,7 @@ def home(request):
             p.image_url = f"https://loremflickr.com/400/400/{category}?lock={p.id}"
             p.save()
 
-    # 3. AUTO-FIX (Oprava obrázkov)
+    # 3. AUTO-FIX
     for p in Product.objects.all():
         if not p.image_url or "loremflickr" not in p.image_url:
             cat = "electronics"
@@ -110,45 +110,33 @@ def cart_detail(request):
     formatted = [{'product': p, 'id': p.cart_item_id} for p in items]
     return render(request, 'products/cart.html', {'items': formatted})
 
-# --- POKLADŇA (CHECKOUT) - UPRAVENÁ PRE A/B TEST ---
+# --- POKLADŇA (CHECKOUT) ---
 
 def checkout(request):
     cart_items = get_cart_products(request)
     if not cart_items: return redirect('home')
 
-    # 1. Zistenie, či ide o Optimalizovanú cestu (B) alebo Pôvodnú (A)
     is_optimized = request.GET.get('optimized') == 'true'
     target_shop = request.GET.get('shop')
     
     final_items_to_order = []
 
-    # 2. Logika výmeny produktov
     if is_optimized and target_shop:
-        # Cesta B: Hľadáme alternatívy v cieľovom obchode
         for original_p in cart_items:
-            # Hľadáme produkt podľa prvého slova názvu v danom shope
             search_name = original_p.name.split()[0]
             alt_product = Product.objects.filter(name__icontains=search_name, shop_name=target_shop).first()
-            
             if alt_product:
                 final_items_to_order.append(alt_product)
             else:
-                # Ak nenájdeme alternatívu, musíme nechať pôvodný (fallback)
                 final_items_to_order.append(original_p)
     else:
-        # Cesta A: Pôvodné produkty z košíka
         final_items_to_order = cart_items
 
-    # 3. Výpočet ceny a poštovného
     total_items_price = sum(float(item.price) for item in final_items_to_order)
-    
-    # Počet unikátnych obchodov pre výpočet poštovného
     unique_shops = set(item.shop_name for item in final_items_to_order)
     shipping_cost = len(unique_shops) * 3.90
-    
     grand_total = total_items_price + shipping_cost
 
-    # 4. Spracovanie formulára
     if request.method == 'POST':
         form = OrderForm(request.POST)
         if form.is_valid():
@@ -156,10 +144,8 @@ def checkout(request):
             if request.user.is_authenticated: order.user = request.user
             order.total_price = grand_total
             
-            # Pridanie značky do poznámky pre Admina
             if is_optimized:
                 prefix = f"[CESTA B - {target_shop}] "
-                # Ak už poznámka existuje, pripojíme to na začiatok
                 order.note = prefix + (order.note if order.note else "")
             
             order.save()
@@ -177,7 +163,6 @@ def checkout(request):
     else:
         form = OrderForm(initial={'email': request.user.email} if request.user.is_authenticated else {})
 
-    # Posielame do šablóny aj info o optimalizácii pre zobrazenie
     return render(request, 'products/checkout.html', {
         'form': form, 
         'cart_items': final_items_to_order, 
@@ -228,4 +213,18 @@ def optimize_cart(request):
     return render(request, 'products/optimization_result.html', {
         'baliky': baliky, 'celkova_cena_tovaru': round(suma_tovaru, 2),
         'celkove_postovne': round(len(baliky) * 3.90, 2), 'celkova_suma': round(aktualna_celkova, 2),
-        'lepsia_alternativa': lepsia_altern
+        'lepsia_alternativa': lepsia_alternativa
+    })
+
+def register(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            guest_cart = request.session.get('guest_cart', [])
+            for p_id in guest_cart: CartItem.objects.create(user=user, product_id=p_id)
+            if 'guest_cart' in request.session: del request.session['guest_cart']
+            login(request, user)
+            return redirect('home')
+    else: form = UserCreationForm()
+    return render(request, 'registration/register.html', {'form': form})
