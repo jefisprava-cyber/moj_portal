@@ -1,73 +1,61 @@
 from django.core.management.base import BaseCommand
-from products.models import Product
-import requests
-import xml.etree.ElementTree as ET
+from products.models import Product, Category, Offer
+import random
 
 class Command(BaseCommand):
-    help = 'Importuje dáta z URL alebo vytvorí stabilné testovacie dáta'
-
-    def add_arguments(self, parser):
-        parser.add_argument('url', type=str, nargs='?', default=None, help='URL XML feedu')
-        parser.add_argument('shop_name', type=str, nargs='?', default='TestShop', help='Názov e-shopu')
+    help = 'Naplní databázu novou štruktúrou (Kategórie -> Produkty -> Ponuky)'
 
     def handle(self, *args, **kwargs):
-        url = kwargs['url']
-        shop_name = kwargs['shop_name']
+        # 1. Vyčistiť staré dáta
+        self.stdout.write("🧹 Mazem staré dáta...")
+        Offer.objects.all().delete()
+        Product.objects.all().delete()
+        Category.objects.all().delete()
 
-        if not url:
-            self.stdout.write("Vytváram stabilné testovacie dáta (Elektronika)...")
-            self.create_test_data()
-            return
-
-        self.stdout.write(f"Sťahujem dáta z: {url}...")
-        headers = {'User-Agent': 'Mozilla/5.0'}
+        # 2. Vytvoriť kategórie
+        self.stdout.write("📂 Vytváram kategórie...")
+        cat_elek = Category.objects.create(name="Elektronika", slug="elektronika")
+        cat_mobil = Category.objects.create(name="Mobily", slug="mobily", parent=cat_elek)
+        cat_laptop = Category.objects.create(name="Notebooky", slug="notebooky", parent=cat_elek)
         
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            root = ET.fromstring(response.content)
-            items = root.findall('.//SHOPITEM') or root.findall('SHOPITEM')
-
-            count = 0
-            for item in items:
-                name = item.findtext('PRODUCTNAME') or item.findtext('PRODUCT')
-                price = item.findtext('PRICE_VAT') or item.findtext('PRICE')
-                url_p = item.findtext('URL') or ""
+        # 3. Zoznam produktov (Karty)
+        products_data = [
+            ("iPhone 15 Pro", cat_mobil, "iphone"),
+            ("Samsung Galaxy S24", cat_mobil, "samsung-galaxy"),
+            ("MacBook Air M3", cat_laptop, "laptop"),
+            ("Sony WH-1000XM5", cat_elek, "headphones"),
+            ("Dyson V15 Detect", cat_elek, "vacuum-cleaner"),
+            ("PlayStation 5 Slim", cat_elek, "playstation"),
+            ("GoPro HERO12", cat_elek, "camera"),
+            ("iPad Air 5", cat_elek, "tablet"),
+        ]
+        
+        shops = ["Alza", "Nay", "iStyle", "Datart", "Brloh", "iStore"]
+        
+        self.stdout.write("📦 Vytváram produkty a ponuky...")
+        
+        for name, cat, img_key in products_data:
+            # Vytvorenie Produktu
+            p = Product.objects.create(
+                name=name, 
+                category=cat, 
+                image_url=f"https://loremflickr.com/400/400/{img_key}?lock={random.randint(1,1000)}"
+            )
+            
+            # Vytvorenie 2-5 ponúk pre každý produkt
+            chosen_shops = random.sample(shops, random.randint(2, 5))
+            base_price = random.randint(300, 1200)
+            
+            for shop in chosen_shops:
+                # Jemná variácia ceny
+                price_variation = base_price + random.randint(-50, 50)
                 
-                if name and price:
-                    clean_price = float(price.replace(',', '.').replace(' ', ''))
-                    Product.objects.create(
-                        name=name[:255],
-                        price=clean_price,
-                        shop_name=shop_name,
-                        url=url_p
-                    )
-                    count += 1
-            self.stdout.write(self.style.SUCCESS(f'Úspešne naimportovaných {count} produktov.'))
-
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f'Chyba: {e}. Skúste spustiť bez URL pre testovacie dáta.'))
-
-    def create_test_data(self):
-        # Simulujeme 3 veľké e-shopy s rovnakým tovarom pre test optimalizácie
-        produkty = [
-            ("iPhone 15", 899.00), ("Samsung S24", 799.00), 
-            ("MacBook Air", 1199.00), ("Sony Slúchadlá", 250.00)
-        ]
-        shopy = [
-            ("Alza-Tech", 1.05), # Mierne drahší
-            ("Lacne-PC", 0.95),  # Mierne lacnejší
-            ("Mall-Market", 1.0) # Stred
-        ]
-        
-        count = 0
-        for shop_name, modif in shopy:
-            for name, price in produkty:
-                Product.objects.create(
-                    name=name,
-                    price=round(price * modif, 2),
-                    shop_name=shop_name,
-                    url="https://www.google.com"
+                Offer.objects.create(
+                    product=p,
+                    shop_name=shop,
+                    price=price_variation,
+                    delivery_days=random.randint(1, 5),
+                    url=f"https://google.com/search?q={name}+{shop}"
                 )
-                count += 1
-        self.stdout.write(self.style.SUCCESS(f'Vytvorených {count} produktov v 3 obchodoch.'))
+        
+        self.stdout.write(self.style.SUCCESS('✅ Hotovo! Databáza bola úspešne pregenerovaná.'))
