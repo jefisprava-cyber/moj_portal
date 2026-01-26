@@ -1,23 +1,27 @@
 from django.contrib import admin
 from .models import Category, Product, Offer, CartItem, Order, OrderItem
 
-# 1. Toto zobrazí produkty vo vnútri Objednávky
+# 1. TOTO ZABEZPEČÍ ZOBRAZENIE POLOŽIEK V OBJEDNÁVKE
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
-    extra = 0 # Nezobrazuje prázdne riadky navyše
-    readonly_fields = ['offer', 'price', 'quantity'] # Aby sa to nedalo prepísať
+    extra = 0
+    readonly_fields = ['offer_link', 'price', 'quantity']
     can_delete = False
+    
+    # Trik, aby si v admine videl aj priamy preklik na e-shop (ak to budeš objednávať ty)
+    def offer_link(self, obj):
+        return f"{obj.offer.product.name} ({obj.offer.shop_name})"
+    offer_link.short_description = "Tovar"
 
-# 2. Nastavenie zobrazenia Objednávky
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ['id', 'full_name', 'email', 'total_price', 'status', 'created_at']
     list_filter = ['status', 'created_at']
-    search_fields = ['full_name', 'email', 'id']
+    search_fields = ['full_name', 'email']
     list_editable = ['status']
-    inlines = [OrderItemInline] # <--- TOTO JE KĽÚČOVÉ
+    inlines = [OrderItemInline] # <--- Toto pridá tabuľku produktov do detailu objednávky
 
-# 3. Zvyšok (Produkt, Ponuky...)
+# 2. NASTAVENIE PRODUKTOV A PONÚK
 class OfferInline(admin.TabularInline):
     model = Offer
     extra = 1
@@ -30,4 +34,4 @@ class ProductAdmin(admin.ModelAdmin):
 
 admin.site.register(Category)
 admin.site.register(Offer)
-# CartItem ani OrderItem nemusíme registrovať zvlášť, sú súčasťou iných
+# CartItem neregistrujeme, je to dočasné
