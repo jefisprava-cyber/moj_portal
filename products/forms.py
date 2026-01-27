@@ -4,19 +4,34 @@ from .models import Order
 class OrderForm(forms.ModelForm):
     class Meta:
         model = Order
-        # Pridané 'note' do fields
-        fields = ['full_name', 'email', 'address', 'city', 'zip_code', 'note']
+        # Tu musíme použiť NOVÉ názvy polí z models.py
+        fields = ['customer_name', 'customer_email', 'customer_address', 'note']
         
+        # Pridáme Tailwind štýly, aby to vyzeralo moderne
         widgets = {
-            'full_name': forms.TextInput(attrs={'class': 'w-full p-3 border rounded-xl mb-4', 'placeholder': 'Meno a priezvisko'}),
-            'email': forms.EmailInput(attrs={'class': 'w-full p-3 border rounded-xl mb-4', 'placeholder': 'vas@email.sk'}),
-            'address': forms.TextInput(attrs={'class': 'w-full p-3 border rounded-xl mb-4', 'placeholder': 'Ulica a číslo domu'}),
-            'city': forms.TextInput(attrs={'class': 'w-full p-3 border rounded-xl mb-4', 'placeholder': 'Mesto'}),
-            'zip_code': forms.TextInput(attrs={'class': 'w-full p-3 border rounded-xl mb-4', 'placeholder': 'PSČ'}),
-            # Štýlovanie pre poznámku
-            'note': forms.Textarea(attrs={
-                'class': 'w-full p-3 border rounded-xl mb-4', 
-                'placeholder': 'Poznámka pre predajcu (napr. kód od brány, nechať u suseda...)',
-                'rows': 3
+            'customer_name': forms.TextInput(attrs={
+                'class': 'w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Janko Hraško'
             }),
+            'customer_email': forms.EmailInput(attrs={
+                'class': 'w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'janko@example.com'
+            }),
+            'customer_address': forms.Textarea(attrs={
+                'class': 'w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'rows': 3,
+                'placeholder': 'Ulica 123, 821 01 Bratislava'
+            }),
+            'note': forms.Textarea(attrs={
+                'class': 'w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'rows': 2,
+                'placeholder': 'Poznámka pre kuriéra (nepovinné)'
+            }),
+        }
+        
+        labels = {
+            'customer_name': 'Celé meno',
+            'customer_email': 'E-mail',
+            'customer_address': 'Adresa doručenia (Ulica, Mesto, PSČ)',
+            'note': 'Poznámka',
         }

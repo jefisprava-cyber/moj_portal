@@ -1,73 +1,51 @@
 from django.db import models
 from django.contrib.auth.models import User
 
-# 1. KATEGÓRIE
 class Category(models.Model):
     name = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True) 
-    parent = models.ForeignKey('self', blank=True, null=True, related_name='children', on_delete=models.CASCADE)
-
-    class Meta:
-        verbose_name_plural = "Categories"
+    slug = models.SlugField(unique=True)
+    # Dôležité: related_name='children' nám umožní volať category.children.all()
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children')
 
     def __str__(self):
         return self.name
 
-# 2. HLAVNÁ KARTA PRODUKTU (Nemá cenu, len názov a obrázok)
 class Product(models.Model):
-    name = models.CharField(max_length=255)
-    category = models.ForeignKey(Category, related_name='products', on_delete=models.CASCADE, null=True, blank=True)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
+    name = models.CharField(max_length=200)
     image_url = models.URLField(max_length=500, blank=True, null=True)
 
     def __str__(self):
         return self.name
 
-# 3. KONKRÉTNA PONUKA E-SHOPU (Toto má cenu a tlačidlo kúpiť)
 class Offer(models.Model):
-    product = models.ForeignKey(Product, related_name='offers', on_delete=models.CASCADE)
-    shop_name = models.CharField(max_length=255) # Alza, Nay...
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='offers')
+    shop_name = models.CharField(max_length=100)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    delivery_days = models.IntegerField(default=3)
-    url = models.URLField(max_length=500, blank=True, null=True)
+    delivery_days = models.IntegerField()
+    url = models.URLField(max_length=500)
+    active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.shop_name} - {self.price}€"
+        return f"{self.shop_name} - {self.product.name} ({self.price}€)"
 
-# --- KOŠÍK (Teraz obsahuje Offer, nie Product) ---
+# Košík a Objednávka
 class CartItem(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
-    offer = models.ForeignKey(Offer, on_delete=models.CASCADE) 
-    added_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    offer = models.ForeignKey(Offer, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
 
-# --- OBJEDNÁVKA ---
 class Order(models.Model):
-    STATUS_CHOICES = (
-        ('nova', 'Nová / Prijatá'),
-        ('spracovava_sa', 'Spracováva sa'),
-        ('odoslana', 'Odoslaná'),
-        ('dorucena', 'Doručená'),
-        ('zrusena', 'Zrušená'),
-    )
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    full_name = models.CharField(max_length=100)
-    email = models.EmailField()
-    address = models.CharField(max_length=255)
-    city = models.CharField(max_length=100)
-    zip_code = models.CharField(max_length=20)
-    note = models.TextField(blank=True, null=True)
-    total_price = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='nova')
-    paid = models.BooleanField(default=False)
+    customer_name = models.CharField(max_length=200)
+    customer_email = models.EmailField()
+    customer_address = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"Objednávka #{self.id} - {self.full_name}"
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    note = models.TextField(blank=True, null=True)
 
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
-    offer = models.ForeignKey(Offer, on_delete=models.CASCADE)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    offer = models.ForeignKey(Offer, on_delete=models.SET_NULL, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    quantity = models.PositiveIntegerField(default=1)
+    quantity = models.IntegerField(default=1)

@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Môj Portál | Porovnávač cien</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* Animácia pre správy */
+        .fade-out { animation: fadeOut 4s forwards; animation-delay: 2s; }
+        @keyframes fadeOut { to { opacity: 0; display: none; } }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans leading-relaxed text-gray-800 flex flex-col min-h-screen">
+
+    <nav class="bg-white/90 backdrop-blur fixed w-full z-50 border-b border-gray-200 shadow-sm transition-all duration-300">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center gap-4">
+            
+            <a href="{% url 'home' %}" class="text-2xl font-black text-blue-600 tracking-tighter italic hover:scale-105 transition transform shrink-0">
+                MOJ<span class="text-gray-900">PORTAL</span>
+            </a>
+            
+            <div class="hidden md:block flex-grow max-w-md mx-4">
+                <form action="{% url 'home' %}" method="get" class="relative">
+                    <i class="fa fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <input type="text" name="q" placeholder="Rýchle hľadanie..." value="{{ request.GET.q|default:'' }}"
+                           class="w-full pl-10 pr-4 py-2 rounded-full border border-gray-200 bg-gray-50 focus:bg-white focus:border-blue-500 outline-none text-sm transition">
+                </form>
+            </div>
+
+            <div class="flex items-center gap-4 shrink-0">
+                <a href="{% url 'cart_detail' %}" class="relative group">
+                    <div class="bg-gray-100 group-hover:bg-blue-600 group-hover:text-white text-gray-700 px-5 py-2.5 rounded-full font-bold transition-all duration-300 flex items-center gap-2 shadow-sm">
+                        <i class="fa fa-shopping-bag"></i>
+                        <span class="hidden sm:inline text-sm uppercase tracking-wide">Košík</span>
+                        {% if pocet_v_kosiku > 0 %}
+                        <span class="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full absolute -top-1 -right-1 border-2 border-white shadow-sm">
+                            {{ pocet_v_kosiku }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="fixed top-24 right-6 z-50 w-80 space-y-2">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="p-4 rounded-lg text-white shadow-lg fade-out flex items-center gap-3
+                    {% if message.tags == 'success' %} bg-green-500 
+                    {% elif message.tags == 'error' %} bg-red-500 
+                    {% else %} bg-blue-500 {% endif %}">
+                    <i class="fa-solid fa-bell"></i>
+                    <span>{{ message }}</span>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <main class="flex-grow pt-20">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="bg-white border-t border-gray-100 py-12 mt-12 text-center relative z-10">
+        <div class="container mx-auto px-6">
+            <p class="text-gray-400 text-xs font-bold uppercase tracking-widest">
+                &copy; 2026 MojPortal <span class="mx-2 text-gray-300">|</span> Agregátor cien
+            </p>
+            <div class="mt-4 flex justify-center gap-4 text-gray-400">
+                <a href="#" class="hover:text-blue-600"><i class="fa-brands fa-facebook"></i></a>
+                <a href="#" class="hover:text-pink-600"><i class="fa-brands fa-instagram"></i></a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
