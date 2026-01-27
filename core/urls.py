@@ -7,7 +7,7 @@ from django.http import HttpResponse
 
 # --- TOTO JE TAJNÁ FUNKCIA NA OPRAVU DATABÁZY NA RENDERI ---
 def reset_db_view(request):
-    # 1. Zoznam tabuliek na zmazanie
+    # 1. Zoznam tabuliek na zmazanie (vrátane histórie migrácií)
     tables = [
         'products_cartitem', 'products_orderitem', 'products_order', 
         'products_offer', 'products_product', 'products_category',
@@ -17,21 +17,22 @@ def reset_db_view(request):
     
     output = []
     
-    # 2. Zmazanie tabuliek
+    # 2. Zmazanie tabuliek (Hard Reset)
     with connection.cursor() as cursor:
         for table in tables:
             try:
                 cursor.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
-                output.append(f"Zmazaná tabuľka: {table}")
+                output.append(f"✅ Zmazaná tabuľka: {table}")
             except Exception as e:
-                output.append(f"Chyba pri {table}: {str(e)}")
+                output.append(f"❌ Chyba pri {table}: {str(e)}")
     
     # 3. Spustenie migrácie (Vytvorenie nových tabuliek)
     try:
         call_command('migrate')
-        output.append("--- MIGRÁCIA ÚSPEŠNÁ ---")
+        output.append("<br><b>--- 🚀 MIGRÁCIA ÚSPEŠNÁ ---</b>")
+        output.append("Teraz môžeš ísť na domovskú stránku.")
     except Exception as e:
-        output.append(f"!!! CHYBA MIGRÁCIE: {str(e)}")
+        output.append(f"<br><b>!!! CHYBA MIGRÁCIE: {str(e)}</b>")
 
     return HttpResponse("<br>".join(output))
 
@@ -47,6 +48,6 @@ urlpatterns = [
     path('checkout/', views.checkout, name='checkout'),
     path('register/', views.register, name='register'),
     
-    # TOTO JE TAJNÁ LINKA (Len dočasne)
+    # 👇 TOTO JE TAJNÁ LINKA, KTORÚ MUSÍŠ OTVORIŤ
     path('reset-db-tajny-kluc/', reset_db_view),
 ]
