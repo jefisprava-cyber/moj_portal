@@ -7,12 +7,22 @@ from django.http import HttpResponse
 
 # --- TOTO JE TAJNÁ FUNKCIA NA OPRAVU DATABÁZY NA RENDERI ---
 def reset_db_view(request):
-    # 1. Zoznam tabuliek na zmazanie (vrátane histórie migrácií)
+    # 1. Zoznam VŠETKÝCH tabuliek na zmazanie (vrátane skrytých spojovacích)
     tables = [
+        # Naše aplikácie
         'products_cartitem', 'products_orderitem', 'products_order', 
         'products_offer', 'products_product', 'products_category',
-        'django_migrations', 'auth_user', 'auth_permission', 
-        'auth_group', 'django_content_type', 'django_session', 'django_admin_log'
+        
+        # Django Admin a História
+        'django_admin_log', 'django_migrations', 'django_content_type', 'django_session',
+        
+        # Auth (Používatelia a skupiny) - TU BOL PROBLÉM, PRIDÁVAME TIETO:
+        'auth_group_permissions',       # <--- TOTO CHÝBALO
+        'auth_user_groups',             # <--- AJ TOTO
+        'auth_user_user_permissions',   # <--- AJ TOTO
+        'auth_permission', 
+        'auth_group', 
+        'auth_user'
     ]
     
     output = []
@@ -24,15 +34,15 @@ def reset_db_view(request):
                 cursor.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
                 output.append(f"✅ Zmazaná tabuľka: {table}")
             except Exception as e:
-                output.append(f"❌ Chyba pri {table}: {str(e)}")
+                output.append(f"⚠️ Chyba pri {table} (možno neexistuje): {str(e)}")
     
     # 3. Spustenie migrácie (Vytvorenie nových tabuliek)
     try:
         call_command('migrate')
-        output.append("<br><b>--- 🚀 MIGRÁCIA ÚSPEŠNÁ ---</b>")
-        output.append("Teraz môžeš ísť na domovskú stránku.")
+        output.append("<br><br><b>--- 🚀 MIGRÁCIA ÚSPEŠNÁ! ---</b>")
+        output.append("<br>Teraz je databáza čistá. Môžeš ísť na domovskú stránku.")
     except Exception as e:
-        output.append(f"<br><b>!!! CHYBA MIGRÁCIE: {str(e)}</b>")
+        output.append(f"<br><br><b>!!! STÁLE CHYBA MIGRÁCIE: {str(e)}</b>")
 
     return HttpResponse("<br>".join(output))
 
@@ -48,6 +58,6 @@ urlpatterns = [
     path('checkout/', views.checkout, name='checkout'),
     path('register/', views.register, name='register'),
     
-    # 👇 TOTO JE TAJNÁ LINKA, KTORÚ MUSÍŠ OTVORIŤ
+    # TAJNÁ LINKA
     path('reset-db-tajny-kluc/', reset_db_view),
 ]
