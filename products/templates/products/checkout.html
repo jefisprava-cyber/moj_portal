@@ -1,114 +1,203 @@
-<!DOCTYPE html>
-<html lang="sk">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokladňa | Môj Portál</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body class="bg-gray-50 font-sans leading-normal tracking-normal py-12">
+{% extends 'products/base.html' %}
 
+{% block content %}
+<div class="bg-gray-50 min-h-screen py-10">
     <div class="container mx-auto px-6 max-w-4xl">
-        
-        <div class="flex items-center justify-between mb-8">
-            <h1 class="text-3xl font-black text-gray-900 tracking-tight">Dokončenie objednávky</h1>
-            <a href="{% url 'cart_detail' %}" class="text-sm font-bold text-gray-400 hover:text-gray-600 transition">
-                Zrušiť a vrátiť sa
-            </a>
-        </div>
 
-        {% if is_optimized %}
-        <div class="bg-blue-600 text-white p-6 rounded-2xl shadow-lg mb-8 flex items-center justify-between">
-            <div class="flex items-center">
-                <div class="bg-white/20 p-3 rounded-xl mr-4">
-                    <i class="fa fa-magic text-xl text-yellow-300"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-lg">Aplikovaná optimalizácia</h3>
-                    <p class="text-blue-100 text-sm">Všetky produkty boli zamenené za najvýhodnejšiu ponuku z jedného obchodu.</p>
-                </div>
-            </div>
-            <div class="text-right hidden md:block">
-                <span class="block text-xs font-bold uppercase tracking-widest text-blue-200">Poštovné</span>
-                <span class="font-bold text-xl">Len 3.90 €</span>
-            </div>
-        </div>
-        {% endif %}
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <h1 class="text-3xl font-black text-gray-900 mb-8 text-center">Dokončenie objednávky</h1>
+
+        <div class="flex flex-col md:flex-row gap-8">
             
-            <div class="md:col-span-2">
-                <form method="post" class="bg-white p-8 rounded-[2rem] shadow-xl border border-gray-100">
+            <div class="md:w-2/3">
+                <form method="post" id="checkout-form" class="bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
                     {% csrf_token %}
                     
-                    <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                        <i class="fa fa-truck mr-3 text-gray-400"></i> Dodacie údaje
-                    </h2>
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">1. Spôsob doručenia</h2>
                     
-                    <div class="space-y-4">
-                        {% for field in form %}
-                        <div>
-                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.errors %}
-                                <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
-                            {% endif %}
-                        </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                        {% for radio in form.delivery_method %}
+                        <label class="cursor-pointer relative group">
+                            {{ radio.tag }} <div class="border-2 border-gray-200 rounded-xl p-4 hover:border-blue-400 peer-checked:border-blue-600 peer-checked:bg-blue-50 transition-all h-full flex flex-col justify-center text-center">
+                                <div class="font-bold text-gray-900 group-hover:text-blue-600">
+                                    {% if radio.data.value == 'courier' %}
+                                        <i class="fa fa-truck text-2xl mb-2 block text-blue-500"></i>
+                                        Kuriér na adresu
+                                    {% else %}
+                                        <i class="fa fa-box-open text-2xl mb-2 block text-orange-500"></i>
+                                        Výdajný Box / Miesto
+                                    {% endif %}
+                                </div>
+                                <div class="text-sm text-gray-500 mt-1">
+                                    {% if radio.data.value == 'courier' %}
+                                        +4.90 €
+                                    {% else %}
+                                        +2.90 €
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="absolute top-3 right-3 text-blue-600 opacity-0 peer-checked:opacity-100 transition">
+                                <i class="fa fa-check-circle"></i>
+                            </div>
+                        </label>
                         {% endfor %}
                     </div>
 
-                    <button type="submit" class="w-full mt-8 bg-green-600 text-white font-black py-5 rounded-2xl hover:bg-green-700 transition-all shadow-xl shadow-green-200 transform hover:-translate-y-1 active:scale-95 text-lg flex justify-center items-center">
-                        <span>ZÁVÄZNE OBJEDNAŤ</span>
-                        <i class="fa fa-check-circle ml-3"></i>
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">2. Dodacie údaje</h2>
+                    <div class="space-y-5 mb-6">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Meno a Priezvisko</label>
+                                {{ form.customer_name }}
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
+                                {{ form.customer_email }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label id="address-label" class="block text-sm font-bold text-gray-700">
+                                    Adresa doručenia
+                                </label>
+                                
+                                <a href="https://widget.packeta.com/v6/#/" target="_blank" id="map-link" class="hidden text-xs font-bold text-blue-600 hover:underline">
+                                    <i class="fa fa-map-marker-alt mr-1"></i> Nájsť box na mape
+                                </a>
+                            </div>
+
+                            {{ form.customer_address }}
+                            
+                            <p id="address-hint" class="text-xs text-gray-400 mt-1">
+                                Ulica, číslo domu, Mesto a PSČ.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Poznámka</label>
+                            {{ form.note }}
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-600 transition shadow-lg flex justify-center items-center group">
+                        Záväzne objednať
+                        <i class="fa fa-arrow-right ml-2 group-hover:translate-x-1 transition"></i>
                     </button>
                     
-                    <p class="text-center mt-4 text-xs text-gray-400">
+                    <p class="text-center text-xs text-gray-400 mt-4">
                         Odoslaním súhlasíte s obchodnými podmienkami.
                     </p>
                 </form>
             </div>
-            
-            <div class="md:col-span-1">
-                <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-lg sticky top-6">
-                    <h3 class="font-bold mb-6 uppercase text-xs text-gray-400 tracking-widest border-b pb-4">Sumár objednávky</h3>
+
+            <div class="md:w-1/3">
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm sticky top-24">
+                    <h3 class="font-bold text-gray-900 mb-4 text-lg">Zhrnutie objednávky</h3>
                     
-                    <div class="space-y-4 mb-6 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                    <div class="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                         {% for item in cart_items %}
-                        <div class="flex justify-between items-center text-sm group">
-                            <div class="flex-1 pr-2">
-                                <span class="block font-medium text-gray-700 truncate group-hover:whitespace-normal">{{ item.name }}</span>
-                                <span class="text-xs text-gray-400">{{ item.shop_name }}</span>
-                            </div>
-                            <span class="font-bold text-gray-900">{{ item.price }} €</span>
+                        <div class="flex justify-between text-sm group">
+                            <span class="text-gray-600 w-2/3 truncate group-hover:text-blue-600 transition">{{ item.product.name }}</span>
+                            <span class="font-bold text-gray-900">{{ item.price|floatformat:2 }} €</span>
                         </div>
                         {% endfor %}
                     </div>
-                    
-                    <div class="pt-4 border-t border-gray-100 space-y-2">
-                        <div class="flex justify-between text-gray-500 text-sm">
+
+                    <div class="border-t border-gray-100 pt-4 space-y-2 text-sm">
+                        <div class="flex justify-between text-gray-500">
                             <span>Medzisúčet:</span>
-                            <span>{{ total_price|add:"-3.90" }} €</span> </div>
-                        <div class="flex justify-between text-gray-500 text-sm">
-                            <span>Doprava a balné:</span>
-                            <span class="text-green-600 font-bold">V cene</span>
+                            <span>{{ total_price|floatformat:2 }} €</span>
+                        </div>
+                        <div class="flex justify-between text-blue-600 font-bold bg-blue-50 p-2 rounded-lg">
+                            <span>Doprava:</span>
+                            <span id="shipping-display">...</span>
                         </div>
                     </div>
 
-                    <div class="mt-6 pt-6 border-t-2 border-dashed border-gray-200 flex justify-between items-end">
-                        <span class="text-gray-500 font-bold text-sm">Celkom k úhrade:</span>
-                        <span class="text-3xl font-black text-blue-600">{{ total_price }} €</span>
+                    <div class="border-t border-gray-200 pt-4 mt-4">
+                        <div class="flex justify-between items-end">
+                            <span class="font-bold text-lg text-gray-700">K úhrade:</span>
+                            <span class="font-black text-3xl text-gray-900 tracking-tight" id="total-display">--- €</span>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="mt-6 flex justify-center gap-4 opacity-50">
-                    <i class="fab fa-cc-visa text-2xl text-gray-400"></i>
-                    <i class="fab fa-cc-mastercard text-2xl text-gray-400"></i>
-                    <i class="fas fa-shield-alt text-2xl text-gray-400"></i>
-                </div>
             </div>
+
         </div>
     </div>
+</div>
 
-</body>
-</html>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Premenné
+        const totalGoods = {{ total_price|stringformat:".2f" }};
+        const radios = document.querySelectorAll('input[name="delivery_method"]');
+        const shippingDisplay = document.getElementById('shipping-display');
+        const totalDisplay = document.getElementById('total-display');
+        
+        // Elementy pre dynamickú zmenu textu
+        const addressLabel = document.getElementById('address-label');
+        const addressInput = document.getElementById('id_customer_address'); // Django ID
+        const addressHint = document.getElementById('address-hint');
+        const mapLink = document.getElementById('map-link');
+
+        function updateUI() {
+            let selectedValue = 'courier';
+            let shippingCost = 4.90;
+
+            // Zisti, čo je vybraté
+            radios.forEach(radio => {
+                if (radio.checked) {
+                    selectedValue = radio.value;
+                }
+            });
+
+            // Logika prepínania
+            if (selectedValue === 'courier') {
+                shippingCost = 4.90;
+                
+                // Zmena textov pre Kuriéra
+                addressLabel.innerText = "Adresa doručenia (Domov/Práca)";
+                addressInput.placeholder = "Ulica 123, 821 01 Bratislava";
+                addressHint.innerText = "Tovar vám doručí kuriér priamo do rúk.";
+                mapLink.classList.add('hidden'); // Skryť mapu
+            } else {
+                shippingCost = 2.90;
+                
+                // Zmena textov pre Box
+                addressLabel.innerText = "Názov a adresa výdajného miesta";
+                addressInput.placeholder = "Napr. Z-Box Tesco, Panónska cesta...";
+                addressHint.innerText = "Prosím, skopírujte presný názov boxu z mapy.";
+                mapLink.classList.remove('hidden'); // Ukázať mapu
+            }
+
+            // Prepočet cien
+            shippingDisplay.innerText = shippingCost.toFixed(2) + " €";
+            const total = parseFloat(totalGoods) + shippingCost;
+            totalDisplay.innerText = total.toFixed(2) + " €";
+        }
+
+        // Event Listeners
+        radios.forEach(r => r.addEventListener('change', updateUI));
+        
+        // Inicializácia
+        if (!document.querySelector('input[name="delivery_method"]:checked')) {
+            radios[0].checked = true;
+        }
+        updateUI();
+    });
+</script>
+
+<style>
+    input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+</style>
+{% endblock %}
