@@ -4,6 +4,7 @@ from django.db.models import Min, Q
 from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
+import json # <--- Dôležitý import pre grafy
 
 # --- KONFIGURÁCIA DOPRAVY ---
 SHIPPING_STD = 3.90
@@ -25,6 +26,7 @@ def calculate_shipping(total_price, has_oversized):
 def home(request):
     products = Product.objects.all().order_by('?')[:8]
     bundles = Bundle.objects.all()
+    all_categories = Category.objects.filter(parent=None)
     
     if request.user.is_authenticated:
         cart_count = PlannerItem.objects.filter(user=request.user).count()
@@ -34,7 +36,8 @@ def home(request):
     return render(request, 'products/home.html', {
         'products': products,
         'bundles': bundles,
-        'cart_count': cart_count
+        'cart_count': cart_count,
+        'all_categories': all_categories
     })
 
 # --- 2. KATEGÓRIA ---
@@ -74,11 +77,22 @@ def search(request):
         ).distinct()
     return render(request, 'products/search_results.html', {'products': results, 'query': query})
 
-# --- 4. DETAILY ---
+# --- 4. DETAILY PRODUKTU (S DÁTAMI PRE GRAF) ---
 def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     offers = product.offers.filter(active=True).order_by('price')
-    return render(request, 'products/product_detail.html', {'product': product, 'offers': offers})
+    
+    # --- PRÍPRAVA DÁT PRE GRAF ---
+    history = product.price_history.all()
+    dates = [h.date.strftime("%d.%m.") for h in history]
+    prices = [float(h.price) for h in history]
+    
+    return render(request, 'products/product_detail.html', {
+        'product': product, 
+        'offers': offers,
+        'chart_dates': json.dumps(dates),  # Posielame ako JSON
+        'chart_prices': json.dumps(prices) # Posielame ako JSON
+    })
 
 def bundle_detail(request, bundle_slug):
     bundle = get_object_or_404(Bundle, slug=bundle_slug)
@@ -120,13 +134,18 @@ def remove_from_planner(request, item_id):
         if item.user != request.user: return redirect('planner_view')
     else:
         if item.session_key != request.session.session_key: return redirect('planner_view')
-
     item.delete()
     return redirect('planner_view')
 
 def planner_view(request):
-    if request.user.is_authenticated: items = PlannerItem.objects.filter(user=request.user)
-    else: items = PlannerItem.objects.filter(session_key=get_session_key(request))
+    if request.user.is_authenticated:
+        items = PlannerItem.objects.filter(user=request.user)
+    else:
+        items = PlannerItem.objects.filter(session_key=get_session_key(request))
+    
+    for item in items:
+        item.cheapest_offer = item.product.offers.filter(active=True).order_by('price').first()
+
     return render(request, 'products/planner.html', {'items': items})
 
 # --- 6. SMART POROVNANIE ---
@@ -208,7 +227,21 @@ def register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            messages.success(request, f"Vitajte, {user.username}! Vaše konto bolo vytvorené.")
+            
+            session_key = get_session_key(request)
+            anon_items = PlannerItem.objects.filter(session_key=session_key)
+            for item in anon_items:
+                existing_item = PlannerItem.objects.filter(user=user, product=item.product).first()
+                if existing_item:
+                    existing_item.quantity += item.quantity
+                    existing_item.save()
+                    item.delete()
+                else:
+                    item.user = user
+                    item.session_key = None
+                    item.save()
+
+            messages.success(request, f"Vitajte, {user.username}! Vaše produkty boli prenesené.")
             return redirect('home')
     else:
         form = UserCreationForm()
@@ -244,7 +277,7 @@ def load_plan(request, plan_id):
     if not request.user.is_authenticated: return redirect('login')
     plan = get_object_or_404(SavedPlan, id=plan_id, user=request.user)
     
-    PlannerItem.objects.filter(user=request.user).delete() # Vyčistiť aktuálny
+    PlannerItem.objects.filter(user=request.user).delete()
     for saved_item in plan.items.all():
         PlannerItem.objects.create(user=request.user, product=saved_item.product, quantity=saved_item.quantity)
         

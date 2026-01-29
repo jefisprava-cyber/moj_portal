@@ -30,6 +30,15 @@
 
                 <p class="text-gray-600 mb-10 leading-relaxed text-lg">{{ product.description }}</p>
 
+                <div class="mb-10">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fa fa-chart-line text-blue-600"></i> Vývoj ceny (30 dní)
+                    </h3>
+                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm h-64">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+
                 <h3 class="text-xl font-bold text-gray-800 mb-4">Porovnanie cien v obchodoch:</h3>
                 <div class="space-y-3 mb-10 flex-grow">
                     {% for offer in offers %}
@@ -57,4 +66,46 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    const priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_dates|safe }}, 
+            datasets: [{
+                label: 'Cena (€)',
+                data: {{ chart_prices|safe }}, 
+                borderColor: '#2563eb', 
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 3,
+                pointRadius: 0, 
+                pointHoverRadius: 6,
+                fill: true,
+                tension: 0.4 
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    intersect: false,
+                    mode: 'index',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false, 
+                    grid: { display: true, color: '#f3f4f6' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}

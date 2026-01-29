@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils.text import slugify 
 
 # --- KATEGÓRIE ---
 class Category(models.Model):
@@ -20,7 +21,7 @@ class Product(models.Model):
     image_url = models.URLField(blank=True, null=True)
     ean = models.CharField(max_length=13, blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
-    is_oversized = models.BooleanField(default=False) 
+    is_oversized = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -60,7 +61,7 @@ class Bundle(models.Model):
     def __str__(self):
         return self.name
 
-# --- ULOŽENÉ PLÁNY (TOTO TI TAM CHÝBALO) ---
+# --- ULOŽENÉ PLÁNY ---
 class SavedPlan(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_plans')
     name = models.CharField(max_length=200, default="Môj projekt")
@@ -76,3 +77,15 @@ class SavedPlanItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} ({self.quantity}x)"
+
+# --- NOVÉ: HISTÓRIA CIEN (Pre graf) ---
+class PriceHistory(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    date = models.DateField()
+
+    class Meta:
+        ordering = ['date'] # Zoradiť od najstaršieho po najnovší
+
+    def __str__(self):
+        return f"{self.product.name} - {self.price} € ({self.date})"
