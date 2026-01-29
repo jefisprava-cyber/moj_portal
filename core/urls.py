@@ -7,12 +7,18 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
     
-    # --- AUTH ---
+    # AUTH
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
     path('register/', views.register, name='register'),
+    
+    # PROFIL A PLÁNY (NOVÉ)
+    path('profile/', views.profile, name='profile'),
+    path('save-plan/', views.save_current_plan, name='save_current_plan'),
+    path('load-plan/<int:plan_id>/', views.load_plan, name='load_plan'),
+    path('delete-plan/<int:plan_id>/', views.delete_plan, name='delete_plan'),
 
-    # --- OSTATNÉ ---
+    # OSTATNÉ
     path('search/', views.search, name='search'),
     path('category/<slug:slug>/', views.category_detail, name='category_detail'),
     path('product/<int:product_id>/', views.product_detail, name='product_detail'),

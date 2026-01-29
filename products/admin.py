@@ -1,37 +1,43 @@
 from django.contrib import admin
-from .models import Category, Product, Offer, Bundle, PlannerItem
+from .models import Product, Category, Offer, PlannerItem, Bundle, SavedPlan, SavedPlanItem
 
-# 1. Kategórie
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'parent')
+    list_display = ('name', 'parent')
     prepopulated_fields = {'slug': ('name',)}
 
-# 2. Produkty (Pridané EAN a Oversized)
+class OfferInline(admin.TabularInline):
+    model = Offer
+    extra = 1
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'category', 'ean', 'is_oversized')
-    list_editable = ('is_oversized',)
+    list_filter = ('category', 'is_oversized')
     search_fields = ('name', 'ean')
-    list_filter = ('is_oversized', 'category')
+    inlines = [OfferInline]
 
-# 3. Ponuky (Affiliate linky)
 @admin.register(Offer)
 class OfferAdmin(admin.ModelAdmin):
-    list_display = ('product', 'shop_name', 'price', 'active', 'last_updated')
+    list_display = ('shop_name', 'product', 'price', 'active')
     list_filter = ('shop_name', 'active')
-    search_fields = ('product__name', 'url')
 
-# 4. NOVINKA: Zostavy / Bundles
+@admin.register(PlannerItem)
+class PlannerItemAdmin(admin.ModelAdmin):
+    list_display = ('product', 'quantity', 'user', 'session_key')
+
 @admin.register(Bundle)
 class BundleAdmin(admin.ModelAdmin):
     list_display = ('name', 'slug')
     prepopulated_fields = {'slug': ('name',)}
-    # filter_horizontal urobí pekný výber produktov (vľavo dostupné, vpravo vybraté)
     filter_horizontal = ('products',)
 
-# 5. Nákupný Plánovač (Len na kontrolu, čo si ľudia ukladajú)
-@admin.register(PlannerItem)
-class PlannerItemAdmin(admin.ModelAdmin):
-    list_display = ('product', 'user', 'session_key', 'quantity')
-    
+# --- Uložené plány ---
+class SavedPlanItemInline(admin.TabularInline):
+    model = SavedPlanItem
+    extra = 0
+
+@admin.register(SavedPlan)
+class SavedPlanAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', 'created_at')
+    inlines = [SavedPlanItemInline]

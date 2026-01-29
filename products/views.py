@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Product, Category, Offer, PlannerItem, Bundle
+from .models import Product, Category, Offer, PlannerItem, Bundle, SavedPlan, SavedPlanItem
 from django.db.models import Min, Q
 from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
@@ -116,7 +116,6 @@ def add_bundle_to_planner(request, bundle_id):
 
 def remove_from_planner(request, item_id):
     item = get_object_or_404(PlannerItem, id=item_id)
-    # Bezpečnostná kontrola
     if request.user.is_authenticated:
         if item.user != request.user: return redirect('planner_view')
     else:
@@ -202,7 +201,7 @@ def comparison(request):
         'free_shipping_limit': FREE_SHIPPING_LIMIT
     })
 
-# --- 7. REGISTRÁCIA (NOVÉ) ---
+# --- 7. AUTH & PROFIL ---
 def register(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
@@ -214,3 +213,47 @@ def register(request):
     else:
         form = UserCreationForm()
     return render(request, 'registration/register.html', {'form': form})
+
+def profile(request):
+    if not request.user.is_authenticated: return redirect('login')
+    saved_plans = SavedPlan.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'products/profile.html', {'saved_plans': saved_plans})
+
+def save_current_plan(request):
+    if not request.user.is_authenticated:
+        messages.warning(request, "Na uloženie projektu sa musíte prihlásiť.")
+        return redirect('login')
+    
+    if request.method == 'POST':
+        plan_name = request.POST.get('plan_name', 'Môj projekt')
+        items = PlannerItem.objects.filter(user=request.user)
+        
+        if not items:
+            messages.error(request, "Váš plánovač je prázdny.")
+            return redirect('planner_view')
+
+        plan = SavedPlan.objects.create(user=request.user, name=plan_name)
+        for item in items:
+            SavedPlanItem.objects.create(plan=plan, product=item.product, quantity=item.quantity)
+            
+        messages.success(request, f"Projekt '{plan_name}' bol uložený!")
+        return redirect('profile')
+    return redirect('planner_view')
+
+def load_plan(request, plan_id):
+    if not request.user.is_authenticated: return redirect('login')
+    plan = get_object_or_404(SavedPlan, id=plan_id, user=request.user)
+    
+    PlannerItem.objects.filter(user=request.user).delete() # Vyčistiť aktuálny
+    for saved_item in plan.items.all():
+        PlannerItem.objects.create(user=request.user, product=saved_item.product, quantity=saved_item.quantity)
+        
+    messages.success(request, f"Projekt '{plan.name}' bol načítaný.")
+    return redirect('planner_view')
+
+def delete_plan(request, plan_id):
+    if not request.user.is_authenticated: return redirect('login')
+    plan = get_object_or_404(SavedPlan, id=plan_id, user=request.user)
+    plan.delete()
+    messages.success(request, "Projekt vymazaný.")
+    return redirect('profile')

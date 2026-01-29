@@ -3,9 +3,30 @@
 {% block content %}
 <div class="container mx-auto px-6 py-10">
 
-    <div class="text-center mb-10">
+    <div class="text-center mb-6">
         <h1 class="text-3xl md:text-4xl font-black text-gray-900 mb-2">Výsledok analýzy</h1>
         <p class="text-gray-500">Započítali sme ceny tovaru aj náklady na dopravu.</p>
+    </div>
+
+    <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-10">
+        <a href="{% url 'planner_view' %}" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition">
+            <i class="fa fa-arrow-left mr-2"></i> Upraviť zoznam
+        </a>
+
+        {% if user.is_authenticated %}
+        <form action="{% url 'save_current_plan' %}" method="post" class="flex gap-2">
+            {% csrf_token %}
+            <input type="text" name="plan_name" placeholder="Názov (napr. Kuchyňa)" class="border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+            <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200">
+                <i class="fa fa-save mr-2"></i> Uložiť projekt
+            </button>
+        </form>
+        {% else %}
+        <div class="bg-blue-50 text-blue-800 px-6 py-3 rounded-xl text-sm flex items-center">
+            <i class="fa fa-info-circle mr-2"></i> 
+            <a href="{% url 'login' %}?next={% url 'comparison' %}" class="font-bold underline hover:text-blue-600">Prihláste sa</a>, aby ste si mohli tento výpočet uložiť.
+        </div>
+        {% endif %}
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
