@@ -9,6 +9,9 @@ urlpatterns = [
     # Vyhľadávanie
     path('search/', views.search, name='search'),
 
+    # Kategórie (NOVÉ)
+    path('category/<slug:slug>/', views.category_detail, name='category_detail'),
+
     # Produkty a Zostavy
     path('product/<int:product_id>/', views.product_detail, name='product_detail'),
     path('bundle/<slug:bundle_slug>/', views.bundle_detail, name='bundle_detail'),
