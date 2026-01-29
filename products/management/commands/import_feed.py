@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from products.models import Product, Offer, Category
 import xml.etree.ElementTree as ET
 from decimal import Decimal
+from django.utils.text import slugify
 
 class Command(BaseCommand):
     help = 'Importuje produkty z XML feedu (Simulácia Heureka Feedu)'
@@ -9,7 +10,23 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write("🔄 Začínam import produktov...")
 
-        # 1. TOTO JE VZORKA REÁLNEHO XML (Akože sme to stiahli z Alzy)
+        # 1. KROK: AUTOMATICKÉ VYTVORENIE KATEGÓRIÍ (Ak chýbajú)
+        if not Category.objects.exists():
+            self.stdout.write("⚠️ Žiadne kategórie nenájdené. Vytváram základné...")
+            
+            # Hlavná kategória
+            elektronika = Category.objects.create(name="Elektronika", slug="elektronika")
+            
+            # Podkategórie
+            Category.objects.create(name="Smartfóny", slug="smartfony", parent=elektronika)
+            Category.objects.create(name="Veľké spotrebiče", slug="velke-spotrebice", parent=elektronika)
+            Category.objects.create(name="Notebooky", slug="notebooky", parent=elektronika)
+            
+            self.stdout.write(self.style.SUCCESS("✅ Kategórie vytvorené."))
+        else:
+            self.stdout.write("ℹ️ Kategórie už existujú, pokračujem...")
+
+        # 2. VZORKA XML DÁT
         xml_data = """
         <SHOP>
             <SHOPITEM>
@@ -20,7 +37,6 @@ class Command(BaseCommand):
                 <IMGURL>https://cdn.alza.sk/foto/123.jpg</IMGURL>
                 <PRICE_VAT>1149.90</PRICE_VAT>
                 <EAN>190199223344</EAN>
-                <CATEGORYTEXT>Elektronika | Mobily | Smartfóny</CATEGORYTEXT>
                 <DELIVERY_DATE>0</DELIVERY_DATE>
             </SHOPITEM>
             <SHOPITEM>
@@ -31,7 +47,6 @@ class Command(BaseCommand):
                 <IMGURL>https://nay.sk/foto/555.jpg</IMGURL>
                 <PRICE_VAT>1299.00</PRICE_VAT>
                 <EAN>880609012345</EAN>
-                <CATEGORYTEXT>Elektronika | Mobily | Smartfóny</CATEGORYTEXT>
                 <DELIVERY_DATE>2</DELIVERY_DATE>
             </SHOPITEM>
             <SHOPITEM>
@@ -42,27 +57,32 @@ class Command(BaseCommand):
                 <IMGURL>https://datart.sk/foto/999.jpg</IMGURL>
                 <PRICE_VAT>549.00</PRICE_VAT>
                 <EAN>880123456789</EAN>
-                <CATEGORYTEXT>Elektronika | Veľké spotrebiče | Práčky</CATEGORYTEXT>
                 <DELIVERY_DATE>0</DELIVERY_DATE>
+            </SHOPITEM>
+             <SHOPITEM>
+                <ITEM_ID>ALZA_MAC</ITEM_ID>
+                <PRODUCTNAME>MacBook Air M3 13" Vesmírne sivý</PRODUCTNAME>
+                <DESCRIPTION>MacBook – Apple M3, 13.6" IPS 2560 × 1664, RAM 8GB...</DESCRIPTION>
+                <URL>https://alza.sk/macbook-air</URL>
+                <IMGURL>https://cdn.alza.sk/foto/mac.jpg</IMGURL>
+                <PRICE_VAT>1299.00</PRICE_VAT>
+                <EAN>199999999999</EAN>
+                <DELIVERY_DATE>1</DELIVERY_DATE>
             </SHOPITEM>
         </SHOP>
         """
 
-        # 2. PARSOVANIE XML
+        # 3. PARSOVANIE XML
         root = ET.fromstring(xml_data)
-
-        # Načítame si kategórie z databázy, aby sme vedeli priraďovať
-        # Pre test priradíme všetko do "Smartfóny" alebo prvej kategórie, čo nájdeme
-        default_category = Category.objects.first()
-        if not default_category:
-            self.stdout.write(self.style.ERROR("❌ Chyba: Nemáš žiadne kategórie! Vytvor najprv kategórie."))
-            return
-
         count_created = 0
-        count_updated = 0
+
+        # Načítame si kategórie do pamäte pre rýchlejšie priradenie
+        cat_smart = Category.objects.filter(slug='smartfony').first()
+        cat_spotrebice = Category.objects.filter(slug='velke-spotrebice').first()
+        cat_notebooky = Category.objects.filter(slug='notebooky').first()
+        cat_default = Category.objects.get(slug='elektronika')
 
         for item in root.findall('SHOPITEM'):
-            # Vytiahneme dáta z XML
             name = item.find('PRODUCTNAME').text
             description = item.find('DESCRIPTION').text
             price = Decimal(item.find('PRICE_VAT').text)
@@ -72,33 +92,33 @@ class Command(BaseCommand):
             item_id = item.find('ITEM_ID').text
             delivery = int(item.find('DELIVERY_DATE').text)
             
-            # --- LOGIKA KATEGÓRIÍ (Zjednodušená) ---
-            # Skúsime nájsť kategóriu podľa názvu produktu
-            actual_category = default_category
-            if "iPhone" in name or "Samsung" in name:
-                cat = Category.objects.filter(slug='smartfony').first()
-                if cat: actual_category = cat
+            # --- LOGIKA PRIRADENIA KATEGÓRIE ---
+            target_category = cat_default
+            if "iPhone" in name or "Samsung Galaxy" in name:
+                target_category = cat_smart
+            elif "Práčka" in name or "Chladnička" in name:
+                target_category = cat_spotrebice
+            elif "MacBook" in name or "Asus" in name:
+                target_category = cat_notebooky
             
             # --- LOGIKA NADROZMERNÉHO TOVARU ---
             is_oversized = False
             if "Práčka" in name or "Chladnička" in name or "TV" in name:
                 is_oversized = True
-                self.stdout.write(f"   🚚 Detekovaný nadrozmerný tovar: {name}")
 
-            # 1. KROK: UPDATE ALEBO CREATE PRODUKTU (Podľa EAN)
+            # UPDATE ALEBO CREATE PRODUKTU
             product, created = Product.objects.update_or_create(
                 ean=ean,
                 defaults={
                     'name': name,
                     'description': description,
                     'image_url': img,
-                    'category': actual_category,
+                    'category': target_category,
                     'is_oversized': is_oversized
                 }
             )
 
-            # 2. KROK: VYTVORENIE PONUKY (OFFER)
-            # Simulujeme, že obchod je "Alza" alebo "Nay" podľa IDčka
+            # URČENIE OBCHODU PODĽA ID
             shop_name = "Neznámy Shop"
             if "ALZA" in item_id: shop_name = "Alza"
             elif "NAY" in item_id: shop_name = "Nay"
@@ -117,12 +137,6 @@ class Command(BaseCommand):
             )
 
             if created:
-                self.stdout.write(self.style.SUCCESS(f"✅ Nový produkt: {name} ({shop_name})"))
                 count_created += 1
-            else:
-                self.stdout.write(f"🔄 Aktualizovaný: {name} ({shop_name})")
-                count_updated += 1
 
-        self.stdout.write(self.style.SUCCESS(f"--- HOTOVO ---"))
-        self.stdout.write(f"Vytvorené: {count_created}")
-        self.stdout.write(f"Aktualizované: {count_updated}")
+        self.stdout.write(self.style.SUCCESS(f"✅ Import hotový! Pridané nové produkty: {count_created}"))

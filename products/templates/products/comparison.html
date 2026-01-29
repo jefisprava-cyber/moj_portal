@@ -1,0 +1,83 @@
+{% extends 'products/base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-6 py-10">
+
+    <div class="text-center mb-10">
+        <h1 class="text-3xl md:text-4xl font-black text-gray-900 mb-2">Výsledok analýzy</h1>
+        <p class="text-gray-500">Prehľadali sme ponuky e-shopov pre váš zoznam.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden relative">
+            <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-white text-center">
+                <h2 class="text-xl font-bold uppercase tracking-wider mb-1">🥇 Najnižšia cena</h2>
+                <p class="text-sm opacity-90">Kombinácia rôznych obchodov</p>
+                <div class="text-4xl font-black mt-4">{{ mix_total|floatformat:2 }} €</div>
+            </div>
+
+            <div class="p-6">
+                <div class="space-y-4">
+                    {% for item in mix_details %}
+                    <div class="flex items-center justify-between border-b border-gray-50 pb-4 last:border-0">
+                        <div class="w-1/2">
+                            <div class="font-bold text-gray-900 truncate">{{ item.product.name }}</div>
+                            <div class="text-xs text-gray-500">{{ item.quantity }} ks</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold text-green-600">{{ item.cost|floatformat:2 }} €</div>
+                            <a href="{{ item.offer.url }}" target="_blank" class="text-xs font-bold text-blue-600 hover:underline flex items-center justify-end gap-1">
+                                Kúpiť v {{ item.offer.shop_name }} <i class="fa fa-external-link-alt text-[10px]"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-6 bg-yellow-50 p-4 rounded-lg text-sm text-yellow-800 border border-yellow-200">
+                    <i class="fa fa-info-circle mr-1"></i> 
+                    Táto možnosť je najlacnejšia, ale budete platiť <strong>viacero poštovných</strong> a čakať na viac kuriérov.
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <h2 class="font-bold text-gray-400 uppercase text-sm tracking-wider mb-4 ml-2">Alternatívy (Všetko v jednom balíku)</h2>
+
+            {% for result in single_shop_results %}
+            <div class="bg-white p-6 rounded-2xl border-2 {% if result.is_winner %}border-blue-500 shadow-xl scale-105 relative z-10{% else %}border-gray-100 opacity-80 hover:opacity-100{% endif %} transition">
+                
+                {% if result.is_winner %}
+                <div class="absolute -top-3 right-6 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">
+                    Najlepšie pohodlie
+                </div>
+                {% endif %}
+
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-black text-gray-900">{{ result.shop_name }}</h3>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-gray-900">{{ result.total_price|floatformat:2 }} €</div>
+                        <div class="text-xs text-red-500 font-bold">+ {{ result.difference|floatformat:2 }} € rozdiel</div>
+                    </div>
+                </div>
+
+                <p class="text-sm text-gray-500 mb-6">
+                    Všetky produkty sú dostupné v tomto obchode. Príde vám <strong>1 balík</strong>.
+                </p>
+
+                <a href="#" class="block w-full text-center bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-blue-600 transition">
+                    Nakúpiť v {{ result.shop_name }}
+                </a>
+            </div>
+            {% empty %}
+            <div class="bg-white p-8 rounded-2xl border border-gray-200 text-center text-gray-500">
+                <i class="fa fa-times-circle text-4xl mb-3 text-gray-300"></i>
+                <p>Nenašli sme jeden obchod, ktorý by mal <strong>všetky</strong> položky naraz.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}
