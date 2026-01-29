@@ -3,7 +3,7 @@
 {% block content %}
 <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16">
     <div class="container mx-auto px-6 text-center">
-        <h1 class="text-4xl md:text-5xl font-black mb-4">
+        <h1 class="text-4xl md:text-5xl font-black mb-4 uppercase tracking-tight">
             Nakupujte projektovo. Ušetrite rozumne.
         </h1>
         <p class="text-xl text-blue-100 max-w-2xl mx-auto mb-8">
@@ -19,46 +19,53 @@
 <div class="container mx-auto px-6 py-12" id="produkty">
 
     {% if bundles %}
-    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-        <i class="fa fa-layer-group text-blue-600"></i> Odporúčané zostavy
-    </h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-        {% for bundle in bundles %}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
-            <div class="h-48 bg-gray-200 flex items-center justify-center relative">
-                {% if bundle.image_url %}
-                    <img src="{{ bundle.image_url }}" alt="{{ bundle.name }}" class="w-full h-full object-cover">
-                {% else %}
-                    <i class="fa fa-box-open text-4xl text-gray-400"></i>
-                {% endif %}
-                <div class="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1">
-                    Zostava
+    <div class="mb-16">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <i class="fa fa-layer-group text-blue-600"></i> Odporúčané zostavy projektov
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for bundle in bundles %}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition flex flex-col">
+                <div class="h-48 bg-gray-200 flex items-center justify-center relative">
+                    {% if bundle.image_url %}
+                        <img src="{{ bundle.image_url }}" alt="{{ bundle.name }}" class="w-full h-full object-cover">
+                    {% else %}
+                        <i class="fa fa-box-open text-4xl text-gray-400"></i>
+                    {% endif %}
+                    <div class="absolute top-4 left-4 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase">
+                        Bundle
+                    </div>
+                </div>
+                <div class="p-6 flex-grow flex flex-col">
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">{{ bundle.name }}</h3>
+                    <p class="text-gray-500 text-sm mb-4 line-clamp-2">{{ bundle.description }}</p>
+                    <div class="mt-auto flex gap-2">
+                        <a href="{% url 'bundle_detail' bundle.slug %}" class="flex-grow text-center bg-indigo-50 text-indigo-700 font-bold py-2 rounded-lg hover:bg-indigo-100 transition">
+                            Pozrieť detaily
+                        </a>
+                        <a href="{% url 'add_bundle_to_planner' bundle.id %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition" title="Pridať celú zostavu">
+                            <i class="fa fa-cart-plus"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
-            <div class="p-6">
-                <h3 class="text-xl font-bold text-gray-900 mb-2">{{ bundle.name }}</h3>
-                <p class="text-gray-500 text-sm mb-4 line-clamp-2">{{ bundle.description }}</p>
-                <button class="w-full bg-indigo-50 text-indigo-700 font-bold py-2 rounded-lg hover:bg-indigo-100 transition">
-                    Pozrieť zostavu
-                </button>
-            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
     {% endif %}
 
     <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-        <i class="fa fa-tag text-blue-600"></i> Populárne produkty
+        <i class="fa fa-tag text-blue-600"></i> Jednotlivé produkty
     </h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {% for product in products %}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-md transition group">
             
-            <div class="h-48 p-4 flex items-center justify-center bg-white relative">
+            <a href="{% url 'product_detail' product.id %}" class="h-48 p-4 flex items-center justify-center bg-white relative">
                 {% if product.image_url %}
                     <img src="{{ product.image_url }}" alt="{{ product.name }}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-300">
                 {% else %}
-                    <div class="text-gray-300 text-4xl"><i class="fa fa-image"></i></div>
+                    <div class="text-gray-200 text-4xl"><i class="fa fa-image"></i></div>
                 {% endif %}
                 
                 {% if product.is_oversized %}
@@ -66,19 +73,19 @@
                     Veľké
                 </span>
                 {% endif %}
-            </div>
+            </a>
 
-            <div class="p-5 flex-grow flex flex-col">
-                <div class="text-xs text-gray-500 mb-1 uppercase tracking-wide font-semibold">
+            <div class="p-5 flex-grow flex flex-col border-t border-gray-50">
+                <div class="text-xs text-gray-400 mb-1 uppercase tracking-widest font-bold">
                     {{ product.category.name }}
                 </div>
-                <h3 class="font-bold text-gray-900 mb-1 leading-tight flex-grow">
+                <a href="{% url 'product_detail' product.id %}" class="font-bold text-gray-900 mb-4 leading-tight flex-grow hover:text-blue-600 transition">
                     {{ product.name }}
-                </h3>
+                </a>
                 
-                <div class="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
-                    <a href="{% url 'add_to_planner' product.id %}" class="w-full bg-gray-900 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition text-center text-sm flex items-center justify-center gap-2">
-                        <i class="fa fa-plus"></i> Pridať do plánu
+                <div class="flex items-center justify-between">
+                    <a href="{% url 'add_to_planner' product.id %}" class="w-full bg-gray-900 hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg transition text-center text-sm flex items-center justify-center gap-2">
+                        <i class="fa fa-plus"></i> Do plánu
                     </a>
                 </div>
             </div>
