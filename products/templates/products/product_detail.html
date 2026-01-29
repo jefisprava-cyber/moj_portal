@@ -1,11 +1,38 @@
 {% extends 'products/base.html' %}
 
+{% block title %}{{ product.name }} | Porovnanie cien{% endblock %}
+{% block meta_description %}Najlepšia cena pre {{ product.name }}: {{ offers.first.price }} €. Porovnajte si {{ offers.count }} obchodov a pozrite si vývoj ceny.{% endblock %}
+
+{% block og_title %}{{ product.name }} - Vývoj ceny{% endblock %}
+{% block og_description %}Aktuálne najlacnejšie v obchode {{ offers.first.shop_name }}.{% endblock %}
+{% block og_image %}{{ product.image_url }}{% endblock %}
+
+{% block schema %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": "{{ product.name }}",
+  "image": "{{ product.image_url }}",
+  "description": "{{ product.description|truncatechars:150 }}",
+  "offers": {
+    "@type": "AggregateOffer",
+    "lowPrice": "{{ offers.first.price|stringformat:'.2f' }}",
+    "priceCurrency": "EUR",
+    "offerCount": "{{ offers.count }}"
+  }
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-6 py-12">
     <nav class="flex mb-8 text-sm text-gray-500 gap-2">
         <a href="{% url 'home' %}" class="hover:text-blue-600">Domov</a>
         <span>/</span>
-        <span class="text-gray-900 font-bold">{{ product.category.name }}</span>
+        <a href="{% url 'category_detail' product.category.slug %}" class="hover:text-blue-600">{{ product.category.name }}</a>
+        <span>/</span>
+        <span class="text-gray-900 font-bold">{{ product.name }}</span>
     </nav>
 
     <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
@@ -20,14 +47,9 @@
             
             <div class="md:w-1/2 p-12 flex flex-col">
                 <h1 class="text-4xl font-black text-gray-900 mb-4">{{ product.name }}</h1>
-                
                 <div class="mb-6 flex gap-2">
-                    <span class="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-1 rounded">EAN: {{ product.ean }}</span>
-                    {% if product.is_oversized %}
-                    <span class="bg-orange-100 text-orange-600 text-[10px] font-bold px-2 py-1 rounded">Nadrozmerný tovar</span>
-                    {% endif %}
+                    <span class="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-1 rounded">EAN: {{ product.ean|default:"-" }}</span>
                 </div>
-
                 <p class="text-gray-600 mb-10 leading-relaxed text-lg">{{ product.description }}</p>
 
                 <div class="mb-10">
@@ -39,7 +61,7 @@
                     </div>
                 </div>
 
-                <h3 class="text-xl font-bold text-gray-800 mb-4">Porovnanie cien v obchodoch:</h3>
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Najlepšie ponuky:</h3>
                 <div class="space-y-3 mb-10 flex-grow">
                     {% for offer in offers %}
                     <div class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-blue-200 transition">
@@ -54,8 +76,6 @@
                             </a>
                         </div>
                     </div>
-                    {% empty %}
-                    <p class="text-gray-400 italic">Momentálne žiadne aktívne ponuky.</p>
                     {% endfor %}
                 </div>
 
@@ -74,36 +94,37 @@
         type: 'line',
         data: {
             labels: {{ chart_dates|safe }}, 
-            datasets: [{
-                label: 'Cena (€)',
-                data: {{ chart_prices|safe }}, 
-                borderColor: '#2563eb', 
-                backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                borderWidth: 3,
-                pointRadius: 0, 
-                pointHoverRadius: 6,
-                fill: true,
-                tension: 0.4 
-            }]
+            datasets: [
+                {
+                    label: 'Najnižšia cena (€)',
+                    data: {{ chart_min_prices|safe }}, 
+                    borderColor: '#22c55e', // Zelená
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Priemerná cena (€)',
+                    data: {{ chart_avg_prices|safe }}, 
+                    borderColor: '#94a3b8', // Sivá
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    tension: 0.4,
+                    pointRadius: 0
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
-                tooltip: {
-                    intersect: false,
-                    mode: 'index',
-                }
+                tooltip: { intersect: false, mode: 'index' },
+                legend: { position: 'bottom' }
             },
             scales: {
-                y: {
-                    beginAtZero: false, 
-                    grid: { display: true, color: '#f3f4f6' }
-                },
-                x: {
-                    grid: { display: false }
-                }
+                y: { beginAtZero: false, grid: { color: '#f3f4f6' } },
+                x: { grid: { display: false } }
             }
         }
     });

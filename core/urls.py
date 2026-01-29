@@ -7,22 +7,23 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
     
-    # AUTH
-    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
-    path('register/', views.register, name='register'),
-    
-    # PROFIL A PLÁNY (NOVÉ)
-    path('profile/', views.profile, name='profile'),
-    path('save-plan/', views.save_current_plan, name='save_current_plan'),
-    path('load-plan/<int:plan_id>/', views.load_plan, name='load_plan'),
-    path('delete-plan/<int:plan_id>/', views.delete_plan, name='delete_plan'),
+    # SEO URL PRE PRODUKT
+    path('p/<slug:slug>/', views.product_detail, name='product_detail'),
 
     # OSTATNÉ
     path('search/', views.search, name='search'),
     path('category/<slug:slug>/', views.category_detail, name='category_detail'),
-    path('product/<int:product_id>/', views.product_detail, name='product_detail'),
     path('bundle/<slug:bundle_slug>/', views.bundle_detail, name='bundle_detail'),
+    
+    # AUTH & PLANNER
+    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
+    path('register/', views.register, name='register'),
+    path('profile/', views.profile, name='profile'),
+    path('save-plan/', views.save_current_plan, name='save_current_plan'),
+    path('load-plan/<int:plan_id>/', views.load_plan, name='load_plan'),
+    path('delete-plan/<int:plan_id>/', views.delete_plan, name='delete_plan'),
+    
     path('add/<int:product_id>/', views.add_to_planner, name='add_to_planner'),
     path('add-bundle/<int:bundle_id>/', views.add_bundle_to_planner, name='add_bundle_to_planner'),
     path('planner/', views.planner_view, name='planner_view'),

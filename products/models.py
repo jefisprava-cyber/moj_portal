@@ -14,14 +14,26 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = "Categories"
 
-# --- PRODUKTY ---
+# --- PRODUKTY (S pridaným SEO Slugom) ---
 class Product(models.Model):
     name = models.CharField(max_length=200)
+    slug = models.SlugField(unique=True, blank=True) # <--- SEO URL
     description = models.TextField(blank=True)
     image_url = models.URLField(blank=True, null=True)
     ean = models.CharField(max_length=13, blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     is_oversized = models.BooleanField(default=False)
+
+    def save(self, *args, **kwargs):
+        # Automatické generovanie URL (iPhone 15 -> iphone-15)
+        if not self.slug:
+            self.slug = slugify(self.name)
+            original_slug = self.slug
+            counter = 1
+            while Product.objects.filter(slug=self.slug).exists():
+                self.slug = f"{original_slug}-{counter}"
+                counter += 1
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -78,14 +90,15 @@ class SavedPlanItem(models.Model):
     def __str__(self):
         return f"{self.product.name} ({self.quantity}x)"
 
-# --- NOVÉ: HISTÓRIA CIEN (Pre graf) ---
+# --- HISTÓRIA CIEN (Vylepšená: Min aj Avg cena) ---
 class PriceHistory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    min_price = models.DecimalField(max_digits=10, decimal_places=2) # Najnižšia
+    avg_price = models.DecimalField(max_digits=10, decimal_places=2) # Priemerná
     date = models.DateField()
 
     class Meta:
-        ordering = ['date'] # Zoradiť od najstaršieho po najnovší
+        ordering = ['date']
 
     def __str__(self):
-        return f"{self.product.name} - {self.price} € ({self.date})"
+        return f"{self.product.name} - {self.min_price} € ({self.date})"

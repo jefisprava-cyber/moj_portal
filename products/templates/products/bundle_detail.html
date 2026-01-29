@@ -31,7 +31,7 @@
                     <h3 class="text-xl font-bold text-gray-900">{{ product.name }}</h3>
                     <p class="text-xs text-blue-600 font-bold mt-1 uppercase tracking-widest">{{ product.category.name }}</p>
                     <div class="mt-4 flex gap-4">
-                        <a href="{% url 'product_detail' product.id %}" class="text-sm font-bold text-gray-400 hover:text-gray-900 transition">Zobraziť detaily produktu</a>
+                        <a href="{% url 'product_detail' product.slug %}" class="text-sm font-bold text-gray-400 hover:text-gray-900 transition">Zobraziť detaily produktu</a>
                     </div>
                 </div>
                 <div class="hidden md:block">

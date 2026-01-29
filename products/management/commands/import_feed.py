@@ -6,11 +6,10 @@ from datetime import timedelta, date
 from django.db.models import Min
 
 class Command(BaseCommand):
-    help = 'Importuje testovacie dáta a generuje históriu cien'
+    help = 'Importuje testovacie dáta a generuje pokročilú históriu cien'
 
     def handle(self, *args, **kwargs):
         self.stdout.write("🗑️  Mažem staré dáta...")
-        # Zmažeme všetko, aby sme nemali duplicity
         PriceHistory.objects.all().delete()
         Offer.objects.all().delete()
         Product.objects.all().delete()
@@ -51,7 +50,6 @@ class Command(BaseCommand):
             )
             created_products.append(p)
             
-            # Vytvorenie 3-5 ponúk pre každý produkt
             for _ in range(random.randint(3, 5)):
                 price = round(random.uniform(*data["price_range"]), 2)
                 shop = random.choice(shops)
@@ -64,53 +62,49 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write("🎁 Vytváram balíčky...")
-        b1 = Bundle.objects.create(
-            name="Študentský Starter Pack",
-            slug="studentsky-pack",
-            description="Všetko čo potrebuje študent na intrák.",
-            image_url="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1000&auto=format&fit=crop"
-        )
-        b1.products.add(created_products[2], created_products[0]) # MacBook + iPhone
+        b1 = Bundle.objects.create(name="Študentský Starter Pack", slug="studentsky-pack")
+        b1.products.add(created_products[2], created_products[0]) 
 
-        b2 = Bundle.objects.create(
-            name="Kompletná Kuchyňa",
-            slug="kompletna-kuchyna",
-            description="Zariaďte si kuchyňu naraz a ušetrite.",
-            image_url="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=1000&auto=format&fit=crop"
-        )
-        b2.products.add(created_products[4], created_products[5], created_products[7]) # Doska + Chladnička + Hrnce
+        b2 = Bundle.objects.create(name="Kompletná Kuchyňa", slug="kompletna-kuchyna")
+        b2.products.add(created_products[4], created_products[5], created_products[7])
 
-        # --- NOVÉ: GENEROVANIE HISTÓRIE CIEN (Fiktívne dáta pre graf) ---
-        self.stdout.write("📊 Generujem históriu cien (30 dní)...")
-        
+        # --- GENERÁTOR DVOJITÉHO GRAFU ---
+        self.stdout.write("📊 Generujem históriu (Min vs Avg)...")
         today = date.today()
         
         for product in created_products:
-            # Zistíme aktuálnu najnižšiu cenu
-            current_min_price = product.offers.aggregate(Min('price'))['price__min']
-            if not current_min_price: continue
-
-            base_price = float(current_min_price)
+            current_min = float(product.offers.aggregate(Min('price'))['price__min'])
             
-            # Vygenerujeme ceny za posledných 30 dní
             for i in range(30, 0, -1):
                 day = today - timedelta(days=i)
                 
-                # Simulácia: Cena trochu kolíše (+- 5%)
-                fluctuation = random.uniform(-0.05, 0.05) 
-                hist_price = base_price * (1 + fluctuation)
+                # Simulácia kolísania
+                fluctuation = random.uniform(-0.05, 0.05)
                 
-                # Občas urobíme "akciu" (výrazný pokles pred 10 dňami)
+                # Min cena
+                hist_min = current_min * (1 + fluctuation)
+                
+                # Avg cena (býva o 10-20% vyššia ako min)
+                hist_avg = hist_min * random.uniform(1.10, 1.25)
+
+                # Akcia pred 10 dňami
                 if i == 10: 
-                    hist_price = base_price * 1.2 # Pred 10 dňami bolo drahšie
+                    hist_min = hist_min * 1.2
+                    hist_avg = hist_avg * 1.2
 
                 PriceHistory.objects.create(
                     product=product,
-                    price=round(hist_price, 2),
+                    min_price=round(hist_min, 2),
+                    avg_price=round(hist_avg, 2), # Ukladáme aj priemer
                     date=day
                 )
             
-            # Pridáme dnešnú cenu
-            PriceHistory.objects.create(product=product, price=base_price, date=today)
+            # Dnešok
+            PriceHistory.objects.create(
+                product=product, 
+                min_price=current_min, 
+                avg_price=current_min * 1.15, 
+                date=today
+            )
 
-        self.stdout.write(self.style.SUCCESS("🚀 Hotovo! Databáza je naplnená aj s grafmi."))
+        self.stdout.write(self.style.SUCCESS("🚀 Hotovo! Databáza je pripravená na SEO a Grafy."))
