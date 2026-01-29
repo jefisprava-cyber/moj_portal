@@ -1,53 +1,45 @@
-<!DOCTYPE html>
-<html lang="sk">
-<head>
-    <meta charset="UTF-8">
-    <title>Prihlásenie</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 h-screen flex items-center justify-center">
-    <div class="bg-white p-8 rounded-xl shadow-lg w-96 border border-gray-200">
-        <h2 class="text-2xl font-bold mb-6 text-center text-gray-800 border-b pb-4">Prihlásenie</h2>
-        
-        <form method="post">
-            {% csrf_token %}
-            <div class="space-y-4">
-                {% for field in form %}
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">
-                            {{ field.label }}
-                        </label>
-                        <div class="relative">
-                            {# Tu pridávame Tailwind triedy priamo do Django poľa #}
-                            <input 
-                                type="{{ field.field.widget.input_type }}" 
-                                name="{{ field.name }}" 
-                                id="{{ field.id_for_label }}"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                                placeholder="{{ field.label }}"
-                            >
-                        </div>
-                        {% if field.errors %}
-                            <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
-                        {% endif %}
-                    </div>
-                {% endfor %}
-            </div>
+{% extends 'products/base.html' %}
 
-            {% if form.non_field_errors %}
-                <div class="mt-4 p-2 bg-red-100 text-red-700 text-sm rounded-lg">
-                    {{ form.non_field_errors.0 }}
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-3xl shadow-lg border border-gray-100">
+        <div class="text-center">
+            <div class="mx-auto h-12 w-12 bg-blue-600 text-white rounded-xl flex items-center justify-center text-2xl mb-4">
+                <i class="fa fa-user"></i>
+            </div>
+            <h2 class="mt-2 text-3xl font-black text-gray-900">Prihlásenie</h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Alebo <a href="{% url 'register' %}" class="font-medium text-blue-600 hover:text-blue-500">si vytvorte nový účet zdarma</a>
+            </p>
+        </div>
+        
+        <form class="mt-8 space-y-6" method="post">
+            {% csrf_token %}
+            
+            {% if form.errors %}
+                <div class="bg-red-50 text-red-500 p-3 rounded-lg text-sm text-center">
+                    Meno alebo heslo nie je správne.
                 </div>
             {% endif %}
 
-            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg mt-6 hover:bg-blue-700 font-bold shadow-md hover:shadow-lg transition transform active:scale-95">
+            <div class="rounded-md shadow-sm -space-y-px">
+                <div class="mb-4">
+                    <label for="id_username" class="sr-only">Užívateľské meno</label>
+                    <input id="id_username" name="username" type="text" required class="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" placeholder="Užívateľské meno">
+                </div>
+                <div>
+                    <label for="id_password" class="sr-only">Heslo</label>
+                    <input id="id_password" name="password" type="password" required class="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm" placeholder="Heslo">
+                </div>
+            </div>
+
+            <button type="submit" class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-gray-900 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition transform hover:-translate-y-0.5">
+                <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                    <i class="fa fa-lock text-gray-500 group-hover:text-blue-300"></i>
+                </span>
                 Prihlásiť sa
             </button>
         </form>
-        
-        <p class="mt-6 text-center text-sm text-gray-600">
-            Nemáte účet? <a href="{% url 'register' %}" class="text-blue-600 font-bold hover:underline">Zaregistrujte sa</a>
-        </p>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

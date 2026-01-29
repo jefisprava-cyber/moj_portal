@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from .models import Product, Category, Offer, PlannerItem, Bundle
 from django.db.models import Min, Q
 from django.contrib import messages
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
 
 # --- KONFIGURÁCIA DOPRAVY ---
 SHIPPING_STD = 3.90
@@ -35,26 +37,21 @@ def home(request):
         'cart_count': cart_count
     })
 
-# --- 2. KATEGÓRIA (NOVÉ) ---
+# --- 2. KATEGÓRIA ---
 def category_detail(request, slug):
     category = get_object_or_404(Category, slug=slug)
-    
-    # Získame produkty v tejto kategórii ALEBO v jej podkategóriách
     products = Product.objects.filter(
         Q(category=category) | Q(category__parent=category)
     ).distinct()
 
-    # Zoradenie (Sort)
     sort_by = request.GET.get('sort', 'default')
     if sort_by == 'price_asc':
-        # Zoradenie podľa najnižšej ceny ponuky
         products = products.annotate(min_price=Min('offers__price')).order_by('min_price')
     elif sort_by == 'price_desc':
         products = products.annotate(min_price=Min('offers__price')).order_by('-min_price')
     elif sort_by == 'name':
         products = products.order_by('name')
 
-    # Načítanie všetkých hlavných kategórií pre sidebar menu
     all_categories = Category.objects.filter(parent=None)
 
     return render(request, 'products/category_detail.html', {
@@ -68,7 +65,6 @@ def category_detail(request, slug):
 def search(request):
     query = request.GET.get('q')
     results = []
-    
     if query:
         results = Product.objects.filter(
             Q(name__icontains=query) | 
@@ -76,10 +72,9 @@ def search(request):
             Q(ean__icontains=query) |
             Q(category__name__icontains=query)
         ).distinct()
-    
     return render(request, 'products/search_results.html', {'products': results, 'query': query})
 
-# --- 4. DETAILY PRODUKTOV ---
+# --- 4. DETAILY ---
 def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     offers = product.offers.filter(active=True).order_by('price')
@@ -121,6 +116,12 @@ def add_bundle_to_planner(request, bundle_id):
 
 def remove_from_planner(request, item_id):
     item = get_object_or_404(PlannerItem, id=item_id)
+    # Bezpečnostná kontrola
+    if request.user.is_authenticated:
+        if item.user != request.user: return redirect('planner_view')
+    else:
+        if item.session_key != request.session.session_key: return redirect('planner_view')
+
     item.delete()
     return redirect('planner_view')
 
@@ -200,3 +201,16 @@ def comparison(request):
         'single_shop_results': single_shop_results,
         'free_shipping_limit': FREE_SHIPPING_LIMIT
     })
+
+# --- 7. REGISTRÁCIA (NOVÉ) ---
+def register(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, f"Vitajte, {user.username}! Vaše konto bolo vytvorené.")
+            return redirect('home')
+    else:
+        form = UserCreationForm()
+    return render(request, 'registration/register.html', {'form': form})
