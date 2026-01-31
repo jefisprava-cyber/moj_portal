@@ -2,12 +2,22 @@ from django.contrib import admin
 from django.urls import path
 from products import views
 from django.contrib.auth import views as auth_views
+from django.contrib.sitemaps.views import sitemap # <--- Import
+from products.sitemaps import ProductSitemap    # <--- Import
+
+# Definícia sitemáp
+sitemaps = {
+    'products': ProductSitemap,
+}
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
     
-    # SEO URL PRE PRODUKT
+    # SITEMAP (PRE GOOGLE)
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+
+    # SEO URL PRODUKTU
     path('p/<slug:slug>/', views.product_detail, name='product_detail'),
 
     # OSTATNÉ
