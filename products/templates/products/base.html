@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <title>{% block title %}Môj Portál - Smart Porovnávač cien{% endblock %}</title>
+    <title>{% block title %}JEFI.sk - Smart Porovnávač cien{% endblock %}</title>
     <meta name="description" content="{% block meta_description %}Najlepšie ceny, porovnanie e-shopov a inteligentný nákupný plánovač.{% endblock %}">
     
-    <meta property="og:title" content="{% block og_title %}Môj Portál{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}JEFI.sk{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Porovnajte ceny a ušetrite.{% endblock %}">
     <meta property="og:image" content="{% block og_image %}{% endblock %}">
 
@@ -20,9 +20,14 @@
 
     <header class="bg-white shadow-sm sticky top-0 z-50">
         <div class="container mx-auto px-6 h-20 flex items-center justify-between">
-            <a href="{% url 'home' %}" class="flex items-center gap-2 group">
-                <div class="bg-blue-600 text-white w-10 h-10 flex items-center justify-center rounded-xl font-black text-xl group-hover:scale-110 transition">M</div>
-                <span class="font-bold text-xl tracking-tight text-gray-800">Môj<span class="text-blue-600">Portál</span></span>
+            
+            <a href="{% url 'home' %}" class="flex items-center gap-0.5 group select-none">
+                <span class="text-3xl font-black tracking-tighter text-blue-700">JEF</span>
+                
+                <div class="relative flex items-center justify-center w-5 h-8 ml-0.5">
+                    <div class="absolute bottom-1 w-1.5 h-3.5 bg-orange-500 rounded-full"></div>
+                    <i class="fa fa-search text-orange-500 text-xl absolute bottom-3.5 group-hover:scale-110 group-hover:rotate-12 transition duration-300"></i>
+                </div>
             </a>
 
             <nav class="hidden md:flex items-center gap-8 font-medium text-sm text-gray-600">
@@ -76,7 +81,7 @@
         <div class="container mx-auto px-6">
             <div class="grid md:grid-cols-4 gap-12 mb-12">
                 <div class="col-span-1 md:col-span-2">
-                    <h3 class="text-white font-bold text-xl mb-6">Môj<span class="text-blue-500">Portál</span></h3>
+                    <h3 class="text-white font-bold text-xl mb-6 tracking-tight">JEFI<span class="text-orange-500">.sk</span></h3>
                     <p class="text-sm leading-relaxed max-w-sm mb-6">
                         Váš inteligentný nákupný radca. Sledujeme ceny v stovkách e-shopov, strážime zľavy a pomáhame vám nakupovať chytro.
                     </p>
@@ -98,7 +103,7 @@
                 <div>
                     <h4 class="text-white font-bold mb-6">Kontakt</h4>
                     <ul class="space-y-3 text-sm">
-                        <li><i class="fa fa-envelope mr-2"></i> info@moj-portal.sk</li>
+                        <li><i class="fa fa-envelope mr-2"></i> info@jefi.sk</li>
                         <li><i class="fa fa-map-marker-alt mr-2"></i> Bratislava, Slovensko</li>
                     </ul>
                 </div>
@@ -106,12 +111,12 @@
 
             <div class="border-t border-slate-800 pt-8 mt-8 text-xs text-slate-500 text-center leading-relaxed">
                 <p class="mb-2">
-                    <strong>Affiliate Disclaimer:</strong> Sme účastníkom rôznych affiliate programov (napr. Dognet). 
+                    <strong>Affiliate Disclaimer:</strong> Sme účastníkom rôznych affiliate programov. 
                     Niektoré odkazy na tejto stránke môžu byť affiliate odkazy. 
                     Ak cez ne nakúpite, môžeme získať malú províziu, ktorá pomáha prevádzkovať tento portál. 
                     Cena pre vás ostáva rovnaká.
                 </p>
-                <p>&copy; 2026 Môj Portál. Všetky práva vyhradené.</p>
+                <p>&copy; 2026 JEFI.sk. Všetky práva vyhradené.</p>
             </div>
         </div>
     </footer>
