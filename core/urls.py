@@ -13,6 +13,7 @@ sitemaps = {
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
+    path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
     
     # SITEMAP (PRE GOOGLE)
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),

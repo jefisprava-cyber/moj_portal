@@ -377,3 +377,8 @@ def delete_plan(request, plan_id):
     plan.delete()
     messages.success(request, "Projekt vymazaný.")
     return redirect('profile')
+    # ... tvoje existujúce views ...
+
+def privacy_policy(request):
+    """Zobrazenie stránky Ochrana súkromia."""
+    return render(request, 'products/privacy.html')
