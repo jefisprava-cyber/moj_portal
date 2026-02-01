@@ -35,9 +35,11 @@ def calculate_shipping(total_price, has_oversized):
 
 def home(request):
     """Domovská stránka s produktami, balíčkami a kategóriami."""
+    # Optimalizácia: Načítame len hlavné kategórie (rodičov)
+    all_categories = Category.objects.filter(parent=None)
+    
     products = Product.objects.annotate(min_price=Min('offers__price')).order_by('-created_at')[:8]
     bundles = Bundle.objects.all()
-    all_categories = Category.objects.filter(parent=None)
     
     if request.user.is_authenticated:
         cart_count = PlannerItem.objects.filter(user=request.user).count()
@@ -55,20 +57,24 @@ def category_detail(request, slug):
     """Zobrazenie kategórie a jej produktov."""
     category = get_object_or_404(Category, slug=slug)
     
+    # Hľadáme produkty v tejto kategórii ALEBO v jej podkategóriách
     products = Product.objects.filter(
         Q(category=category) | Q(category__parent=category)
     ).distinct()
 
     sort_by = request.GET.get('sort', 'default')
+    
+    # Anotácia ceny pre triedenie (ak produkt nemá priamu cenu, vezme z ponúk)
+    products = products.annotate(calculated_min_price=Min('offers__price'))
+
     if sort_by == 'price_asc':
-        products = products.annotate(min_price=Min('offers__price')).order_by('min_price')
+        products = products.order_by('calculated_min_price')
     elif sort_by == 'price_desc':
-        products = products.annotate(min_price=Min('offers__price')).order_by('-min_price')
+        products = products.order_by('-calculated_min_price')
     elif sort_by == 'name':
         products = products.order_by('name')
-    else:
-        products = products.annotate(min_price=Min('offers__price'))
-
+    
+    # Bočný panel - len hlavné kategórie
     all_categories = Category.objects.filter(parent=None)
 
     return render(request, 'products/category_detail.html', {
@@ -91,10 +97,13 @@ def search(request):
             Q(category__name__icontains=query)
         ).annotate(min_price=Min('offers__price')).distinct()
     
-    return render(request, 'products/search_results.html', {'products': results, 'query': query})
+    # Používame home.html pre výsledky, alebo môžeme vytvoriť search.html
+    return render(request, 'products/search.html', {'products': results, 'query': query})
 
 def privacy_policy(request):
-    return render(request, 'products/privacy.html')
+    # Poznámka: V urls.py už máme TemplateView na 'pages/gdpr.html', 
+    # toto je záloha pre staré odkazy
+    return render(request, 'pages/gdpr.html')
 
 # ==========================================
 # 2. DETAIL PRODUKTU
@@ -318,9 +327,9 @@ def register(request):
 def profile(request):
     """Zobrazenie profilu a uložených plánov (stará funkcionalita)."""
     saved_plans = SavedPlan.objects.filter(user=request.user).order_by('-created_at')
-    return render(request, 'products/profile.html', {'saved_plans': saved_plans})
+    return render(request, 'registration/profile.html', {'saved_plans': saved_plans})
 
-# --- STARÉ FUNKCIE PRE UKLADANIE KOŠÍKA (ponechané pre kompatibilitu) ---
+# --- STARÉ FUNKCIE PRE UKLADANIE KOŠÍKA ---
 @login_required
 def save_current_plan(request):
     if request.method == 'POST':
@@ -428,7 +437,7 @@ def delete_set(request, set_id):
 # ==========================================
 
 def builder_view(request):
-    categories = Category.objects.all()
+    categories = Category.objects.filter(parent=None) # Len hlavné kategórie
     
     prefill_data = []
     bundle_slug = request.GET.get('bundle')
@@ -452,6 +461,7 @@ def builder_view(request):
     })
 
 def api_get_brands(request, category_id):
+    # API pre konfigurátor - vráti značky v danej kategórii
     products = Product.objects.filter(category_id=category_id)
     
     brands = set()
@@ -459,11 +469,13 @@ def api_get_brands(request, category_id):
         if p.brand:
             brands.add(p.brand)
         else:
+            # Fallback ak nie je značka, skúsime prvé slovo názvu
             brands.add(p.name.split()[0])
             
     return JsonResponse({'brands': sorted(list(brands))})
 
 def api_get_products(request, category_id):
+    # API pre konfigurátor - vráti produkty pre výber
     brand_name = request.GET.get('brand')
     products = Product.objects.filter(category_id=category_id)
     
@@ -492,20 +504,26 @@ def api_get_products(request, category_id):
 # ==========================================
 
 def trigger_import(request):
+    # Spustenie importu cez web
+    if not request.user.is_superuser:
+        return HttpResponse("Len pre administrátora.", status=403)
+
     out = StringIO()
     sys.stdout = out
     try:
         try:
+            # Pokus o generovanie XML (ak existuje script)
             from generate_xml import generate_feed
             generate_feed()
             print("✅ XML vygenerované.", file=out)
         except ImportError:
-            print("⚠️ generate_xml.py nenájdený, preskakujem generovanie.", file=out)
+            print("⚠️ generate_xml.py nenájdený, preskakujem generovanie XML.", file=out)
 
+        # Spustenie importu do DB
         call_command('import_real_xml', stdout=out)
         result = out.getvalue()
         return HttpResponse(f"<pre>{result}</pre>", content_type="text/html")
     except Exception as e:
-        return HttpResponse(f"<h1>Chyba:</h1><pre>{e}</pre>", status=500)
+        return HttpResponse(f"<h1>Chyba pri importe:</h1><pre>{e}</pre>", status=500)
     finally:
         sys.stdout = sys.__stdout__
