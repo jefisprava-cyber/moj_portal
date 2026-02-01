@@ -6,19 +6,31 @@ import os
 from pathlib import Path
 import dj_database_url
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-test-key')
+
+# --- SECURITY ---
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# Na Renderi si nastav Environment Variable 'SECRET_KEY' pre vyššiu bezpečnosť
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-x^7!)5a$1+qia1@w*5d47&ke*rrd$fm3!l7ez8l8lntc1*!rf8')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Na Renderi nastavíme Environment Variable DEBUG = False
-DEBUG = True
+# Ovládanie cez Render Dashboard:
+# Ak je Environment Variable DEBUG nastavená na 'True', zapne sa. Inak je False.
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-# --- DOMÉNY A HOSTING (OPRAVENÉ) ---
+# --- DOMÉNY A HOSTING ---
 
-# Základné domény
-ALLOWED_HOSTS = ['*']
+# Základné povolené domény
+ALLOWED_HOSTS = [
+    'jefi.sk',
+    'www.jefi.sk',
+    '127.0.0.1',
+    'localhost'
+]
 
-# Pridáme dynamické domény z Renderu (pre istotu)
+# Automatické pridanie domén z Renderu
 render_hosts = os.environ.get('ALLOWED_HOSTS')
 if render_hosts:
     ALLOWED_HOSTS.extend(render_hosts.split(','))
@@ -26,10 +38,10 @@ else:
     # Fallback pre subdomény onrender
     ALLOWED_HOSTS.append('.onrender.com')
 
-# DÔLEŽITÉ PRE RENDER: Aby Django vedelo, že je na HTTPS
+# DÔLEŽITÉ PRE RENDER: Aby Django vedelo, že je na HTTPS (prevencia redirect slučiek)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Toto je DÔLEŽITÉ pre formuláre na vlastnej doméne
+# Toto je DÔLEŽITÉ pre formuláre na vlastnej doméne (CSRF ochrana)
 CSRF_TRUSTED_ORIGINS = [
     'https://jefi.sk',
     'https://www.jefi.sk',
@@ -110,7 +122,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# TOTO JE KĽÚČOVÉ PRE OPRAVU CHYBY 500 (Nemenit na Manifest!):
+# TOTO JE KĽÚČOVÉ PRE PRODUKCIU (Whitenoise bez Manifestu, aby nepadalo 500)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # --- AUTENTIFIKÁCIA A PRESMEROVANIA ---
