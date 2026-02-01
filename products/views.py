@@ -38,7 +38,9 @@ def home(request):
     # Optimalizácia: Načítame len hlavné kategórie (rodičov)
     all_categories = Category.objects.filter(parent=None)
     
-    products = Product.objects.annotate(min_price=Min('offers__price')).order_by('-created_at')[:8]
+    # OPRAVA: Vyhodili sme .annotate(min_price=...), používame priamo uloženú cenu
+    products = Product.objects.order_by('-created_at')[:8]
+    
     bundles = Bundle.objects.all()
     
     if request.user.is_authenticated:
@@ -64,15 +66,16 @@ def category_detail(request, slug):
 
     sort_by = request.GET.get('sort', 'default')
     
-    # Anotácia ceny pre triedenie (ak produkt nemá priamu cenu, vezme z ponúk)
-    products = products.annotate(calculated_min_price=Min('offers__price'))
-
+    # OPRAVA: Triedenie teraz používa priamo pole 'price' (rýchlejšie)
     if sort_by == 'price_asc':
-        products = products.order_by('calculated_min_price')
+        products = products.order_by('price')
     elif sort_by == 'price_desc':
-        products = products.order_by('-calculated_min_price')
+        products = products.order_by('-price')
     elif sort_by == 'name':
         products = products.order_by('name')
+    else:
+        # Defaultné triedenie (najnovšie)
+        products = products.order_by('-created_at')
     
     # Bočný panel - len hlavné kategórie
     all_categories = Category.objects.filter(parent=None)
@@ -90,19 +93,17 @@ def search(request):
     results = []
     
     if query:
+        # OPRAVA: Vyhodené annotate, používame čisté objekty
         results = Product.objects.filter(
             Q(name__icontains=query) | 
             Q(description__icontains=query) |
             Q(ean__icontains=query) |
             Q(category__name__icontains=query)
-        ).annotate(min_price=Min('offers__price')).distinct()
+        ).distinct()
     
-    # Používame home.html pre výsledky, alebo môžeme vytvoriť search.html
     return render(request, 'products/search.html', {'products': results, 'query': query})
 
 def privacy_policy(request):
-    # Poznámka: V urls.py už máme TemplateView na 'pages/gdpr.html', 
-    # toto je záloha pre staré odkazy
     return render(request, 'pages/gdpr.html')
 
 # ==========================================
@@ -131,9 +132,14 @@ def bundle_detail(request, bundle_slug):
     products = bundle.products.all()
     total_price = 0
     for p in products:
-        offer = p.offers.order_by('price').first()
-        if offer:
-            total_price += offer.price
+        # Tu môžeme použiť p.price, ak je aktualizovaná
+        if p.price > 0:
+            total_price += p.price
+        else:
+            # Fallback ak cena v produkte nie je
+            offer = p.offers.order_by('price').first()
+            if offer:
+                total_price += offer.price
 
     return render(request, 'products/bundle_detail.html', {
         'bundle': bundle, 
@@ -199,10 +205,15 @@ def planner_view(request):
     
     total_estimated = 0
     for item in items:
-        cheapest = item.product.offers.filter(active=True).order_by('price').first()
-        item.cheapest_offer = cheapest
-        if cheapest:
-            total_estimated += cheapest.price * item.quantity
+        # Použijeme uloženú cenu pre rýchlosť
+        price = item.product.price
+        # Ak je cena 0 (nie je aktualizovaná), skúsime nájsť ponuku
+        if price == 0:
+            cheapest = item.product.offers.filter(active=True).order_by('price').first()
+            if cheapest:
+                price = cheapest.price
+        
+        total_estimated += price * item.quantity
 
     return render(request, 'products/planner.html', {'items': items, 'total_price': total_estimated})
 
@@ -484,8 +495,12 @@ def api_get_products(request, category_id):
         
     data = []
     for p in products:
-        lowest_offer = p.offers.order_by('price').first()
-        price = lowest_offer.price if lowest_offer else 0
+        # Tu môžeme použiť p.price, ak je > 0
+        price = p.price
+        if price == 0:
+            lowest_offer = p.offers.order_by('price').first()
+            price = lowest_offer.price if lowest_offer else 0
+        
         short_desc = p.description[:80] + "..." if p.description else "Bez popisu."
         
         data.append({
