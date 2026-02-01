@@ -1,1 +1,82 @@
-"Na našej webovej stránke používame službu Google Analytics poskytovanú spoločnosťou Google Ireland Limited. Táto služba používa súbory cookies na analýzu návštevnosti nášho webu. IP adresy sú anonymizované. Údaje sú uchovávané po dobu 14 mesiacov."
+{% extends "products/base.html" %}
+
+{% block title %}Ochrana osobných údajov | JEFI.sk{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-12 px-6 bg-white my-10 rounded-2xl shadow-sm border border-gray-100">
+    
+    <h1 class="text-3xl font-black text-gray-900 mb-8 border-b pb-4">Zásady ochrany osobných údajov</h1>
+    
+    <div class="prose prose-blue max-w-none text-gray-600">
+        <p class="mb-4">
+            Vaše súkromie berieme vážne. Tieto zásady vysvetľujú, ako zhromažďujeme, používame a chránime vaše osobné údaje na portáli <strong>JEFI.sk</strong> v súlade s Nariadením Európskeho parlamentu a Rady (EÚ) 2016/679 (GDPR).
+        </p>
+
+        <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4">1. Prevádzkovateľ</h2>
+        <p class="mb-4">
+            Prevádzkovateľom vašich osobných údajov je:<br>
+            <strong>[Ing. Filip Jelinek]</strong><br>
+            Adresa: [Koliskova 12, 841 05 Bratislava]<br>
+            IČO: [54279097]<br>
+            E-mail: <strong>info@jefi.sk</strong>
+        </p>
+
+        <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4">2. Aké údaje zbierame a prečo?</h2>
+        
+        <h3 class="font-bold text-gray-900 mt-4">A) Registrácia a používateľské konto</h3>
+        <ul class="list-disc pl-5 mb-4 space-y-2">
+            <li><strong>Údaje:</strong> E-mailová adresa, používateľské meno, heslo (ukladané v šifrovanej podobe).</li>
+            <li><strong>Účel:</strong> Vytvorenie a správa vášho používateľského konta, možnosť ukladať obľúbené produkty a nákupné zoznamy.</li>
+            <li><strong>Právny základ:</strong> Plnenie zmluvy (poskytovanie služby portálu).</li>
+        </ul>
+
+        <h3 class="font-bold text-gray-900 mt-4">B) Technické údaje a bezpečnosť</h3>
+        <ul class="list-disc pl-5 mb-4 space-y-2">
+            <li><strong>Údaje:</strong> IP adresa, typ prehliadača, logy o prístupe.</li>
+            <li><strong>Účel:</strong> Zabezpečenie ochrany pred kybernetickými útokmi a technická správa servera.</li>
+            <li><strong>Právny základ:</strong> Oprávnený záujem prevádzkovateľa.</li>
+        </ul>
+
+        <h3 class="font-bold text-gray-900 mt-4">C) Analytika (Google Analytics)</h3>
+        <ul class="list-disc pl-5 mb-4 space-y-2">
+            <li><strong>Údaje:</strong> Anonymizované údaje o návštevnosti, správaní na stránke, lokalite (krajina/mesto).</li>
+            <li><strong>Účel:</strong> Zlepšovanie funkčnosti webu a analýza návštevnosti.</li>
+            <li><strong>Právny základ:</strong> Váš výslovný súhlas (udelený cez Cookie lištu). Kým nekliknete na "Súhlasiť", tieto údaje nezbierame.</li>
+        </ul>
+
+        <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4">3. Komu údaje poskytujeme?</h2>
+        <p class="mb-4">Vaše údaje nepredávame tretím stranám. Pre fungovanie portálu však využívame overených partnerov (sprostredkovateľov):</p>
+        <ul class="list-disc pl-5 mb-4 space-y-2">
+            <li><strong>Render (USA/Global):</strong> Hostingová spoločnosť, kde je uložená databáza a beží aplikácia. Údaje sú chránené šifrovaním.</li>
+            <li><strong>Brevo (Francúzsko/EÚ):</strong> Služba na odosielanie transakčných e-mailov (napr. reset hesla, potvrdenie registrácie).</li>
+            <li><strong>Google Ireland Ltd. (Írsko/EÚ):</strong> Poskytovateľ služby Google Analytics 4.</li>
+        </ul>
+
+        <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4">4. Cookies</h2>
+        <p class="mb-4">Používame dva typy súborov cookies:</p>
+        <ul class="list-disc pl-5 mb-4 space-y-2">
+            <li><strong>Nevyhnutné (Technické):</strong> Potrebné na to, aby ste zostali prihlásený. Tieto cookies nevyžadujú súhlas.</li>
+            <li><strong>Analytické (Google Analytics):</strong> Slúžia na meranie návštevnosti. Aktivujú sa až po vašom súhlase. Svoj súhlas môžete kedykoľvek odvolať vymazaním cookies v prehliadači.</li>
+        </ul>
+
+        <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4">5. Vaše práva</h2>
+        <p class="mb-4">Podľa GDPR máte právo:</p>
+        <ul class="list-disc pl-5 mb-4 space-y-2">
+            <li>Požadovať prístup k vašim údajom.</li>
+            <li>Požadovať opravu nesprávnych údajov.</li>
+            <li><strong>Právo na vymazanie (zabudnutie):</strong> Môžete nás kedykoľvek požiadať o zrušenie konta a vymazanie údajov e-mailom na info@jefi.sk.</li>
+            <li>Odvolať súhlas so spracovaním údajov (pri cookies).</li>
+        </ul>
+
+        <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4">6. Kontakt</h2>
+        <p class="mb-4">
+            V prípade akýchkoľvek otázok ohľadom ochrany osobných údajov nás kontaktujte na:<br>
+            <a href="mailto:info@jefi.sk" class="text-blue-600 font-bold hover:underline">info@jefi.sk</a>
+        </p>
+        
+        <p class="text-sm text-gray-500 mt-8 border-t pt-4">
+            Tieto zásady sú platné od 1.2.2026.
+        </p>
+    </div>
+</div>
+{% endblock %}
