@@ -1,46 +1,77 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify 
+import random
 
-# --- KATEGÓRIE ---
+# --- KATEGÓRIE (Stromová štruktúra) ---
 class Category(models.Model):
-    name = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True)
-    parent = models.ForeignKey('self', null=True, blank=True, related_name='children', on_delete=models.CASCADE)
-
-    def __str__(self):
-        return self.name
+    name = models.CharField(max_length=200, verbose_name="Názov kategórie")
+    slug = models.SlugField(unique=True, blank=True, max_length=255)
     
+    # Väzba na rodiča (umožňuje podkategórie: Nábytok -> Obývačka -> Sedačky)
+    parent = models.ForeignKey(
+        'self', 
+        null=True, 
+        blank=True, 
+        related_name='children', 
+        on_delete=models.CASCADE,
+        verbose_name="Nadradená kategória"
+    )
+
     class Meta:
-        verbose_name_plural = "Categories"
-
-# --- PRODUKTY ---
-class Product(models.Model):
-    name = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, blank=True)
-    description = models.TextField(blank=True)
-    image_url = models.URLField(blank=True, null=True)
-    ean = models.CharField(max_length=13, blank=True, null=True)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
-    is_oversized = models.BooleanField(default=False)
-    
-    # --- TOTO NÁM CHÝBALO ---
-    created_at = models.DateTimeField(auto_now_add=True) 
-    # ------------------------
-
-    # Pole pre konfigurátor
-    brand = models.CharField(max_length=100, blank=True, null=True) 
+        verbose_name = "Kategória"
+        verbose_name_plural = "Kategórie"
+        ordering = ('parent__name', 'name',)
 
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
-            original_slug = self.slug
-            counter = 1
-            while Product.objects.filter(slug=self.slug).exists():
-                self.slug = f"{original_slug}-{counter}"
-                counter += 1
+            # Ošetrenie duplicity slugu
+            if Category.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{self.slug}-{random.randint(100, 999)}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        # Vypíše celú cestu: "Nábytok -> Obývačka -> Sedačky"
+        full_path = [self.name]
+        k = self.parent
+        while k is not None:
+            full_path.append(k.name)
+            k = k.parent
+        return ' -> '.join(full_path[::-1])
+
+# --- PRODUKTY ---
+class Product(models.Model):
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True, blank=True, max_length=255)
+    description = models.TextField(blank=True)
+    
+    # Hlavná cena produktu (zvyčajne najnižšia cena z ponúk) - pre rýchle triedenie
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Cena od")
+    
+    image_url = models.URLField(max_length=1000, blank=True, null=True)
+    ean = models.CharField(max_length=13, blank=True, null=True)
+    
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
+    
+    # DÔLEŽITÉ PRE IMPORT: Sem sa uloží text z feedu (napr. "Dom | Záhrada | Stoličky")
+    original_category_text = models.CharField(max_length=500, blank=True, null=True)
+    
+    is_oversized = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Pole pre konfigurátor
+    brand = models.CharField(max_length=100, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name)
+            self.slug = base_slug
+            # Bezpečné generovanie unikátneho slugu
+            if Product.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base_slug}-{random.randint(1000, 9999)}"
         
-        # Automatické doplnenie značky
+        # Automatické doplnenie značky (ak chýba, vezme prvé slovo z názvu)
         if not self.brand and self.name:
              self.brand = self.name.split()[0]
 
@@ -48,13 +79,18 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+    
+    @property
+    def min_price(self):
+        # Vráti cenu uloženú v modeli (rýchlejšie ako query na Offers)
+        return self.price
 
-# --- PONUKY ---
+# --- PONUKY (Offers) ---
 class Offer(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='offers')
     shop_name = models.CharField(max_length=100)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    url = models.URLField()
+    url = models.URLField(max_length=1000)
     delivery_days = models.IntegerField(default=0)
     active = models.BooleanField(default=True)
     external_item_id = models.CharField(max_length=100, blank=True)
@@ -62,7 +98,7 @@ class Offer(models.Model):
     def __str__(self):
         return f"{self.shop_name} - {self.product.name} ({self.price} €)"
 
-# --- PLÁNOVAČ ---
+# --- PLÁNOVAČ (Nákupný zoznam) ---
 class PlannerItem(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     session_key = models.CharField(max_length=40, null=True, blank=True)
@@ -73,7 +109,7 @@ class PlannerItem(models.Model):
     def __str__(self):
         return f"{self.quantity}x {self.product.name}"
 
-# --- BALÍČKY ---
+# --- BALÍČKY (Bundles) ---
 class Bundle(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -84,7 +120,7 @@ class Bundle(models.Model):
     def __str__(self):
         return self.name
 
-# --- ULOŽENÉ PLÁNY ---
+# --- ULOŽENÉ PLÁNY (Sety užívateľov) ---
 class SavedPlan(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_plans')
     name = models.CharField(max_length=200, default="Môj projekt")
