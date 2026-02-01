@@ -15,7 +15,7 @@ class Command(BaseCommand):
         # V ostrej prevádzke sem dáš linku, napr.: "https://www.alza.sk/export/products.xml"
         FEED_URL = "https://www.example.com/heureka_feed.xml" 
         
-        #self.stdout.write("📥 Sťahujem XML feed...")
+        self.stdout.write("📥 Sťahujem XML feed...")
 
         try:
             tree = ET.parse('feed.xml') # <--- ČÍTAME SÚBOR
