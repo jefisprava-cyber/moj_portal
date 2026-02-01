@@ -4,6 +4,7 @@ from products import views
 from django.contrib.auth import views as auth_views
 from django.contrib.sitemaps.views import sitemap
 from products.sitemaps import ProductSitemap
+from django.views.generic import TemplateView  # <--- TOTO SME PRIDALI (dôležité pre statické stránky)
 
 # Definícia sitemáp
 sitemaps = {
@@ -14,8 +15,16 @@ urlpatterns = [
     # --- ADMIN A CORE ---
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
-    path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
     path('accounts/', include('django.contrib.auth.urls')),
+
+    # --- PRÁVNE STRÁNKY (GDPR, COOKIES, VOP) ---
+    # Tieto riadky opravia chybu 500 (Cookie banner a footer ich potrebujú)
+    path('ochrana-udajov/', TemplateView.as_view(template_name='pages/gdpr.html'), name='gdpr'),
+    path('obchodne-podmienky/', TemplateView.as_view(template_name='pages/vop.html'), name='vop'),
+    path('cookies/', TemplateView.as_view(template_name='pages/cookies.html'), name='cookies'),
+    
+    # Ponechávame aj starý link pre istotu, ak ho niekde inde používaš
+    path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
 
     # --- NOVÉ: INTELIGENTNÝ KONFIGURÁTOR ---
     path('inteligentny-konfigurator/', views.builder_view, name='builder'),
