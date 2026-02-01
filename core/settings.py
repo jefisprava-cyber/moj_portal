@@ -28,7 +28,7 @@ ALLOWED_HOSTS = [
     'localhost'
 ]
 
-# Toto je DÔLEŽITÉ pre formuláre na vlastnej doméne (aby fungoval Login a Ukladanie)
+# Toto je DÔLEŽITÉ pre formuláre na vlastnej doméne
 CSRF_TRUSTED_ORIGINS = [
     'https://jefi.sk',
     'https://www.jefi.sk',
@@ -64,7 +64,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [], # Tu môžeš prípadne pridať [BASE_DIR / 'templates'], ak by si mal globálne šablóny
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -99,9 +99,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # --- JAZYK A ČAS (Slovensko) ---
 
-LANGUAGE_CODE = 'sk' # Zmenené na slovenčinu
+LANGUAGE_CODE = 'sk'
 
-TIME_ZONE = 'Europe/Bratislava' # Zmenené na náš čas
+TIME_ZONE = 'Europe/Bratislava'
 
 USE_I18N = True
 USE_TZ = True
@@ -119,3 +119,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
 LOGIN_URL = 'login'
+
+# --- ODOSIELANIE E-MAILOV (Brevo / SMTP) ---
+# Toto sme pridali, aby fungovalo Resetovanie hesla
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp-relay.brevo.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+# Tieto hodnoty si ťaháme z Environment Variables na Renderi (bezpečnosť)
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = 'info@jefi.sk'
