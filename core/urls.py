@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from products import views
 from django.contrib.auth import views as auth_views
 from django.contrib.sitemaps.views import sitemap
@@ -15,6 +15,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
     path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
+    path('accounts/', include('django.contrib.auth.urls')),
 
     # --- NOVÉ: INTELIGENTNÝ KONFIGURÁTOR ---
     path('inteligentny-konfigurator/', views.builder_view, name='builder'),
