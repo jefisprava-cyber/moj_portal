@@ -16,7 +16,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-x^7!)5a$1+qia1@w*5d47
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Na Renderi nastavíme Environment Variable DEBUG = False
-DEBUG = 'RENDER' not in os.environ
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # --- DOMÉNY A HOSTING (OPRAVENÉ) ---
 
