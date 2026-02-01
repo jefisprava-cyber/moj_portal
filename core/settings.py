@@ -6,27 +6,17 @@ import os
 from pathlib import Path
 import dj_database_url
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# --- SECURITY ---
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-x^7!)5a$1+qia1@w*5d47&ke*rrd$fm3!l7ez8l8lntc1*!rf8')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-test-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Na Renderi nastavíme Environment Variable DEBUG = False
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+DEBUG = True
 
 # --- DOMÉNY A HOSTING (OPRAVENÉ) ---
 
 # Základné domény
-ALLOWED_HOSTS = [
-    'jefi.sk',
-    'www.jefi.sk',
-    '127.0.0.1',
-    'localhost'
-]
+ALLOWED_HOSTS = ['*']
 
 # Pridáme dynamické domény z Renderu (pre istotu)
 render_hosts = os.environ.get('ALLOWED_HOSTS')
