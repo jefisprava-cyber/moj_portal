@@ -111,11 +111,10 @@
                     <ul class="space-y-3 text-sm">
                         <li><a href="{% url 'home' %}" class="hover:text-blue-400 transition">Domov</a></li>
                         <li><a href="{% url 'builder' %}" class="hover:text-blue-400 transition font-bold text-green-400">Inteligentný Konfigurátor</a></li>
-                        {% if user.is_authenticated %}
-                        <li><a href="{% url 'my_sets' %}" class="hover:text-blue-400 transition">Moje sety</a></li>
-                        {% endif %}
-                        <li><a href="{% url 'planner_view' %}" class="hover:text-blue-400 transition">Nákupný zoznam</a></li>
-                        <li><a href="{% url 'privacy_policy' %}" class="hover:text-blue-400 transition">Ochrana súkromia</a></li>
+                        
+                        <li><a href="{% url 'vop' %}" class="hover:text-blue-400 transition">Obchodné podmienky</a></li>
+                        <li><a href="{% url 'gdpr' %}" class="hover:text-blue-400 transition">Ochrana osobných údajov</a></li>
+                        <li><a href="{% url 'cookies' %}" class="hover:text-blue-400 transition">Nastavenia Cookies</a></li>
                     </ul>
                 </div>
 
