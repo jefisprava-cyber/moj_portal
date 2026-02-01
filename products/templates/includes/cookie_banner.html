@@ -1,0 +1,71 @@
+<div id="cookie-banner" class="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 shadow-lg transform translate-y-full transition-transform duration-300 z-50 hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="text-sm text-gray-300 text-center sm:text-left">
+            <p>
+                Používame súbory cookies na analýzu návštevnosti (Google Analytics). 
+                Viac informácií nájdete v sekcii <a href="{% url 'cookies' %}" class="underline hover:text-white">Ochrana súkromia</a>.
+            </p>
+        </div>
+        <div class="flex gap-3">
+            <button id="btn-reject-cookies" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white border border-gray-600 rounded-md hover:bg-gray-800 transition">
+                Odmietnuť
+            </button>
+            <button id="btn-accept-cookies" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 shadow-sm transition">
+                Súhlasiť
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tvoje Google ID
+    const GA_ID = 'G-Z5TSGGHY33'; // <--- TU VLOŽ SVOJE ID (napr. G-12345678)
+
+    function loadGoogleAnalytics() {
+        // Vložíme skript do hlavičky
+        const script = document.createElement('script');
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+        script.async = true;
+        document.head.appendChild(script);
+
+        // Inicializácia
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', GA_ID);
+        
+        console.log("Google Analytics Spustené ✅");
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const banner = document.getElementById('cookie-banner');
+        const consent = localStorage.getItem('cookie_consent');
+
+        // Ak užívateľ už v minulosti súhlasil, spustíme GA hneď
+        if (consent === 'accepted') {
+            loadGoogleAnalytics();
+        } 
+        // Ak užívateľ ešte sa nevyjadril, ukážeme banner
+        else if (consent === null) {
+            banner.classList.remove('hidden');
+            // Malé oneskorenie pre animáciu
+            setTimeout(() => {
+                banner.classList.remove('translate-y-full');
+            }, 100);
+        }
+
+        // Kliknutie na Súhlasiť
+        document.getElementById('btn-accept-cookies').addEventListener('click', function() {
+            localStorage.setItem('cookie_consent', 'accepted');
+            banner.classList.add('translate-y-full'); // Schováme banner
+            loadGoogleAnalytics(); // Spustíme GA
+        });
+
+        // Kliknutie na Odmietnuť
+        document.getElementById('btn-reject-cookies').addEventListener('click', function() {
+            localStorage.setItem('cookie_consent', 'rejected');
+            banner.classList.add('translate-y-full'); // Schováme banner
+            // GA nespustíme
+        });
+    });
+</script>
