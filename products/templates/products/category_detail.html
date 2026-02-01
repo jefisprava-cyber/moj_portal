@@ -1,139 +1,172 @@
 {% extends 'products/base.html' %}
 
+{% block title %}{{ category.name }} | JEFI.sk{% endblock %}
+
 {% block content %}
-<div class="container mx-auto px-6 py-10">
+<div class="bg-gray-50 min-h-screen pb-20">
+    
+    <div class="bg-white border-b border-gray-200 sticky top-20 z-30 shadow-sm">
+        <div class="container mx-auto px-6 py-3">
+            <nav class="flex text-sm text-gray-500 overflow-x-auto whitespace-nowrap">
+                <a href="{% url 'home' %}" class="hover:text-blue-600 flex items-center gap-1">
+                    <i class="fa fa-home"></i> Domov
+                </a>
+                
+                {% if category.parent %}
+                <span class="mx-2 text-gray-300">/</span>
+                <a href="{% url 'category_detail' category.parent.slug %}" class="hover:text-blue-600">
+                    {{ category.parent.name }}
+                </a>
+                {% endif %}
+                
+                <span class="mx-2 text-gray-300">/</span>
+                <span class="text-gray-900 font-bold text-blue-700">{{ category.name }}</span>
+            </nav>
+        </div>
+    </div>
 
-    <nav class="flex text-sm text-gray-500 mb-8">
-        <a href="{% url 'home' %}" class="hover:text-blue-600">Domov</a>
-        <span class="mx-2">/</span>
-        {% if category.parent %}
-            <a href="{% url 'category_detail' category.parent.slug %}" class="hover:text-blue-600">{{ category.parent.name }}</a>
-            <span class="mx-2">/</span>
-        {% endif %}
-        <span class="text-gray-900 font-bold">{{ category.name }}</span>
-    </nav>
-
-    <div class="flex flex-col lg:flex-row gap-8">
-        
-        <aside class="w-full lg:w-64 flex-shrink-0 relative z-20">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-2 sticky top-24">
-                <h3 class="font-black text-gray-900 text-lg px-4 py-3 mb-2 flex items-center gap-2 border-b border-gray-50">
-                    <i class="fa fa-list text-blue-600"></i> Kategórie
-                </h3>
-                <ul class="space-y-1">
-                    {% for cat in all_categories %}
-                    <li class="group relative"> <a href="{% url 'category_detail' cat.slug %}" class="flex items-center justify-between px-4 py-3 rounded-lg text-gray-600 hover:bg-blue-50 hover:text-blue-700 transition">
-                            <span class="font-medium">{{ cat.name }}</span>
-                            {% if cat.children.all %}
-                                <i class="fa fa-chevron-right text-xs text-gray-300 group-hover:text-blue-500"></i>
-                            {% endif %}
-                        </a>
-
-                        {% if cat.children.all %}
-                        <div class="hidden group-hover:block absolute left-full top-0 ml-2 w-56 bg-white shadow-xl rounded-xl border border-gray-100 p-4 z-50">
-                            <div class="absolute top-4 -left-1.5 w-3 h-3 bg-white border-l border-b border-gray-100 transform rotate-45"></div>
-                            
-                            <h4 class="font-bold text-gray-900 mb-2 border-b border-gray-50 pb-2">{{ cat.name }}</h4>
-                            <ul class="space-y-1">
-                                {% for child in cat.children.all %}
-                                <li>
-                                    <a href="{% url 'category_detail' child.slug %}" class="block px-2 py-1.5 text-sm text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded transition">
-                                        {{ child.name }}
-                                    </a>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        {% endif %}
-
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </aside>
-
-        <div class="flex-grow">
+    <div class="container mx-auto px-6 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
             
-            <div class="mb-8">
-                <h1 class="text-3xl font-black text-gray-900 mb-2">{{ category.name }}</h1>
-                <p class="text-gray-500">Prezeráte si najlepšie produkty v kategórii {{ category.name }}.</p>
-            </div>
-
-            {% if category.children.all %}
-            <div class="mb-12">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Podkategórie</h2>
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {% for child in category.children.all %}
-                    <a href="{% url 'category_detail' child.slug %}" class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-200 transition text-center group">
-                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-blue-600 group-hover:text-white transition">
-                            <i class="fa fa-folder-open text-xl"></i>
-                        </div>
-                        <h3 class="font-bold text-gray-900 group-hover:text-blue-600">{{ child.name }}</h3>
-                        <p class="text-xs text-gray-400 mt-1">{{ child.products.count }} produktov</p>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-
-            <div class="flex justify-between items-center mb-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <span class="font-bold text-gray-700">Produkty ({{ products|length }})</span>
-                <form method="get" class="flex items-center gap-2">
-                    <span class="text-sm text-gray-500 hidden sm:inline">Zoradiť:</span>
-                    <select name="sort" onchange="this.form.submit()" class="bg-white border border-gray-300 text-gray-800 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2">
-                        <option value="default" {% if sort_by == 'default' %}selected{% endif %}>Odporúčané</option>
-                        <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Najlacnejšie</option>
-                        <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Najdrahšie</option>
-                        <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Podľa názvu</option>
-                    </select>
-                </form>
-            </div>
-
-            {% if products %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for product in products %}
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-md transition group">
+            <aside class="hidden md:block col-span-1">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-36">
+                    <div class="bg-slate-50 p-4 border-b border-gray-100">
+                        <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fa fa-list-ul text-blue-600"></i> Kategórie
+                        </h3>
+                    </div>
+                    <nav class="p-2">
+                        <ul class="space-y-1">
+                            {% for cat in all_categories %}
+                            <li>
+                                <a href="{% url 'category_detail' cat.slug %}" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition group
+                                    {% if cat.slug == category.slug or cat.slug == category.parent.slug %} 
+                                        bg-blue-600 text-white shadow-md
+                                    {% else %} 
+                                        text-gray-600 hover:bg-blue-50 hover:text-blue-700 
+                                    {% endif %}">
+                                    
+                                    <span>{{ cat.name }}</span>
+                                    
+                                    {% if cat.slug != category.slug and cat.slug != category.parent.slug %}
+                                        <i class="fa fa-chevron-right text-xs text-gray-300 group-hover:text-blue-400"></i>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </nav>
                     
-                    <a href="{% url 'product_detail' product.slug %}" class="h-48 p-4 flex items-center justify-center bg-white relative">
-                        {% if product.image_url %}
-                            <img src="{{ product.image_url }}" alt="{{ product.name }}" class="max-h-full max-w-full object-contain group-hover:scale-105 transition duration-300">
-                        {% else %}
-                            <div class="text-gray-200 text-4xl"><i class="fa fa-image"></i></div>
-                        {% endif %}
-                        
-                        {% if product.is_oversized %}
-                        <span class="absolute top-2 right-2 bg-orange-100 text-orange-600 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
-                            Veľké
-                        </span>
-                        {% endif %}
-                    </a>
-        
-                    <div class="p-5 flex-grow flex flex-col border-t border-gray-50">
-                        <a href="{% url 'product_detail' product.slug %}" class="font-bold text-gray-900 mb-2 leading-tight flex-grow hover:text-blue-600 transition">
-                            {{ product.name }}
+                    <div class="p-4 mt-2 border-t border-gray-100 bg-orange-50/50">
+                        <p class="text-xs text-gray-500 mb-2 font-semibold">Neviete si vybrať?</p>
+                        <a href="{% url 'builder' %}" class="block text-center bg-white border border-orange-200 text-orange-600 font-bold text-xs py-2 rounded-lg hover:bg-orange-600 hover:text-white transition">
+                            <i class="fa fa-magic mr-1"></i> Skúsiť Konfigurátor
                         </a>
-                        
-                        <div class="mt-auto pt-4 flex items-center justify-between">
-                            <span class="text-xs text-gray-500">od <strong class="text-lg text-gray-900">{{ product.offers.first.price|default:"--" }} €</strong></span>
-                            <a href="{% url 'add_to_planner' product.id %}" class="bg-gray-900 hover:bg-blue-600 text-white w-10 h-10 rounded-lg flex items-center justify-center transition">
-                                <i class="fa fa-plus"></i>
-                            </a>
-                        </div>
                     </div>
                 </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
-                <div class="text-gray-300 text-6xl mb-4"><i class="fa fa-folder-open"></i></div>
-                <h2 class="text-xl font-bold text-gray-400">V tejto kategórii zatiaľ nič nie je.</h2>
-                {% if not category.children.all %}
-                <p class="text-gray-500 mt-2">Skúste sa pozrieť do inej kategórie.</p>
-                {% endif %}
-            </div>
-            {% endif %}
+            </aside>
 
+            <main class="col-span-1 md:col-span-3">
+                
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                    <div>
+                        <h1 class="text-3xl font-black text-gray-900">{{ category.name }}</h1>
+                        <p class="text-gray-500 text-sm mt-1">
+                            {% if products %}
+                                Nájdených <span class="font-bold text-gray-900">{{ products.count }}</span> produktov
+                            {% else %}
+                                Prezeráte kategóriu {{ category.name }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <form method="get" class="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-gray-200 shadow-sm">
+                        <label class="text-xs text-gray-500 font-bold uppercase px-2">Zoradiť:</label>
+                        <select name="sort" onchange="this.form.submit()" class="bg-transparent text-sm font-medium text-gray-700 focus:outline-none cursor-pointer">
+                            <option value="default" {% if sort_by == 'default' %}selected{% endif %}>Odporúčané</option>
+                            <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Najlacnejšie</option>
+                            <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Najdrahšie</option>
+                            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Podľa názvu</option>
+                        </select>
+                    </form>
+                </div>
+
+                {% if category.children.all %}
+                <div class="mb-10">
+                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Podkategórie</h2>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {% for child in category.children.all %}
+                        <a href="{% url 'category_detail' child.slug %}" class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-300 transition text-center group">
+                            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-blue-600 group-hover:text-white transition">
+                                <i class="fa fa-folder-open"></i>
+                            </div>
+                            <h3 class="font-bold text-sm text-gray-800 group-hover:text-blue-700">{{ child.name }}</h3>
+                            <span class="text-xs text-gray-400">{{ child.products.count }} ks</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if products %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for product in products %}
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition duration-300 overflow-hidden flex flex-col h-full group">
+                        
+                        <div class="h-52 p-6 flex items-center justify-center bg-gray-50 group-hover:bg-white transition relative">
+                            {% if product.is_oversized %}
+                            <span class="absolute top-3 left-3 bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-orange-200">
+                                <i class="fa fa-truck"></i> Nadrozmer
+                            </span>
+                            {% endif %}
+                            
+                            <img src="{{ product.image_url|default:'https://via.placeholder.com/300' }}" alt="{{ product.name }}" class="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition duration-500">
+                        </div>
+                        
+                        <div class="p-5 flex-grow flex flex-col border-t border-gray-50">
+                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-wider">{{ product.category.name }}</p>
+                            
+                            <h3 class="font-bold text-gray-900 mb-2 leading-snug group-hover:text-blue-600 transition">
+                                <a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a>
+                            </h3>
+                            
+                            <div class="mt-auto pt-4 flex items-end justify-between">
+                                <div>
+                                    <span class="text-xs text-gray-400 block mb-0.5 font-medium">Cena od</span>
+                                    <span class="text-xl font-black text-blue-700">
+                                        {% if product.min_price %}
+                                            {{ product.min_price }} €
+                                        {% else %}
+                                            --
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <a href="{% url 'add_to_planner' product.id %}" class="w-10 h-10 bg-gray-50 text-gray-600 rounded-lg flex items-center justify-center hover:bg-green-500 hover:text-white transition shadow-sm" title="Pridať do zoznamu">
+                                    <i class="fa fa-plus"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% else %}
+                <div class="text-center py-24 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+                    <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-50 rounded-full mb-6">
+                        <i class="fa fa-search text-3xl text-gray-300"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">Žiadne produkty sa nenašli</h2>
+                    <p class="text-gray-500 max-w-sm mx-auto mb-6">V tejto kategórii momentálne nemáme žiadne produkty alebo nezodpovedajú filtrom.</p>
+                    
+                    {% if not category.children.all %}
+                        <a href="{% url 'home' %}" class="inline-block bg-blue-600 text-white font-bold px-6 py-3 rounded-full hover:bg-blue-700 transition shadow-lg shadow-blue-200">
+                            Späť na domov
+                        </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+            </main>
         </div>
     </div>
 </div>

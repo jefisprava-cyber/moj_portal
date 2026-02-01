@@ -14,18 +14,24 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = "Categories"
 
-# --- PRODUKTY (S pridaným SEO Slugom) ---
+# --- PRODUKTY ---
 class Product(models.Model):
     name = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, blank=True) # <--- SEO URL
+    slug = models.SlugField(unique=True, blank=True)
     description = models.TextField(blank=True)
     image_url = models.URLField(blank=True, null=True)
     ean = models.CharField(max_length=13, blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     is_oversized = models.BooleanField(default=False)
+    
+    # --- TOTO NÁM CHÝBALO ---
+    created_at = models.DateTimeField(auto_now_add=True) 
+    # ------------------------
+
+    # Pole pre konfigurátor
+    brand = models.CharField(max_length=100, blank=True, null=True) 
 
     def save(self, *args, **kwargs):
-        # Automatické generovanie URL (iPhone 15 -> iphone-15)
         if not self.slug:
             self.slug = slugify(self.name)
             original_slug = self.slug
@@ -33,6 +39,11 @@ class Product(models.Model):
             while Product.objects.filter(slug=self.slug).exists():
                 self.slug = f"{original_slug}-{counter}"
                 counter += 1
+        
+        # Automatické doplnenie značky
+        if not self.brand and self.name:
+             self.brand = self.name.split()[0]
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -90,11 +101,11 @@ class SavedPlanItem(models.Model):
     def __str__(self):
         return f"{self.product.name} ({self.quantity}x)"
 
-# --- HISTÓRIA CIEN (Vylepšená: Min aj Avg cena) ---
+# --- HISTÓRIA CIEN ---
 class PriceHistory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')
-    min_price = models.DecimalField(max_digits=10, decimal_places=2) # Najnižšia
-    avg_price = models.DecimalField(max_digits=10, decimal_places=2) # Priemerná
+    min_price = models.DecimalField(max_digits=10, decimal_places=2)
+    avg_price = models.DecimalField(max_digits=10, decimal_places=2)
     date = models.DateField()
 
     class Meta:

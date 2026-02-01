@@ -1,0 +1,271 @@
+{% extends 'products/base.html' %}
+
+{% block title %}Inteligentný Konfigurátor | JEFI.sk{% endblock %}
+
+{% block content %}
+<div class="bg-blue-600 pb-32 pt-12 relative overflow-hidden">
+    <div class="absolute top-0 right-0 opacity-10 transform translate-x-1/3 -translate-y-1/4">
+        <i class="fa fa-cogs text-[400px] text-white"></i>
+    </div>
+
+    <div class="container mx-auto px-6 text-center text-white relative z-10">
+        <h1 class="text-3xl md:text-5xl font-black mb-4 tracking-tight">Postavte si nákupný zoznam</h1>
+        <p class="text-blue-100 text-lg max-w-2xl mx-auto mb-8">
+            Vyberte si viac produktov naraz, porovnajte varianty a uložte si set na neskôr.
+        </p>
+
+        <div class="flex flex-wrap justify-center gap-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-200 py-2">Rýchle inšpirácie:</span>
+            
+            <a href="?bundle=kuchyna-bosch" class="bg-white/10 hover:bg-white text-white hover:text-blue-600 border border-white/30 px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-2 backdrop-blur-sm">
+                <i class="fa fa-bolt text-yellow-400"></i> Kuchyňa Bosch
+            </a>
+            
+            <a href="?bundle=herna-sony" class="bg-white/10 hover:bg-white text-white hover:text-blue-600 border border-white/30 px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-2 backdrop-blur-sm">
+                <i class="fa fa-gamepad text-purple-400"></i> Herná Zostava
+            </a>
+
+            <a href="{% url 'builder' %}" class="bg-white/10 hover:bg-red-500 hover:border-red-500 text-white border border-white/30 px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-2 backdrop-blur-sm">
+                <i class="fa fa-times"></i> Vyčistiť
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container mx-auto px-6 -mt-20 pb-32 relative z-20"> <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-3xl">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p class="text-blue-800 font-bold animate-pulse">Načítavam vašu zostavu...</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
+        {% for i in "12345" %}
+        <div class="bg-white p-5 rounded-2xl shadow-xl border border-gray-100 flex flex-col h-full slot-container relative overflow-hidden group hover:-translate-y-1 transition duration-300" data-slot="{{ i }}">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gray-100 group-hover:bg-blue-500 transition"></div>
+            <div class="text-xs font-bold text-gray-400 uppercase mb-4 flex justify-between items-center">
+                <span>Produkt #{{ i }}</span>
+                <i class="fa fa-box-open text-gray-200 text-lg"></i>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-700 mb-1 ml-1">Kategória</label>
+                <div class="relative">
+                    <select class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none category-select cursor-pointer" onchange="userSelectCategory(this, '{{ i }}')">
+                        <option value="">Vyberte kategóriu...</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="fa fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
+                </div>
+            </div>
+
+            <div class="brand-wrapper hidden opacity-0 transition-all duration-500 mb-4">
+                <label class="block text-xs font-bold text-gray-700 mb-1 ml-1">Značka</label>
+                <div class="relative">
+                    <select class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none brand-select cursor-pointer" onchange="userSelectBrand(this, '{{ i }}')">
+                        <option value="">-- Vyberte --</option>
+                    </select>
+                    <i class="fa fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
+                </div>
+            </div>
+
+            <div class="product-wrapper hidden opacity-0 transition-all duration-500 flex-grow flex flex-col">
+                <label class="block text-xs font-bold text-gray-700 mb-1 ml-1">Model</label>
+                <div class="relative mb-2">
+                    <select class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none product-select cursor-pointer" onchange="updatePrice('{{ i }}')">
+                        <option value="">-- Vyberte --</option>
+                    </select>
+                    <i class="fa fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
+                </div>
+                
+                <div class="selected-detail hidden mt-auto text-center border-t border-dashed border-gray-200 pt-4">
+                    <div class="h-24 flex items-center justify-center mb-3 bg-white rounded-lg p-2 shadow-inner">
+                         <img src="" class="max-h-full max-w-full object-contain product-img transform transition hover:scale-110 duration-500">
+                    </div>
+                    
+                    <p class="text-xs text-gray-500 mb-3 leading-tight px-1 product-desc italic line-clamp-3"></p>
+
+                    <div class="flex items-baseline justify-center gap-1.5 text-gray-900 bg-gray-50 py-2 rounded-lg mb-2">
+                        <span class="text-xs text-gray-400 font-medium">od</span>
+                        <span class="text-xl font-black price-tag tracking-tight text-blue-700">0 €</span>
+                    </div>
+                    
+                    <a href="#" class="inline-flex items-center text-[11px] font-bold text-gray-400 hover:text-blue-600 transition uppercase tracking-wide product-link" target="_blank">
+                        Detail produktu <i class="fa fa-external-link-alt ml-1.5"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 shadow-[0_-5px_30px_rgba(0,0,0,0.1)] z-50">
+    <div class="container mx-auto">
+        <form action="{% url 'save_builder_set' %}" method="POST" class="flex flex-col md:flex-row items-center justify-between gap-4">
+            {% csrf_token %}
+            
+            <div id="hidden-inputs-container"></div>
+
+            <div class="flex items-center gap-4 w-full md:w-auto justify-center md:justify-start">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xl animate-pulse flex-shrink-0">
+                    <i class="fa fa-calculator"></i>
+                </div>
+                <div>
+                    <span class="text-gray-500 text-xs uppercase font-bold tracking-wider block mb-0.5">Celková suma (od)</span>
+                    <div class="text-3xl font-black text-gray-900 leading-none" id="total-price">0,00 €</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <input type="text" name="set_name" required placeholder="Názov setu (napr. Kuchyňa Bosch)" 
+                       class="flex-grow border border-gray-300 rounded-full px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                       value="{{ active_bundle|default:'' }}">
+                
+                <button type="submit" class="bg-gradient-to-r from-green-600 to-green-500 text-white px-8 py-3 rounded-full font-bold text-md hover:shadow-lg hover:shadow-green-200 hover:-translate-y-1 transition flex items-center justify-center gap-2 whitespace-nowrap">
+                    <i class="fa fa-save"></i> Uložiť Set
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // --- 1. INIT ---
+    document.addEventListener('DOMContentLoaded', async function() {
+        const prefillData = {{ prefill_data|safe }};
+        if (prefillData && prefillData.length > 0) {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            for (const item of prefillData) { await prefillSlot(item); }
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+        updateHiddenInputs(); // Inicializácia inputov
+    });
+
+    // --- 2. ASYNC PREFILL LOGIKA ---
+    async function prefillSlot(item) {
+        const slotId = item.slot;
+        const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
+        
+        slot.querySelector('.category-select').value = item.cat_id;
+        await loadBrandsAsync(slotId, item.cat_id);
+        
+        const brandSelect = slot.querySelector('.brand-select');
+        for (let i = 0; i < brandSelect.options.length; i++) {
+            if (brandSelect.options[i].text.toLowerCase() === item.brand.toLowerCase()) {
+                brandSelect.selectedIndex = i;
+                break;
+            }
+        }
+        
+        const selectedBrand = brandSelect.options[brandSelect.selectedIndex].value;
+        await loadProductsAsync(slotId, item.cat_id, selectedBrand);
+
+        slot.querySelector('.product-select').value = item.prod_id;
+        updatePrice(slotId);
+    }
+
+    // --- 3. HELPER FUNCTIONS ---
+    function userSelectCategory(el, slotId) { loadBrandsAsync(slotId, el.value); }
+    function userSelectBrand(el, slotId) { 
+        const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
+        loadProductsAsync(slotId, slot.querySelector('.category-select').value, el.value); 
+    }
+
+    function loadBrandsAsync(slotId, catId) {
+        return new Promise((resolve) => {
+            const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
+            const brandSelect = slot.querySelector('.brand-select');
+            const brandWrapper = slot.querySelector('.brand-wrapper');
+
+            brandWrapper.classList.remove('hidden', 'opacity-0');
+            brandSelect.innerHTML = '<option>Načítavam...</option>';
+            if (!catId) { resolve(); return; }
+
+            fetch(`/api/brands/${catId}/`)
+                .then(r => r.json())
+                .then(data => {
+                    brandSelect.innerHTML = '<option value="">-- Vyberte značku --</option>';
+                    data.brands.forEach(b => brandSelect.innerHTML += `<option value="${b}">${b}</option>`);
+                    resolve();
+                });
+        });
+    }
+
+    function loadProductsAsync(slotId, catId, brand) {
+        return new Promise((resolve) => {
+            const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
+            const productSelect = slot.querySelector('.product-select');
+            const productWrapper = slot.querySelector('.product-wrapper');
+
+            productWrapper.classList.remove('hidden', 'opacity-0');
+            productSelect.innerHTML = '<option>Načítavam...</option>';
+
+            fetch(`/api/products/${catId}/?brand=${brand}`)
+                .then(r => r.json())
+                .then(data => {
+                    productSelect.innerHTML = '<option value="">-- Vyberte model --</option>';
+                    data.products.forEach(p => {
+                        productSelect.innerHTML += `<option value="${p.id}" data-price="${p.price}" data-img="${p.image}" data-slug="${p.slug}" data-desc="${p.description || ''}">${p.name}</option>`;
+                    });
+                    resolve();
+                });
+        });
+    }
+
+    // --- 4. UPDATE UI & FORM DATA ---
+    function updatePrice(slotId) {
+        const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
+        const productSelect = slot.querySelector('.product-select');
+        const detailDiv = slot.querySelector('.selected-detail');
+        
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        
+        if (selectedOption.value) {
+            const price = parseFloat(selectedOption.getAttribute('data-price') || 0);
+            const imgUrl = selectedOption.getAttribute('data-img');
+            const slug = selectedOption.getAttribute('data-slug');
+            const desc = selectedOption.getAttribute('data-desc'); 
+            
+            slot.querySelector('.price-tag').innerText = price.toFixed(2) + ' €';
+            slot.querySelector('.product-img').src = imgUrl || 'https://via.placeholder.com/150?text=No+Image';
+            slot.querySelector('.product-desc').innerText = desc || 'Bez popisu.';
+            slot.querySelector('.product-link').href = `/p/${slug}/`;
+            detailDiv.classList.remove('hidden');
+        } else {
+            detailDiv.classList.add('hidden');
+        }
+        
+        recalcTotal();
+        updateHiddenInputs(); // <--- DÔLEŽITÉ: Aktualizujeme inputy pre formulár
+    }
+
+    function recalcTotal() {
+        let total = 0;
+        document.querySelectorAll('.product-select').forEach(select => {
+            const option = select.options[select.selectedIndex];
+            if (option && option.getAttribute('data-price')) {
+                total += parseFloat(option.getAttribute('data-price'));
+            }
+        });
+        document.getElementById('total-price').innerText = total.toFixed(2) + ' €';
+    }
+
+    // --- 5. LOGIKA PRE ODOSLANIE DÁT (FORMULÁR) ---
+    function updateHiddenInputs() {
+        const container = document.getElementById('hidden-inputs-container');
+        container.innerHTML = ''; // Vyčistíme staré inputy
+
+        document.querySelectorAll('.product-select').forEach(select => {
+            if (select.value) {
+                // Pre každý vybraný produkt vytvoríme <input type="hidden" name="product_ids" value="ID">
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'product_ids';
+                input.value = select.value;
+                container.appendChild(input);
+            }
+        });
+    }
+</script>
+{% endblock %}

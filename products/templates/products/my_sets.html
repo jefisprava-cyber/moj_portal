@@ -1,0 +1,84 @@
+{% extends 'products/base.html' %}
+
+{% block title %}Moje Sety | JEFI.sk{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen pb-20">
+    
+    <div class="bg-white border-b border-gray-200 shadow-sm mb-10">
+        <div class="container mx-auto px-6 py-8">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-3xl font-black text-gray-900 mb-2">Moje uložené sety</h1>
+                    <p class="text-gray-500">Tu nájdete všetky vaše uložené konfigurácie a nápady.</p>
+                </div>
+                <a href="{% url 'builder' %}" class="bg-blue-600 text-white px-6 py-3 rounded-full font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200 flex items-center gap-2">
+                    <i class="fa fa-plus"></i> Vytvoriť nový set
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-6">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            
+            {% for set in saved_plans %}
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col hover:shadow-xl transition duration-300 group">
+                
+                <div class="p-6 border-b border-gray-50 bg-gradient-to-r from-gray-50 to-white">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">
+                            {{ set.items.count }}
+                        </div>
+                        <div class="text-right">
+                             <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                                 {{ set.created_at|date:"d. m. Y" }}
+                             </span>
+                        </div>
+                    </div>
+                    <h3 class="font-black text-xl text-gray-800 leading-tight group-hover:text-blue-600 transition">{{ set.name }}</h3>
+                </div>
+                
+                <div class="p-6 flex-grow bg-white">
+                    <ul class="space-y-3">
+                        {% for item in set.items.all|slice:":5" %}
+                        <li class="flex items-start gap-3 text-sm text-gray-600">
+                            <i class="fa fa-check-circle text-green-500 mt-1"></i>
+                            <span class="font-medium leading-snug">{{ item.product.name }}</span>
+                        </li>
+                        {% endfor %}
+                        
+                        {% if set.items.count > 5 %}
+                        <li class="text-xs text-gray-400 font-bold pl-7 italic">... a ďalšie položky</li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                    <a href="{% url 'load_set' set.id %}" onclick="return confirm('Pozor: Toto vyprázdni váš aktuálny košík a nahrá tento set. Pokračovať?')" class="flex-grow text-center bg-gray-900 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-blue-600 transition shadow-md flex items-center justify-center gap-2">
+                        Použiť set <i class="fa fa-arrow-right"></i>
+                    </a>
+                    
+                    <a href="{% url 'delete_set' set.id %}" onclick="return confirm('Naozaj chcete zmazať tento set?')" class="w-12 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition border border-gray-200 bg-white" title="Zmazať set">
+                        <i class="fa fa-trash"></i>
+                    </a>
+                </div>
+            </div>
+            {% empty %}
+            
+            <div class="col-span-full py-20 text-center">
+                <div class="inline-flex items-center justify-center w-24 h-24 bg-gray-100 rounded-full mb-6 text-gray-300 text-4xl">
+                    <i class="fa fa-folder-open"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Zatiaľ prázdno</h3>
+                <p class="text-gray-500 max-w-md mx-auto mb-8">Ešte ste si neuložili žiadne sety. Choďte do konfigurátora a vyskladajte si svoju prvú zostavu.</p>
+                <a href="{% url 'builder' %}" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 transition">
+                    Spustiť Konfigurátor
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
