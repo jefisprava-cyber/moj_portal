@@ -2,16 +2,14 @@ from django.contrib.sitemaps import Sitemap
 from .models import Product
 
 class ProductSitemap(Sitemap):
-    changefreq = "daily"
+    changefreq = "weekly"
     priority = 0.8
 
     def items(self):
-        return Product.objects.all()
+        return Product.objects.all().order_by('-created_at')
 
     def lastmod(self, obj):
-        # Ak by sme mali pole updated_at, použili by sme to.
-        # Teraz vrátime None, Google si to zistí sám.
-        return None 
+        return obj.created_at
         
     def location(self, obj):
-        return f"/p/{obj.slug}/"
+        return f"/produkt/{obj.slug}/"
