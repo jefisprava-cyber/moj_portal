@@ -79,11 +79,7 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
-    
-    @property
-    def min_price(self):
-        # Vráti cenu uloženú v modeli (rýchlejšie ako query na Offers)
-        return self.price
+
 
 # --- PONUKY (Offers) ---
 class Offer(models.Model):

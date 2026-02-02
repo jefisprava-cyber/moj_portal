@@ -1,171 +1,128 @@
-from django.core.management.base import BaseCommand
-from products.models import Product, Offer, Category, PriceHistory
-from django.utils.text import slugify
-from django.db.models import Min
-import requests
+import ssl
+import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import date
+from django.core.management.base import BaseCommand
+from django.utils.text import slugify
+from products.models import Product, Category, Offer
 from decimal import Decimal
 
 class Command(BaseCommand):
-    help = 'Importuje reálne dáta z Heureka XML feedu'
+    help = 'Importuje produkty z Dognet XML feedu'
 
-    def handle(self, *args, **kwargs):
-        # 1. URL FEEDU
-        # V ostrej prevádzke sem dáš linku, napr.: "https://www.alza.sk/export/products.xml"
-        FEED_URL = "https://www.example.com/heureka_feed.xml" 
+    def handle(self, *args, **options):
+        # ==========================================
+        # 1. NASTAVENIA (TOTO ZMENÍŠ, KEĎ BUDEŠ MAŤ LINK)
+        # ==========================================
         
-        self.stdout.write("📥 Sťahujem XML feed...")
+        # Sem vložíš ten dlhý odkaz z Dognetu
+        URL = "SEM_VLOZIS_LINK_KED_TI_HO_SCHVALIA" 
+        
+        # Meno obchodu (napr. "4Home.sk", "MerkuryMarket", atď.)
+        SHOP_NAME = "Meno Obchodu" 
+        
+        # ==========================================
 
-        try:
-            tree = ET.parse('feed.xml') # <--- ČÍTAME SÚBOR
-            root = tree.getroot()
-        except FileNotFoundError:
-            self.stdout.write(self.style.ERROR("Súbor feed.xml neexistuje! Spusti najprv generate_xml.py"))
+        if URL == "SEM_VLOZIS_LINK_KED_TI_HO_SCHVALIA":
+            self.stdout.write(self.style.WARNING("⚠️ Nemáš nastavený XML link!"))
+            self.stdout.write("Tento skript je pripravený. Keď ti Dognet schváli kampaň, vlož link do riadku 16.")
             return
 
-        CURRENT_SHOP_NAME = "Simulovaný E-shop"
-
-        self.stdout.write("🔄 Spracovávam produkty...")
+        self.stdout.write(f"⏳ Sťahujem a spracovávam XML z: {SHOP_NAME}...")
         
-        # --- SIMULÁCIA XML DÁT (Aby ti to fungovalo hneď teraz bez linky) ---
-        # TOTO v reále vymažeš a odkomentuješ requests.get() nižšie
-        xml_data = """
-        <SHOP>
-            <SHOPITEM>
-                <ITEM_ID>12345</ITEM_ID>
-                <PRODUCTNAME>Apple iPhone 15 128GB Black</PRODUCTNAME>
-                <DESCRIPTION>Skvelý smartfón s A16 Bionic čipom a 48 Mpx fotoaparátom.</DESCRIPTION>
-                <URL>https://www.obchod.sk/p/iphone-15</URL>
-                <IMGURL>https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-black-select-202309</IMGURL>
-                <PRICE_VAT>899.90</PRICE_VAT>
-                <EAN>1942530987654</EAN>
-                <CATEGORYTEXT>Elektronika | Mobily | Smartfóny</CATEGORYTEXT>
-                <DELIVERY_DATE>0</DELIVERY_DATE> 
-            </SHOPITEM>
-            <SHOPITEM>
-                <ITEM_ID>99999</ITEM_ID>
-                <PRODUCTNAME>Samsung Galaxy S24 256GB</PRODUCTNAME>
-                <DESCRIPTION>Novinka s Galaxy AI a špičkovým displejom.</DESCRIPTION>
-                <URL>https://www.inyobchod.sk/samsung-s24</URL>
-                <IMGURL>https://images.samsung.com/is/image/samsung/p6pim/sk/sm-s921bzkdeue/gallery/sk-galaxy-s24-sm-s921-sm-s921bzkdeue-539303555</IMGURL>
-                <PRICE_VAT>849.00</PRICE_VAT>
-                <EAN>8806090123456</EAN>
-                <CATEGORYTEXT>Elektronika | Mobily | Smartfóny</CATEGORYTEXT>
-                <DELIVERY_DATE>2</DELIVERY_DATE> 
-            </SHOPITEM>
-            <SHOPITEM>
-                <ITEM_ID>55555</ITEM_ID>
-                <PRODUCTNAME>Sony PlayStation 5 Slim</PRODUCTNAME>
-                <DESCRIPTION>Herná konzola novej generácie.</DESCRIPTION>
-                <URL>https://www.hry.sk/ps5</URL>
-                <IMGURL>https://gmedia.playstation.com/is/image/SIEPDC/ps5-slim-disc-console-image-block-01-en-16nov23?$1600px$</IMGURL>
-                <PRICE_VAT>479.90</PRICE_VAT>
-                <EAN>711719577000</EAN>
-                <CATEGORYTEXT>Elektronika | Herné konzoly</CATEGORYTEXT>
-                <DELIVERY_DATE>1</DELIVERY_DATE> 
-            </SHOPITEM>
-        </SHOP>
-        """
-        root = ET.fromstring(xml_data)
+        # Ignorovanie SSL chýb (častý problém pri sťahovaní feedov)
+        context = ssl._create_unverified_context()
         
-        # V REÁLE POUŽIJEŠ TOTO:
-        # response = requests.get(FEED_URL)
-        # response.encoding = 'utf-8' # Niekedy treba 'windows-1250'
-        # root = ET.fromstring(response.content)
-        # -------------------------------------------------------------------
-        
-        CURRENT_SHOP_NAME = "Testovací E-shop" # Toto si zmeníš podľa toho, čí feed importuješ
-
-        self.stdout.write("🔄 Spracovávam produkty...")
-
-        for item in root.findall('SHOPITEM'):
-            name = item.findtext('PRODUCTNAME')
-            description = item.findtext('DESCRIPTION', '')
-            url = item.findtext('URL')
-            img_url = item.findtext('IMGURL')
-            price_str = item.findtext('PRICE_VAT')
-            ean = item.findtext('EAN')
-            category_path = item.findtext('CATEGORYTEXT', 'Nezaradené')
-            delivery = item.findtext('DELIVERY_DATE', '0')
-            item_id = item.findtext('ITEM_ID')
-
-            if not name or not price_str:
-                continue 
-
-            price = Decimal(price_str)
-
-            # 1. SPRACOVANIE KATEGÓRIE
-            # Vezmeme text za posledným " | "
-            cat_name = category_path.split('|')[-1].strip()
-            category, _ = Category.objects.get_or_create(
-                name=cat_name,
-                defaults={'slug': slugify(cat_name)}
-            )
-
-            # 2. HĽADANIE / VYTVORENIE PRODUKTU
-            product = None
-            # Najprv skúsime nájsť podľa EAN
-            if ean:
-                product = Product.objects.filter(ean=ean).first()
-            
-            # Ak nemáme EAN alebo nenašlo, skúsime podľa názvu
-            if not product:
-                product = Product.objects.filter(name=name).first()
-
-            if not product:
-                # Vytvoríme nový produkt
-                product = Product.objects.create(
-                    name=name,
-                    description=description,
-                    image_url=img_url,
-                    ean=ean,
-                    category=category
-                )
-                self.stdout.write(f"✨ Nový produkt: {name}")
-            else:
-                # Aktualizujeme existujúci (napr. lepší obrázok)
-                if not product.image_url and img_url:
-                    product.image_url = img_url
-                    product.save()
-
-            # 3. AKTUALIZÁCIA PONUKY (OFFER)
-            offer, created = Offer.objects.get_or_create(
-                product=product,
-                shop_name=CURRENT_SHOP_NAME,
-                defaults={
-                    'price': price,
-                    'url': url,
-                    'delivery_days': int(delivery),
-                    'external_item_id': item_id
-                }
-            )
-
-            if not created:
-                if offer.price != price:
-                    self.stdout.write(f"📉 Zmena ceny {product.name}: {offer.price} -> {price}")
-                    offer.price = price
-                    offer.url = url
-                    offer.save()
-            
-            # 4. HISTÓRIA CIEN PRE GRAF
-            today = date.today()
-            history_exists = PriceHistory.objects.filter(product=product, date=today).exists()
-            
-            if not history_exists:
-                aggs = product.offers.aggregate(min_p=Min('price'))
-                min_p = aggs['min_p']
+        try:
+            # Sťahovanie a parsovanie XML
+            req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, context=context) as response:
                 
-                if min_p:
-                    # V reále by si avg_p počítal ako priemer všetkých offerov
-                    # Teraz pre simuláciu dáme +10%
-                    avg_p = min_p * Decimal('1.1')
-                    
-                    PriceHistory.objects.create(
-                        product=product,
-                        min_price=min_p,
-                        avg_price=avg_p,
-                        date=today
-                    )
+                # Streamované parsovanie
+                tree = ET.parse(response)
+                root = tree.getroot()
 
-        self.stdout.write(self.style.SUCCESS("✅ Import dokončený!"))
+                count_created = 0
+                count_updated = 0
+                
+                # Načítame existujúce kategórie do pamäte (zrýchlenie)
+                categories_map = {c.name.lower(): c for c in Category.objects.all()}
+
+                self.stdout.write("🚀 Začínam import produktov...")
+
+                # Dognet používa tag <SHOPITEM> pre každý produkt
+                for item in root.findall('SHOPITEM'):
+                    try:
+                        # 1. Získanie dát z XML
+                        # Niektoré feedy majú PRODUCTNAME, iné PRODUCT
+                        name = item.findtext('PRODUCTNAME') or item.findtext('PRODUCT')
+                        description = item.findtext('DESCRIPTION', '')
+                        price_str = item.findtext('PRICE_VAT')
+                        img_url = item.findtext('IMGURL', '')
+                        ean = item.findtext('EAN')
+                        manufacturer = item.findtext('MANUFACTURER', 'Neznámy')
+                        xml_category_text = item.findtext('CATEGORYTEXT', '')
+                        affiliate_url = item.findtext('URL')
+
+                        if not name or not price_str:
+                            continue
+
+                        # Konverzia ceny (výmena čiarky za bodku)
+                        price = Decimal(price_str.replace(',', '.'))
+
+                        # 2. KATEGÓRIA (Smart logic)
+                        category = None
+                        # Vezmeme poslednú časť "Nábytok | Sedačky" -> "Sedačky"
+                        feed_cat_name = xml_category_text.split('|')[-1].strip() 
+                        
+                        if feed_cat_name.lower() in categories_map:
+                            category = categories_map[feed_cat_name.lower()]
+                        else:
+                            # Vytvoríme novú kategóriu ak neexistuje
+                            if feed_cat_name:
+                                category, _ = Category.objects.get_or_create(name=feed_cat_name)
+                                categories_map[feed_cat_name.lower()] = category
+
+                        # 3. ULOŽENIE PRODUKTU (Update or Create)
+                        # DÔLEŽITÉ: Ukladáme aj 'price' priamo do produktu (pre našu novú optimalizáciu)
+                        product, created = Product.objects.update_or_create(
+                            name=name,
+                            defaults={
+                                'description': description[:5000], 
+                                'price': price,  # <--- TOTO JE KĽÚČOVÉ PRE RÝCHLOSŤ WEBU
+                                'image_url': img_url,
+                                'ean': ean,
+                                'brand': manufacturer,
+                                'category': category,
+                                'original_category_text': xml_category_text,
+                                'is_oversized': False 
+                            }
+                        )
+
+                        # 4. ULOŽENIE PONUKY (Aby fungovalo tlačidlo "Do obchodu")
+                        Offer.objects.update_or_create(
+                            product=product,
+                            shop_name=SHOP_NAME,
+                            defaults={
+                                'price': price,
+                                'url': affiliate_url,
+                                'active': True
+                            }
+                        )
+
+                        if created:
+                            count_created += 1
+                        else:
+                            count_updated += 1
+                        
+                        if (count_created + count_updated) % 50 == 0:
+                            self.stdout.write(f" ... spracovaných {count_created + count_updated}")
+
+                    except Exception as e:
+                        continue
+
+                self.stdout.write(self.style.SUCCESS(f'✅ HOTOVO!'))
+                self.stdout.write(f'🆕 Nové produkty: {count_created}')
+                self.stdout.write(f'🔄 Aktualizované: {count_updated}')
+
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Kritická chyba pri sťahovaní: {e}"))
