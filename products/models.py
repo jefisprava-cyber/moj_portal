@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify 
+from django.db.models import Avg  # <--- NOVÝ IMPORT
 import random
 
 # --- KATEGÓRIE (Stromová štruktúra) ---
@@ -63,6 +64,21 @@ class Product(models.Model):
     # Pole pre konfigurátor
     brand = models.CharField(max_length=100, blank=True, null=True)
 
+    # --- NOVÉ POLIA PRE RECENZIE ---
+    average_rating = models.FloatField(default=0.0) # Priemerné hodnotenie (napr. 4.5)
+    review_count = models.IntegerField(default=0)   # Počet hodnotení
+
+    def recalculate_rating(self):
+        """Prepočíta priemer hviezdičiek na základe recenzií."""
+        reviews = self.reviews.all()
+        if reviews.exists():
+            self.average_rating = reviews.aggregate(Avg('rating'))['rating__avg']
+            self.review_count = reviews.count()
+        else:
+            self.average_rating = 0.0
+            self.review_count = 0
+        self.save()
+
     def save(self, *args, **kwargs):
         if not self.slug:
             base_slug = slugify(self.name)
@@ -90,6 +106,9 @@ class Offer(models.Model):
     delivery_days = models.IntegerField(default=0)
     active = models.BooleanField(default=True)
     external_item_id = models.CharField(max_length=100, blank=True)
+
+    # --- NOVÉ POLE PRE MONETIZÁCIU ---
+    is_sponsored = models.BooleanField(default=False) # Ak True, zobrazí sa ako "Náš tip"
 
     def __str__(self):
         return f"{self.shop_name} - {self.product.name} ({self.price} €)"
@@ -145,3 +164,19 @@ class PriceHistory(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.min_price} € ({self.date})"
+
+# --- NOVÝ MODEL: RECENZIE ---
+class Review(models.Model):
+    product = models.ForeignKey(Product, related_name='reviews', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)]) # 1 až 5 hviezd
+    comment = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at'] # Najnovšie hore
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Po uložení recenzie prepočítame priemer produktu
+        self.product.recalculate_rating()
