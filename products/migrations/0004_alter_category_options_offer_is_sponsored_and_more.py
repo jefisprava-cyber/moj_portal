@@ -17,31 +17,43 @@ class Migration(migrations.Migration):
             name='category',
             options={'ordering': ('parent__name', 'name'), 'verbose_name': 'Kategória', 'verbose_name_plural': 'Kategórie'},
         ),
+        # Toto je nové pole pre monetizáciu - NECHÁVAME
         migrations.AddField(
             model_name='offer',
             name='is_sponsored',
             field=models.BooleanField(default=False),
         ),
+        # Toto je nové pole pre hviezdičky - NECHÁVAME
         migrations.AddField(
             model_name='product',
             name='average_rating',
             field=models.FloatField(default=0.0),
         ),
-        migrations.AddField(
-            model_name='product',
-            name='original_category_text',
-            field=models.CharField(blank=True, max_length=500, null=True),
-        ),
-        migrations.AddField(
-            model_name='product',
-            name='price',
-            field=models.DecimalField(decimal_places=2, default=0.0, max_digits=10, verbose_name='Cena od'),
-        ),
+        
+        # --- ZAKOMENTOVANÉ: TOTO UŽ V DATABÁZE JE A SPÔSOBUJE CHYBU ---
+        # migrations.AddField(
+        #     model_name='product',
+        #     name='original_category_text',
+        #     field=models.CharField(blank=True, max_length=500, null=True),
+        # ),
+        # --------------------------------------------------------------
+
+        # --- ZAKOMENTOVANÉ: CENA UŽ TIEŽ EXISTUJE ---
+        # migrations.AddField(
+        #    model_name='product',
+        #    name='price',
+        #    field=models.DecimalField(decimal_places=2, default=0.0, max_digits=10, verbose_name='Cena od'),
+        # ),
+        # --------------------------------------------------------------
+
+        # Toto je nové pole - NECHÁVAME
         migrations.AddField(
             model_name='product',
             name='review_count',
             field=models.IntegerField(default=0),
         ),
+        
+        # AlterFields iba menia nastavenia, zvyčajne sú bezpečné - NECHÁVAME
         migrations.AlterField(
             model_name='category',
             name='name',
@@ -77,6 +89,8 @@ class Migration(migrations.Migration):
             name='slug',
             field=models.SlugField(blank=True, max_length=255, unique=True),
         ),
+        
+        # --- TOTO JE TO HLAVNÉ: VYTVORENIE TABUĽKY PRE RECENZIE ---
         migrations.CreateModel(
             name='Review',
             fields=[
