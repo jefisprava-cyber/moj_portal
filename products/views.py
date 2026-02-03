@@ -64,23 +64,18 @@ def category_detail(request, slug):
         Q(category=category) | Q(category__parent=category)
     ).distinct()
 
-    sort_by = request.GET.get('sort', 'recommended') # Default je teraz 'recommended'
+    sort_by = request.GET.get('sort', 'default') # Zmenil som default na 'default'
     
-    # --- LOGIKA TRIEDENIA ---
+    # --- LOGIKA TRIEDENIA (ZJEDNODUŠENÁ - BEZPEČNÁ) ---
     if sort_by == 'price_asc':
         products = products.order_by('price')
     elif sort_by == 'price_desc':
         products = products.order_by('-price')
-    elif sort_by == 'rating':
-        # Zoradiť podľa priemerného hodnotenia (najlepšie hore)
-        products = products.order_by('-average_rating')
-    elif sort_by == 'recommended':
-        # MONETIZÁCIA: Produkty, ktoré majú aspoň jednu sponzorovanú ponuku, idú hore
-        products = products.annotate(
-            has_sponsored=Max('offers__is_sponsored')
-        ).order_by('-has_sponsored', '-created_at')
+    elif sort_by == 'name':
+        products = products.order_by('name')
     else:
-        # Fallback (napr. podľa názvu alebo dátumu)
+        # Bezpečný fallback: najnovšie produkty prvé
+        # Vyhodil som to rizikové 'recommended' s annotate, kým sa DB nestabilizuje
         products = products.order_by('-created_at')
     
     # Bočný panel - len hlavné kategórie
