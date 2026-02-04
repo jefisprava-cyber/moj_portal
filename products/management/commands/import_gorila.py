@@ -7,20 +7,20 @@ from decimal import Decimal
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import produktov z Gorila.sk (CJ Network)'
+    help = 'Import produktov z Gorila.sk (CJ Network) - DEBUG VERSION'
 
     def handle(self, *args, **kwargs):
-        # KONFIGURÁCIA PRE GORILA.SK
-        ADVERTISER_ID = "5284767"  # Gorila CID
-        CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q" # Tvoj Token
+        # --- KONFIGURÁCIA ---
+        ADVERTISER_ID = "5284767"  # Gorila
+        CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
         SHOP_NAME = "Gorila.sk"
-        LIMIT = 100 # Limit na test (neskôr zmeníme na viac)
+        LIMIT = 100 
 
         API_URL = "https://ads.api.cj.com/query"
         
         self.stdout.write(f"⏳ Pripájam sa na CJ API pre obchod {SHOP_NAME} (ID: {ADVERTISER_ID})...")
 
-        # GraphQL Dotaz
+        # Zjednodušený dotaz na testovanie (aby sme vylúčili chybu v poliach)
         query = """
         query products($advertiserIds: [String!], $limit: Int) {
             products(advertiserIds: $advertiserIds, limit: $limit) {
@@ -50,16 +50,25 @@ class Command(BaseCommand):
 
         headers = {
             "Authorization": f"Bearer {CJ_TOKEN}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         }
 
         try:
+            # Posielame požiadavku
             response = requests.post(API_URL, json={'query': query, 'variables': variables}, headers=headers)
-            response.raise_for_status()
+            
+            # --- KĽÚČOVÁ ZMENA: VÝPIS CHYBY ---
+            if response.status_code != 200:
+                self.stdout.write(self.style.ERROR(f"❌ Chyba {response.status_code}"))
+                self.stdout.write(self.style.WARNING(f"📩 Odpoveď servera: {response.text}"))
+                return
+            # ----------------------------------
+
             data = response.json()
             
             if 'errors' in data:
-                self.stdout.write(self.style.ERROR(f"❌ Chyba API: {data['errors']}"))
+                self.stdout.write(self.style.ERROR(f"❌ Chyba vnútri API: {json.dumps(data['errors'], indent=2)}"))
                 return
 
             products_data = data.get('data', {}).get('products', {}).get('resultList', [])
@@ -89,17 +98,14 @@ class Command(BaseCommand):
                     if not name or not price or not affiliate_url:
                         continue
 
-                    # Kategória
                     category, created = Category.objects.get_or_create(
                         slug=slugify(category_text)[:50],
                         defaults={'name': category_text, 'parent': default_cat}
                     )
 
-                    # Unikátny slug
                     base_slug = slugify(name)[:40]
                     unique_slug = f"{base_slug}-{str(uuid.uuid4())[:4]}"
 
-                    # Uloženie produktu
                     product, created = Product.objects.get_or_create(
                         name=name,
                         defaults={
@@ -112,7 +118,6 @@ class Command(BaseCommand):
                         }
                     )
 
-                    # Uloženie ponuky (Gorila.sk)
                     Offer.objects.update_or_create(
                         product=product,
                         shop_name=SHOP_NAME, 
@@ -133,4 +138,4 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! Importovaných {count} produktov z {SHOP_NAME}."))
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Kritická chyba: {e}"))
+            self.stdout.write(self.style.ERROR(f"❌ Kritická chyba spojenia: {e}"))
