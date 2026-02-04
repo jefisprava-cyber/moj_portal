@@ -17,24 +17,32 @@ class Command(BaseCommand):
         
         # --- ✏️ TU DOPLŇ TVOJE ÚDAJE ---
         DOGNET_PUBLISHER_ID = "26197"  # Napr. "9234"
-        DOGNET_CAMPAIGN_ID = "303c51" # ID pre Mobileonline (z feed URL), alebo skúsime generický redirect
         # -------------------------------
-        
 
         self.stdout.write(f"⏳ Sťahujem XML feed z: {url} ...")
 
+        # --- OPRAVA: Pridávame hlavičku, aby sme vyzerali ako prehliadač ---
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+
         try:
-            response = requests.get(url, stream=True)
+            response = requests.get(url, headers=headers, stream=True)
             response.raise_for_status()
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Chyba pri sťahovaní: {e}"))
             return
 
         try:
+            # Skúsime načítať XML
             tree = ET.parse(response.raw)
             root = tree.getroot()
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Chyba pri čítaní XML: {e}"))
+            # DIAGNOSTIKA: Ak to zlyhá, vypíšeme prvých 200 znakov, aby sme videli, čo server poslal
+            self.stdout.write("--- Začiatok odpovede servera ---")
+            self.stdout.write(response.text[:200]) 
+            self.stdout.write("---------------------------------")
             return
 
         count = 0
@@ -47,7 +55,7 @@ class Command(BaseCommand):
         # Heureka feed má produkty v tagu <SHOPITEM>
         items = root.findall('SHOPITEM')
         if not items:
-             items = root.findall('item') # Pre istotu ak by to bol iný formát
+             items = root.findall('item') 
 
         for item in items:
             if count >= limit:
@@ -59,21 +67,15 @@ class Command(BaseCommand):
                 description = item.findtext('DESCRIPTION') or ""
                 price_str = item.findtext('PRICE_VAT') or item.findtext('price')
                 image_url = item.findtext('IMGURL') or item.findtext('image')
-                raw_url = item.findtext('URL') or item.findtext('link') # Toto je priamy link
+                raw_url = item.findtext('URL') or item.findtext('link') 
                 category_text = item.findtext('CATEGORYTEXT') or "Elektronika"
                 
                 if not name or not price_str or not raw_url:
                     continue
 
                 # --- VYTVORENIE AFFILIATE LINKU ---
-                # Formát Dognet redirectu: https://login.dognet.sk/scripts/fc234pi?a_aid=PUBLISHER&a_bid=BANNER&dest=URL
-                # Musíme URL zakódovať (napr. / -> %2F)
                 encoded_url = urllib.parse.quote_plus(raw_url)
-                
-                # Toto je magická formulka pre vytvorenie provízneho linku
-                # Používame "Deep Link" skript dognetu
-                affiliate_url = f"https://login.dognet.sk/scripts/fc234pi?a_aid={26197}&a_bid=default&dest={encoded_url}"
-
+                affiliate_url = f"https://login.dognet.sk/scripts/fc234pi?a_aid={DOGNET_PUBLISHER_ID}&a_bid=default&dest={encoded_url}"
                 # ----------------------------------
 
                 price = Decimal(price_str.replace(',', '.').replace(' ', ''))
@@ -100,13 +102,13 @@ class Command(BaseCommand):
                     }
                 )
 
-                # Uloženie Ponuky s AFFILIATE LINKOM
+                # Uloženie Ponuky
                 Offer.objects.update_or_create(
                     product=product,
                     shop_name="Mobileonline.sk",
                     defaults={
                         'price': price,
-                        'url': affiliate_url, # <--- Tu ukladáme ten zarábajúci link
+                        'url': affiliate_url,
                         'active': True
                     }
                 )
