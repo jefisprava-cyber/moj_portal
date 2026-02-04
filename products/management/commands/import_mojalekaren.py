@@ -7,24 +7,25 @@ from decimal import Decimal
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import produktov z MojaLekaren.sk (CJ Network)'
+    help = 'Import produktov z MojaLekaren.sk (CJ Network) - FINAL FIX'
 
     def handle(self, *args, **kwargs):
         # --- FINÁLNE ÚDAJE ---
-        CJ_COMPANY_ID = "7864372"    # Tvoje CID
-        CJ_WEBSITE_ID = "101646612"  # Tvoje PID
-        ADVERTISER_ID = "5154184"    # MojaLekaren ID
-        
+        CJ_COMPANY_ID = "7864372"
+        CJ_WEBSITE_ID = "101646612"
+        ADVERTISER_ID = "5154184"  # MojaLekaren
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
+        
         SHOP_NAME = "MojaLekáreň.sk"
-        LIMIT = 100 # Na test 100
+        LIMIT = 100
 
         API_URL = "https://ads.api.cj.com/query"
         
         self.stdout.write(f"⏳ Pripájam sa na CJ API (MojaLekaren)...")
 
+        # OPRAVA: [ID!]
         query = """
-        query products($partnerIds: [String!], $companyId: ID!, $limit: Int, $pid: ID!) {
+        query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $pid: ID!) {
             products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit) {
                 totalCount
                 resultList {
@@ -61,11 +62,16 @@ class Command(BaseCommand):
 
         try:
             response = requests.post(API_URL, json={'query': query, 'variables': variables}, headers=headers)
-            response.raise_for_status()
+            
+            if response.status_code != 200:
+                self.stdout.write(self.style.ERROR(f"❌ Chyba {response.status_code}"))
+                self.stdout.write(self.style.WARNING(f"📩 {response.text}"))
+                return
+
             data = response.json()
             
             if 'errors' in data:
-                self.stdout.write(self.style.ERROR(f"❌ Chyba API: {data['errors']}"))
+                self.stdout.write(self.style.ERROR(f"❌ Chyba API: {json.dumps(data['errors'], indent=2)}"))
                 return
 
             products_data = data.get('data', {}).get('products', {}).get('resultList', [])
@@ -80,11 +86,14 @@ class Command(BaseCommand):
                 try:
                     name = item.get('title')
                     description = item.get('description') or ""
+                    
                     price_info = item.get('price')
                     price = Decimal(price_info.get('amount')) if price_info else Decimal('0.00')
                     image_url = item.get('imageLink')
+                    
                     link_code = item.get('linkCode')
                     affiliate_url = link_code.get('clickUrl') if link_code else ""
+                    
                     category_text = item.get('productType') or "Lekáreň"
                     ean = item.get('gtin') or ""
 
