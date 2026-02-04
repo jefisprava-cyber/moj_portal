@@ -7,13 +7,13 @@ from decimal import Decimal
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import produktov z Gorila.sk (CJ Network) - FINAL FIX'
+    help = 'Import produktov z Gorila.sk (CJ Network) - FINAL SHOPPING FIX'
 
     def handle(self, *args, **kwargs):
-        # --- FINÁLNE ÚDAJE ---
+        # --- ÚDAJE ---
         CJ_COMPANY_ID = "7864372"
         CJ_WEBSITE_ID = "101646612"
-        ADVERTISER_ID = "5284767"  # Gorila
+        ADVERTISER_ID = "5284767"
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
         
         SHOP_NAME = "Gorila.sk"
@@ -23,7 +23,7 @@ class Command(BaseCommand):
         
         self.stdout.write(f"⏳ Pripájam sa na CJ API (Gorila)...")
 
-        # OPRAVA 1: $partnerIds musí byť [ID!], nie [String!]
+        # OPRAVA: ... on Shopping (namiesto ShoppingProduct)
         query = """
         query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $pid: ID!) {
             products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit) {
@@ -32,8 +32,7 @@ class Command(BaseCommand):
                     title
                     description
                     
-                    # OPRAVA 2: Všetky nákupné polia musia byť tu
-                    ... on ShoppingProduct {
+                    ... on Shopping {
                         price {
                             amount
                             currency

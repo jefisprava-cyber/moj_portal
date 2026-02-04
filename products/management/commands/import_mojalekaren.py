@@ -7,13 +7,13 @@ from decimal import Decimal
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import produktov z MojaLekaren.sk (CJ Network) - FINAL FIX'
+    help = 'Import produktov z MojaLekaren.sk (CJ Network) - FINAL SHOPPING FIX'
 
     def handle(self, *args, **kwargs):
-        # --- FINÁLNE ÚDAJE ---
+        # --- ÚDAJE ---
         CJ_COMPANY_ID = "7864372"
         CJ_WEBSITE_ID = "101646612"
-        ADVERTISER_ID = "5154184"  # MojaLekaren
+        ADVERTISER_ID = "5154184"
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
         
         SHOP_NAME = "MojaLekáreň.sk"
@@ -23,7 +23,7 @@ class Command(BaseCommand):
         
         self.stdout.write(f"⏳ Pripájam sa na CJ API (MojaLekaren)...")
 
-        # OPRAVA: [ID!]
+        # OPRAVA: ... on Shopping
         query = """
         query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $pid: ID!) {
             products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit) {
@@ -31,7 +31,8 @@ class Command(BaseCommand):
                 resultList {
                     title
                     description
-                    ... on ShoppingProduct {
+                    
+                    ... on Shopping {
                         price {
                             amount
                             currency
@@ -40,6 +41,7 @@ class Command(BaseCommand):
                         productType
                         imageLink
                     }
+
                     linkCode(pid: $pid) {
                         clickUrl
                     }
