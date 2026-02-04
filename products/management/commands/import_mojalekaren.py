@@ -7,21 +7,21 @@ from decimal import Decimal
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import produktov z Gorila.sk (CJ Network)'
+    help = 'Import produktov z MojaLekaren.sk (CJ Network)'
 
     def handle(self, *args, **kwargs):
         # --- FINÁLNE ÚDAJE ---
         CJ_COMPANY_ID = "7864372"    # Tvoje CID
         CJ_WEBSITE_ID = "101646612"  # Tvoje PID
-        ADVERTISER_ID = "5284767"    # Gorila ID
+        ADVERTISER_ID = "5154184"    # MojaLekaren ID
         
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
-        SHOP_NAME = "Gorila.sk"
-        LIMIT = 100  # Na test 100, neskôr zmeň na viac (napr. 5000)
+        SHOP_NAME = "MojaLekáreň.sk"
+        LIMIT = 100 # Na test 100
 
         API_URL = "https://ads.api.cj.com/query"
         
-        self.stdout.write(f"⏳ Pripájam sa na CJ API (Gorila)...")
+        self.stdout.write(f"⏳ Pripájam sa na CJ API (MojaLekaren)...")
 
         query = """
         query products($partnerIds: [String!], $companyId: ID!, $limit: Int, $pid: ID!) {
@@ -74,21 +74,18 @@ class Command(BaseCommand):
             self.stdout.write(f"📦 Našiel som {total_found} produktov. Sťahujem prvých {LIMIT}...")
 
             count = 0
-            default_cat, _ = Category.objects.get_or_create(slug='knihy-a-zabava', defaults={'name': 'Knihy a Zábava'})
+            default_cat, _ = Category.objects.get_or_create(slug='zdravie', defaults={'name': 'Zdravie'})
 
             for item in products_data:
                 try:
                     name = item.get('title')
                     description = item.get('description') or ""
-                    
                     price_info = item.get('price')
                     price = Decimal(price_info.get('amount')) if price_info else Decimal('0.00')
                     image_url = item.get('imageLink')
-                    
                     link_code = item.get('linkCode')
                     affiliate_url = link_code.get('clickUrl') if link_code else ""
-                    
-                    category_text = item.get('productType') or "Knihy"
+                    category_text = item.get('productType') or "Lekáreň"
                     ean = item.get('gtin') or ""
 
                     if not name or not price or not affiliate_url:
