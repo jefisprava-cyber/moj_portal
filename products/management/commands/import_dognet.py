@@ -15,34 +15,42 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         url = kwargs['feed_url']
         
-        # --- ✏️ TU DOPLŇ TVOJE ÚDAJE ---
-        DOGNET_PUBLISHER_ID = "26197"  # Napr. "9234"
+        # --- TVOJE ID (UŽ VYPLNENÉ) ---
+        DOGNET_PUBLISHER_ID = "26197" 
         # -------------------------------
 
         self.stdout.write(f"⏳ Sťahujem XML feed z: {url} ...")
 
-        # --- OPRAVA: Pridávame hlavičku, aby sme vyzerali ako prehliadač ---
+        # Kompletné hlavičky ako reálny prehliadač Chrome
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'sk-SK,sk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br', # Povieme serveru, že chápeme kompresiu
+            'Connection': 'keep-alive'
         }
 
         try:
-            response = requests.get(url, headers=headers, stream=True)
+            # ZMENA: stream=False (stiahneme to naraz, aby sme predišli ChunkedEncodingError)
+            response = requests.get(url, headers=headers, stream=False, timeout=30)
             response.raise_for_status()
+            
+            # Automatické dekódovanie (ak je to gzip)
+            response.encoding = response.apparent_encoding 
+            
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Chyba pri sťahovaní: {e}"))
             return
 
         try:
-            # Skúsime načítať XML
-            tree = ET.parse(response.raw)
-            root = tree.getroot()
+            # Parsovanie z textu v pamäti (nie zo streamu)
+            root = ET.fromstring(response.content)
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Chyba pri čítaní XML: {e}"))
-            # DIAGNOSTIKA: Ak to zlyhá, vypíšeme prvých 200 znakov, aby sme videli, čo server poslal
-            self.stdout.write("--- Začiatok odpovede servera ---")
-            self.stdout.write(response.text[:200]) 
-            self.stdout.write("---------------------------------")
+            self.stdout.write("--- Začiatok stiahnutých dát (kontrola) ---")
+            # Vypíšeme len prvých 200 znakov, aby sme videli, čo sme stiahli
+            self.stdout.write(str(response.content[:200])) 
+            self.stdout.write("-------------------------------------------")
             return
 
         count = 0
@@ -52,7 +60,6 @@ class Command(BaseCommand):
 
         self.stdout.write("🚀 Začínam import...")
 
-        # Heureka feed má produkty v tagu <SHOPITEM>
         items = root.findall('SHOPITEM')
         if not items:
              items = root.findall('item') 
@@ -62,7 +69,6 @@ class Command(BaseCommand):
                 break
 
             try:
-                # 1. Získanie údajov (Heureka názvy tagov)
                 name = item.findtext('PRODUCTNAME') or item.findtext('PRODUCT') or item.findtext('name')
                 description = item.findtext('DESCRIPTION') or ""
                 price_str = item.findtext('PRICE_VAT') or item.findtext('price')
@@ -73,14 +79,13 @@ class Command(BaseCommand):
                 if not name or not price_str or not raw_url:
                     continue
 
-                # --- VYTVORENIE AFFILIATE LINKU ---
+                # --- PROVÍZNY LINK ---
                 encoded_url = urllib.parse.quote_plus(raw_url)
                 affiliate_url = f"https://login.dognet.sk/scripts/fc234pi?a_aid={DOGNET_PUBLISHER_ID}&a_bid=default&dest={encoded_url}"
-                # ----------------------------------
+                # ---------------------
 
                 price = Decimal(price_str.replace(',', '.').replace(' ', ''))
 
-                # Spracovanie kategórie
                 cat_parts = category_text.split('|')
                 cat_name = cat_parts[-1].strip() if cat_parts else "Nezaradené"
                 
@@ -89,7 +94,6 @@ class Command(BaseCommand):
                     defaults={'name': cat_name, 'parent': default_cat}
                 )
 
-                # Uloženie Produktu
                 product, created = Product.objects.get_or_create(
                     name=name,
                     defaults={
@@ -102,7 +106,6 @@ class Command(BaseCommand):
                     }
                 )
 
-                # Uloženie Ponuky
                 Offer.objects.update_or_create(
                     product=product,
                     shop_name="Mobileonline.sk",
