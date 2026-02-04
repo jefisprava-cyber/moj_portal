@@ -17,7 +17,7 @@ class Command(BaseCommand):
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
         
         SHOP_NAME = "Gorila.sk"
-        LIMIT = 100
+        LIMIT = 5000
 
         API_URL = "https://ads.api.cj.com/query"
         
