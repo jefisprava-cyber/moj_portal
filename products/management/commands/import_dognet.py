@@ -9,9 +9,10 @@ import tempfile
 import os
 import gzip
 import shutil
+import uuid # Pridané pre unikátne slugy
 
 class Command(BaseCommand):
-    help = 'Import produktov z Dognet XML feedu (Auto-Unzip + Memory Safe)'
+    help = 'Import produktov z Dognet XML feedu (Final Production Version)'
 
     def add_arguments(self, parser):
         parser.add_argument('feed_url', type=str, help='URL adresa XML feedu')
@@ -26,7 +27,7 @@ class Command(BaseCommand):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
 
-        # 1. Stiahnutie surového súboru (môže byť GZIP)
+        # 1. Stiahnutie
         raw_file = tempfile.NamedTemporaryFile(delete=False)
         raw_file_path = raw_file.name
         raw_file.close()
@@ -40,45 +41,45 @@ class Command(BaseCommand):
                             f.write(chunk)
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Chyba pri sťahovaní: {e}"))
-            os.remove(raw_file_path)
+            if os.path.exists(raw_file_path):
+                os.remove(raw_file_path)
             return
 
-        # 2. Detekcia a Rozbalenie (Ak je to GZIP)
+        # 2. Detekcia GZIP
         final_file_path = raw_file_path
         is_gzipped = False
         
-        # Skontrolujeme "Magic Bytes" (podpis GZIP súboru)
-        with open(raw_file_path, 'rb') as f:
-            header = f.read(2)
-            if header == b'\x1f\x8b':
-                is_gzipped = True
+        try:
+            with open(raw_file_path, 'rb') as f:
+                header = f.read(2)
+                if header == b'\x1f\x8b':
+                    is_gzipped = True
 
-        if is_gzipped:
-            self.stdout.write("📦 Detekovaný GZIP archív -> Rozbaľujem...")
-            unzipped_file = tempfile.NamedTemporaryFile(delete=False)
-            final_file_path = unzipped_file.name
-            unzipped_file.close()
-            
-            try:
+            if is_gzipped:
+                self.stdout.write("📦 Detekovaný GZIP archív -> Rozbaľujem...")
+                unzipped_file = tempfile.NamedTemporaryFile(delete=False)
+                final_file_path = unzipped_file.name
+                unzipped_file.close()
+                
                 with gzip.open(raw_file_path, 'rb') as f_in:
                     with open(final_file_path, 'wb') as f_out:
                         shutil.copyfileobj(f_in, f_out)
-                # Pôvodný zbalený súbor už nepotrebujeme
                 os.remove(raw_file_path) 
-            except Exception as e:
-                self.stdout.write(self.style.ERROR(f"❌ Chyba pri rozbaľovaní: {e}"))
-                return
-        else:
-            self.stdout.write("📄 Súbor je už rozbalený (XML).")
+            else:
+                self.stdout.write("📄 Súbor je už rozbalený (XML).")
 
-        self.stdout.write("🚀 Začínam import...")
+        except Exception as e:
+             self.stdout.write(self.style.ERROR(f"❌ Chyba pri práci so súborom: {e}"))
+             return
+
+        self.stdout.write("🚀 Začínam import VŠETKÝCH produktov...")
 
         count = 0
-        limit = 50 
+        # limit = 50  <-- VYPNUTÝ LIMIT, TERAZ IDEME NAOSTRO!
         
         default_cat, _ = Category.objects.get_or_create(slug='nezaradene', defaults={'name': 'Nezaradené'})
 
-        # 3. Čítanie XML
+        # 3. Import
         try:
             context = ET.iterparse(final_file_path, events=("end",))
             
@@ -86,8 +87,7 @@ class Command(BaseCommand):
                 if elem.tag not in ['SHOPITEM', 'item']:
                     continue
                 
-                if count >= limit:
-                    break
+                # if count >= limit: break # Limit je vypnutý
 
                 try:
                     name = elem.findtext('PRODUCTNAME') or elem.findtext('PRODUCT') or elem.findtext('name')
@@ -96,6 +96,10 @@ class Command(BaseCommand):
                     image_url = elem.findtext('IMGURL') or elem.findtext('image')
                     raw_url = elem.findtext('URL') or elem.findtext('link') 
                     category_text = elem.findtext('CATEGORYTEXT') or "Elektronika"
+                    
+                    # OPRAVA EAN: Orežeme na max 13 znakov
+                    ean_raw = elem.findtext('EAN') or ''
+                    ean = ean_raw[:13] 
                     
                     if not name or not price_str or not raw_url:
                         elem.clear()
@@ -114,15 +118,20 @@ class Command(BaseCommand):
                         defaults={'name': cat_name, 'parent': default_cat}
                     )
 
+                    # OPRAVA SLUG: Vytvoríme unikátny slug pridaním kúska náhodného kódu
+                    # Aby sme predišli chybe "duplicate key value"
+                    base_slug = slugify(name)[:40]
+                    unique_slug = f"{base_slug}-{str(uuid.uuid4())[:4]}"
+
                     product, created = Product.objects.get_or_create(
                         name=name,
                         defaults={
-                            'slug': slugify(name)[:50],
+                            'slug': unique_slug, # Použijeme unikátny slug
                             'description': description,
                             'price': price,
                             'category': category,
                             'image_url': image_url,
-                            'ean': elem.findtext('EAN') or '' 
+                            'ean': ean 
                         }
                     )
 
@@ -135,13 +144,15 @@ class Command(BaseCommand):
                             'active': True
                         }
                     )
-
-                    action = "✅" if created else "🔄"
-                    self.stdout.write(f"{action} {name[:40]}...")
+                    
+                    # Vypisujeme len každý 100. produkt, aby sme nezahltili konzolu
                     count += 1
+                    if count % 100 == 0:
+                        self.stdout.write(f"✅ Spracovaných {count} produktov...")
 
                 except Exception as e:
-                    self.stdout.write(self.style.WARNING(f"⚠️ Chyba item: {e}"))
+                    # Len tichý výpis chyby, nezastavujeme import
+                    self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri produkte: {e}"))
                 finally:
                     elem.clear()
 
@@ -151,4 +162,4 @@ class Command(BaseCommand):
             if os.path.exists(final_file_path):
                 os.remove(final_file_path)
 
-        self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! {count} produktov importovaných."))
+        self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! Celkovo importovaných {count} produktov."))
