@@ -1,41 +1,78 @@
 {% extends 'products/base.html' %}
 
+{% block title %}{{ bundle.name }} | Výhodný balíček{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-6 py-12">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-5xl mx-auto">
         
-        <div class="bg-gray-900 text-white rounded-3xl p-10 md:p-16 mb-12 relative overflow-hidden">
-            <div class="relative z-10">
-                <span class="bg-blue-500 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase mb-4 inline-block">Inteligentná zostava</span>
-                <h1 class="text-5xl font-black mb-6">{{ bundle.name }}</h1>
-                <p class="text-xl text-gray-300 leading-relaxed mb-10">{{ bundle.description }}</p>
-                
-                <a href="{% url 'add_bundle_to_planner' bundle.id %}" class="inline-flex items-center gap-3 bg-white text-gray-900 px-10 py-4 rounded-2xl font-black text-xl hover:bg-blue-50 transition transform hover:scale-105">
-                    <i class="fa fa-cart-plus"></i> Pridať celú zostavu naraz
-                </a>
+        <div class="bg-gray-900 text-white rounded-3xl p-10 md:p-16 mb-12 relative overflow-hidden shadow-2xl group">
+            
+            {% if bundle.image_url %}
+            <div class="absolute inset-0 z-0 opacity-20">
+                <img src="{{ bundle.image_url }}" class="w-full h-full object-cover grayscale mix-blend-overlay" onerror="this.style.display='none'">
             </div>
-            <i class="fa fa-layer-group absolute -bottom-10 -right-10 text-[200px] text-white opacity-5 rotate-12"></i>
+            {% endif %}
+            
+            <div class="relative z-10">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <span class="bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase mb-4 inline-block tracking-wider">Inteligentná zostava</span>
+                    {% if total_price > 0 %}
+                    <span class="text-2xl font-black text-green-400">{{ total_price|floatformat:2 }} €</span>
+                    {% endif %}
+                </div>
+
+                <h1 class="text-4xl md:text-5xl font-black mb-6 leading-tight">{{ bundle.name }}</h1>
+                <p class="text-xl text-gray-300 leading-relaxed mb-10 max-w-2xl">{{ bundle.description }}</p>
+                
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="{% url 'add_bundle_to_planner' bundle.id %}" class="inline-flex justify-center items-center gap-3 bg-white text-gray-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition transform hover:scale-105 shadow-lg">
+                        <i class="fa fa-cart-plus text-blue-600"></i> Pridať zostavu
+                    </a>
+                    
+                    <a href="{% url 'builder' %}?bundle={{ bundle.slug }}" class="inline-flex justify-center items-center gap-3 bg-gray-800 border border-gray-700 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-700 transition">
+                        <i class="fa fa-tools text-gray-400"></i> Upraviť v konfigurátore
+                    </a>
+                </div>
+            </div>
+            
+            <i class="fa fa-layer-group absolute -bottom-12 -right-12 text-[250px] text-white opacity-5 rotate-12 pointer-events-none"></i>
         </div>
 
         <h2 class="text-2xl font-bold text-gray-800 mb-8 flex items-center gap-3">
-            <span class="bg-blue-600 w-2 h-8 rounded-full"></span> Produkty v tomto balíčku
+            <span class="bg-blue-600 w-1.5 h-8 rounded-full"></span> 
+            Produkty v tomto balíčku ({{ products.count }})
         </h2>
         
         <div class="grid grid-cols-1 gap-4">
             {% for product in products %}
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-8 hover:border-blue-100 transition group">
-                <div class="w-32 h-32 flex-shrink-0 bg-white rounded-xl p-2 flex items-center justify-center border border-gray-50">
-                    <img src="{{ product.image_url }}" class="max-h-full max-w-full object-contain group-hover:scale-110 transition">
+            <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-6 hover:border-blue-200 transition group hover:shadow-md">
+                
+                <div class="w-24 h-24 md:w-32 md:h-32 flex-shrink-0 bg-gray-50 rounded-xl p-2 flex items-center justify-center border border-gray-50">
+                    <img src="{% if product.image_url %}{{ product.image_url }}{% else %}https://placehold.co/200x200?text={{ product.name|urlencode }}{% endif %}" 
+                         alt="{{ product.name }}"
+                         class="max-h-full max-w-full object-contain group-hover:scale-110 transition duration-300 mix-blend-multiply"
+                         onerror="this.onerror=null;this.src='https://placehold.co/200x200?text=Bez+obrazka';">
                 </div>
-                <div class="flex-grow">
-                    <h3 class="text-xl font-bold text-gray-900">{{ product.name }}</h3>
+                
+                <div class="flex-grow min-w-0"> <h3 class="text-lg md:text-xl font-bold text-gray-900 truncate pr-4">
+                        <a href="{% url 'product_detail' product.slug %}" class="hover:text-blue-600 transition">{{ product.name }}</a>
+                    </h3>
+                    
+                    {% if product.category %}
                     <p class="text-xs text-blue-600 font-bold mt-1 uppercase tracking-widest">{{ product.category.name }}</p>
-                    <div class="mt-4 flex gap-4">
-                        <a href="{% url 'product_detail' product.slug %}" class="text-sm font-bold text-gray-400 hover:text-gray-900 transition">Zobraziť detaily produktu</a>
+                    {% endif %}
+                    
+                    <div class="mt-3 flex items-center gap-4">
+                        <span class="font-bold text-gray-900">{{ product.price }} €</span>
+                        <a href="{% url 'product_detail' product.slug %}" class="text-sm font-semibold text-gray-400 hover:text-blue-600 transition hidden sm:inline-block">
+                            Detail produktu <i class="fa fa-arrow-right ml-1 text-xs"></i>
+                        </a>
                     </div>
                 </div>
-                <div class="hidden md:block">
-                     <a href="{% url 'add_to_planner' product.id %}" class="bg-gray-100 text-gray-900 p-3 rounded-xl hover:bg-blue-600 hover:text-white transition">
+                
+                <div class="flex-shrink-0">
+                     <a href="{% url 'add_to_planner' product.id %}" class="w-10 h-10 md:w-12 md:h-12 bg-gray-100 text-gray-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition shadow-sm" title="Pridať len tento produkt">
                         <i class="fa fa-plus"></i>
                      </a>
                 </div>
