@@ -31,53 +31,75 @@
 <body class="bg-gray-50 text-gray-900 flex flex-col min-h-screen font-sans">
 
     <header class="bg-white shadow-sm sticky top-0 z-50">
-        <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+        <div class="container mx-auto px-6 h-20 flex items-center justify-between gap-4">
             
-            <a href="{% url 'home' %}" class="flex items-center gap-0.5 group select-none decoration-0">
+            <a href="{% url 'home' %}" class="flex items-center gap-0.5 group select-none decoration-0 shrink-0">
                 <span class="text-3xl font-black tracking-tighter text-blue-700">JEF</span>
-                
                 <div class="relative flex items-center justify-center w-5 h-8 ml-0.5">
                     <div class="absolute bottom-1 w-1.5 h-3.5 bg-green-600 rounded-full"></div>
                     <i class="fa fa-search text-green-600 text-xl absolute bottom-3.5 group-hover:scale-110 group-hover:rotate-12 transition duration-300"></i>
                 </div>
             </a>
 
-            <nav class="hidden md:flex items-center gap-6 font-medium text-sm text-gray-600">
-                <a href="{% url 'home' %}" class="hover:text-blue-600 transition">Domov</a>
+            <div class="flex-1 max-w-2xl mx-4 hidden md:block">
+                <form action="{% url 'search' %}" method="GET" class="relative group">
+                    <input type="text" 
+                           name="q" 
+                           placeholder="Hľadať produkt, značku... (napr. iPhone, Lego)" 
+                           value="{{ search_query|default:'' }}"
+                           class="w-full bg-gray-100 border-2 border-transparent text-gray-800 text-sm rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white focus:border-transparent block pl-10 p-2.5 transition-all duration-300 placeholder-gray-400">
+                    
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg class="w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                    
+                    <button type="submit" class="absolute inset-y-0 right-0 px-4 text-sm font-bold text-white bg-blue-600 rounded-r-lg hover:bg-blue-700 transition-all">
+                        Hľadať
+                    </button>
+                </form>
+            </div>
+
+            <div class="flex items-center gap-4 shrink-0">
                 
-                <a href="{% url 'builder' %}" class="flex items-center gap-2 text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-full hover:bg-blue-100 hover:scale-105 transition shadow-sm border border-blue-100">
-                    <i class="fa fa-magic text-orange-400"></i> Konfigurátor
-                </a>
-
-                {% if user.is_authenticated %}
-                <a href="{% url 'my_sets' %}" class="hover:text-blue-600 transition font-bold text-gray-700">Moje sety</a>
-                {% endif %}
-
-                <a href="{% url 'planner_view' %}" class="hover:text-blue-600 transition">Nákupný zoznam</a>
-                
-                {% if user.is_authenticated %}
-                    <a href="{% url 'profile' %}" class="hover:text-blue-600 transition">Môj Profil</a>
-                {% endif %}
-            </nav>
-
-            <div class="flex items-center gap-4">
-                <a href="{% url 'planner_view' %}" class="relative w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition group">
-                    <i class="fa fa-shopping-bag group-hover:scale-110 transition"></i>
-                    {% if cart_count > 0 %}
-                    <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white animate-bounce">{{ cart_count }}</span>
-                    {% endif %}
-                </a>
-
-                {% if user.is_authenticated %}
-                    <form action="{% url 'logout' %}" method="post">
-                        {% csrf_token %}
-                        <button type="submit" class="text-sm font-bold text-gray-500 hover:text-red-500 transition ml-2">Odhlásiť</button>
-                    </form>
-                {% else %}
-                    <a href="{% url 'login' %}" class="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition shadow-lg shadow-gray-200 hover:-translate-y-0.5 transform duration-200">
-                        Prihlásiť
+                <nav class="hidden lg:flex items-center gap-6 font-medium text-sm text-gray-600">
+                    <a href="{% url 'builder' %}" class="flex items-center gap-2 text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-full hover:bg-blue-100 hover:scale-105 transition shadow-sm border border-blue-100">
+                        <i class="fa fa-magic text-orange-400"></i> Konfigurátor
                     </a>
-                {% endif %}
+
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'my_sets' %}" class="hover:text-blue-600 transition font-bold text-gray-700">Moje sety</a>
+                    {% endif %}
+
+                    <a href="{% url 'planner_view' %}" class="hover:text-blue-600 transition">Nákupný zoznam</a>
+                    
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'profile' %}" class="hover:text-blue-600 transition">Môj Profil</a>
+                    {% endif %}
+                </nav>
+
+                <div class="flex items-center gap-3">
+                    <a href="{% url 'search' %}" class="md:hidden p-2 text-gray-500 hover:text-blue-600">
+                        <i class="fa fa-search text-xl"></i>
+                    </a>
+
+                    <a href="{% url 'planner_view' %}" class="relative w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition group">
+                        <i class="fa fa-shopping-bag group-hover:scale-110 transition"></i>
+                        {% if cart_count > 0 %}
+                        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white animate-bounce">{{ cart_count }}</span>
+                        {% endif %}
+                    </a>
+
+                    {% if user.is_authenticated %}
+                        <form action="{% url 'logout' %}" method="post" class="hidden sm:block">
+                            {% csrf_token %}
+                            <button type="submit" class="text-sm font-bold text-gray-500 hover:text-red-500 transition ml-2">Odhlásiť</button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="bg-gray-900 text-white px-5 py-2 rounded-full text-sm font-bold hover:bg-gray-800 transition shadow-lg shadow-gray-200 hover:-translate-y-0.5 transform duration-200 hidden sm:inline-block">
+                            Prihlásiť
+                        </a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </header>

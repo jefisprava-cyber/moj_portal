@@ -4,7 +4,7 @@ from products import views
 from django.contrib.auth import views as auth_views
 from django.contrib.sitemaps.views import sitemap
 from products.sitemaps import ProductSitemap
-from django.views.generic import TemplateView  # <--- TOTO SME PRIDALI (dôležité pre statické stránky)
+from django.views.generic import TemplateView
 
 # Definícia sitemáp
 sitemaps = {
@@ -18,13 +18,16 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
 
     # --- PRÁVNE STRÁNKY (GDPR, COOKIES, VOP) ---
-    # Tieto riadky opravia chybu 500 (Cookie banner a footer ich potrebujú)
     path('ochrana-udajov/', TemplateView.as_view(template_name='pages/gdpr.html'), name='gdpr'),
     path('obchodne-podmienky/', TemplateView.as_view(template_name='pages/vop.html'), name='vop'),
     path('cookies/', TemplateView.as_view(template_name='pages/cookies.html'), name='cookies'),
     
-    # Ponechávame aj starý link pre istotu, ak ho niekde inde používaš
+    # Fallback pre staré odkazy
     path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
+
+    # --- VYHĽADÁVANIE A POROVNANIE (Dávame vyššie pred produktový slug) ---
+    path('hladat/', views.search, name='search'),  # Zmenené na 'hladat/' pre slovenčinu
+    path('compare/', views.comparison, name='comparison'),
 
     # --- NOVÉ: INTELIGENTNÝ KONFIGURÁTOR ---
     path('inteligentny-konfigurator/', views.builder_view, name='builder'),
@@ -41,15 +44,14 @@ urlpatterns = [
     # --- NOVÉ: AUTOMATICKÝ IMPORT ---
     path('import-data/', views.trigger_import, name='trigger_import'),
 
-    # --- SEO & SITEMAP ---
-    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
-    path('p/<slug:slug>/', views.product_detail, name='product_detail'),
-
-    # --- PRODUKTY A KATEGÓRIE ---
-    path('search/', views.search, name='search'),
+    # --- KATEGÓRIE A BALÍČKY ---
     path('category/<slug:slug>/', views.category_detail, name='category_detail'),
     path('bundle/<slug:bundle_slug>/', views.bundle_detail, name='bundle_detail'),
-    path('compare/', views.comparison, name='comparison'),
+
+    # --- SEO & DETAIL PRODUKTU ---
+    # Toto dávame naschvál nižšie, aby 'p/nieco' neodchytilo iné špeciálne URL
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    path('p/<slug:slug>/', views.product_detail, name='product_detail'),
 
     # --- PRIHLASOVANIE A PROFIL ---
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
@@ -63,7 +65,7 @@ urlpatterns = [
     path('add-bundle/<int:bundle_id>/', views.add_bundle_to_planner, name='add_bundle_to_planner'),
     path('remove/<int:item_id>/', views.remove_from_planner, name='remove_from_planner'),
     
-    # --- STARÉ ULOŽENIE A NAČÍTANIE (Pre kompatibilitu, ak treba) ---
+    # --- STARÉ ULOŽENIE A NAČÍTANIE (Pre kompatibilitu) ---
     path('save-plan/', views.save_current_plan, name='save_current_plan'),
     path('load-plan/<int:plan_id>/', views.load_plan, name='load_plan'),
     path('delete-plan/<int:plan_id>/', views.delete_plan, name='delete_plan'),

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Product, Category, Offer, PlannerItem, Bundle, SavedPlan, SavedPlanItem, Review
-from .forms import ReviewForm  # <--- NOVÝ IMPORT (Formulár pre recenzie)
-from django.db.models import Min, Q, Sum, Max # <--- PRIDANÉ Max PRE TRIEDENIE SPONZOROVANÝCH
+from .forms import ReviewForm  # Uisti sa, že máš súbor forms.py!
+from django.db.models import Min, Q, Sum, Max
 from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
@@ -36,10 +36,10 @@ def calculate_shipping(total_price, has_oversized):
 
 def home(request):
     """Domovská stránka s produktami, balíčkami a kategóriami."""
-    # Optimalizácia: Načítame len hlavné kategórie (rodičov)
     all_categories = Category.objects.filter(parent=None)
     
-    products = Product.objects.order_by('-created_at')[:8]
+    # Načítame produkty aj s ich kategóriami pre rýchlosť
+    products = Product.objects.select_related('category').order_by('-created_at')[:8]
     
     bundles = Bundle.objects.all()
     
@@ -59,14 +59,13 @@ def category_detail(request, slug):
     """Zobrazenie kategórie a jej produktov s filtrovaním."""
     category = get_object_or_404(Category, slug=slug)
     
-    # Hľadáme produkty v tejto kategórii ALEBO v jej podkategóriách
     products = Product.objects.filter(
         Q(category=category) | Q(category__parent=category)
-    ).distinct()
+    ).select_related('category').distinct()
 
-    sort_by = request.GET.get('sort', 'default') # Zmenil som default na 'default'
+    sort_by = request.GET.get('sort', 'default')
     
-    # --- LOGIKA TRIEDENIA (ZJEDNODUŠENÁ - BEZPEČNÁ) ---
+    # --- LOGIKA TRIEDENIA ---
     if sort_by == 'price_asc':
         products = products.order_by('price')
     elif sort_by == 'price_desc':
@@ -74,11 +73,8 @@ def category_detail(request, slug):
     elif sort_by == 'name':
         products = products.order_by('name')
     else:
-        # Bezpečný fallback: najnovšie produkty prvé
-        # Vyhodil som to rizikové 'recommended' s annotate, kým sa DB nestabilizuje
         products = products.order_by('-created_at')
     
-    # Bočný panel - len hlavné kategórie
     all_categories = Category.objects.filter(parent=None)
 
     return render(request, 'products/category_detail.html', {
@@ -91,7 +87,7 @@ def category_detail(request, slug):
 def search(request):
     """Vyhľadávanie produktov."""
     query = request.GET.get('q')
-    results = []
+    results = Product.objects.none()
     
     if query:
         results = Product.objects.filter(
@@ -99,9 +95,18 @@ def search(request):
             Q(description__icontains=query) |
             Q(ean__icontains=query) |
             Q(category__name__icontains=query)
-        ).distinct()
+        ).select_related('category').distinct()
     
-    return render(request, 'products/search.html', {'products': results, 'query': query})
+    # Použijeme product_list.html aby sme nemuseli robiť search.html
+    # Pridáme all_categories, aby fungovalo bočné menu aj vo vyhľadávaní
+    all_categories = Category.objects.filter(parent=None)
+
+    return render(request, 'products/product_list.html', {
+        'products': results, 
+        'search_query': query,
+        'all_categories': all_categories,
+        'is_search': True # Flag pre šablónu, aby vedela zobraziť nadpis "Výsledky hľadania"
+    })
 
 def privacy_policy(request):
     return render(request, 'pages/gdpr.html')
@@ -113,23 +118,28 @@ def privacy_policy(request):
 def product_detail(request, slug): 
     product = get_object_or_404(Product, slug=slug)
     
-    # Zoradíme ponuky: Sponzorované prvé (True > False), potom najlacnejšie
+    # Zoradíme ponuky
     offers = product.offers.filter(active=True).order_by('-is_sponsored', 'price')
     
     # --- SPRACOVANIE RECENZIE ---
+    form = ReviewForm() # Default prázdny
     if request.method == 'POST' and request.user.is_authenticated:
         form = ReviewForm(request.POST)
         if form.is_valid():
-            review = form.save(commit=False)
-            review.product = product
-            review.user = request.user
-            review.save()
-            messages.success(request, "Ďakujeme za vaše hodnotenie!")
+            # Skontrolujeme či už užívateľ nehodnotil
+            existing = Review.objects.filter(product=product, user=request.user).exists()
+            if existing:
+                messages.warning(request, "Tento produkt ste už hodnotili.")
+            else:
+                review = form.save(commit=False)
+                review.product = product
+                review.user = request.user
+                review.save()
+                messages.success(request, "Ďakujeme za vaše hodnotenie!")
             return redirect('product_detail', slug=slug)
-    else:
-        form = ReviewForm()
 
-    history = product.price_history.all()
+    # Graf cien
+    history = product.price_history.all().order_by('date')
     dates = [h.date.strftime("%d.%m.") for h in history]
     min_prices = [float(h.min_price) for h in history]
     avg_prices = [float(h.avg_price) for h in history]
@@ -137,8 +147,8 @@ def product_detail(request, slug):
     return render(request, 'products/product_detail.html', {
         'product': product, 
         'offers': offers,
-        'form': form,   # Formulár pre novú recenziu
-        'reviews': product.reviews.all(), # Zoznam existujúcich recenzií
+        'form': form,
+        'reviews': product.reviews.all().order_by('-created_at'),
         'chart_dates': json.dumps(dates),
         'chart_min_prices': json.dumps(min_prices),
         'chart_avg_prices': json.dumps(avg_prices)
@@ -152,6 +162,7 @@ def bundle_detail(request, bundle_slug):
         if p.price > 0:
             total_price += p.price
         else:
+            # Ak produkt nemá cenu, skúsime nájsť najlacnejšiu ponuku
             offer = p.offers.order_by('price').first()
             if offer:
                 total_price += offer.price
@@ -214,13 +225,14 @@ def remove_from_planner(request, item_id):
 
 def planner_view(request):
     if request.user.is_authenticated:
-        items = PlannerItem.objects.filter(user=request.user)
+        items = PlannerItem.objects.filter(user=request.user).select_related('product')
     else:
-        items = PlannerItem.objects.filter(session_key=get_session_key(request))
+        items = PlannerItem.objects.filter(session_key=get_session_key(request)).select_related('product')
     
     total_estimated = 0
     for item in items:
         price = item.product.price
+        # Ak je cena 0, nájdeme najlacnejšiu ponuku
         if price == 0:
             cheapest = item.product.offers.filter(active=True).order_by('price').first()
             if cheapest:
@@ -236,21 +248,22 @@ def planner_view(request):
 
 def comparison(request):
     if request.user.is_authenticated:
-        items = PlannerItem.objects.filter(user=request.user)
+        items = PlannerItem.objects.filter(user=request.user).select_related('product')
     else:
-        items = PlannerItem.objects.filter(session_key=get_session_key(request))
+        items = PlannerItem.objects.filter(session_key=get_session_key(request)).select_related('product')
 
     if not items:
         return redirect('home')
 
     required_products = [item.product for item in items]
     
-    # A. MIX STRATÉGIA
+    # A. MIX STRATÉGIA (Najlacnejšie ponuky odhocikiaľ)
     mix_items_cost = 0
     mix_details = []
     shop_baskets = {} 
 
     for item in items:
+        # Optimalizácia: Hľadáme najlacnejšiu ponuku pre produkt
         cheapest = item.product.offers.filter(active=True).order_by('price').first()
         if cheapest:
             cost = float(cheapest.price) * item.quantity
@@ -262,7 +275,8 @@ def comparison(request):
                 shop_baskets[s_name] = {'total': 0.0, 'has_oversized': False}
             
             shop_baskets[s_name]['total'] += cost
-            if item.product.is_oversized:
+            # Predpokladáme, že product má pole is_oversized, ak nie, daj False
+            if getattr(item.product, 'is_oversized', False):
                 shop_baskets[s_name]['has_oversized'] = True
 
     mix_shipping_cost = 0
@@ -272,6 +286,7 @@ def comparison(request):
     mix_grand_total = mix_items_cost + mix_shipping_cost
 
     # B. JEDEN OBCHOD STRATÉGIA
+    # Nájdeme obchody, ktoré majú aspoň jeden z produktov
     shop_names = Offer.objects.filter(product__in=required_products, active=True).values_list('shop_name', flat=True).distinct()
     single_shop_results = []
 
@@ -285,7 +300,7 @@ def comparison(request):
             if offer: 
                 cost = float(offer.price) * item.quantity
                 shop_items_cost += cost
-                if item.product.is_oversized:
+                if getattr(item.product, 'is_oversized', False):
                     shop_has_oversized = True
             else:
                 found_all = False
@@ -327,6 +342,7 @@ def register(request):
             user = form.save()
             login(request, user)
             
+            # Prenos košíka z anonymnej session na užívateľa
             session_key = get_session_key(request)
             anon_items = PlannerItem.objects.filter(session_key=session_key)
             
@@ -352,7 +368,7 @@ def profile(request):
     saved_plans = SavedPlan.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'registration/profile.html', {'saved_plans': saved_plans})
 
-# --- STARÉ FUNKCIE PRE UKLADANIE KOŠÍKA ---
+# --- STARÉ FUNKCIE PRE UKLADANIE KOŠÍKA (ponechané pre kompatibilitu) ---
 @login_required
 def save_current_plan(request):
     if request.method == 'POST':
@@ -385,7 +401,7 @@ def delete_plan(request, plan_id):
     return redirect('profile')
 
 # ==========================================
-# 6. NOVÉ: MOJE SETY (GARÁŽ)
+# 6. MOJE SETY (GARÁŽ / KONFIGURÁTOR)
 # ==========================================
 
 @login_required
@@ -411,10 +427,11 @@ def save_builder_set(request):
         for p_id in product_ids:
             if p_id: 
                 try:
-                    product = Product.objects.get(id=p_id)
+                    # Pridal som int() pre bezpečnosť a kontrolu existencie
+                    product = Product.objects.get(id=int(p_id))
                     SavedPlanItem.objects.create(plan=new_set, product=product, quantity=1)
                     count += 1
-                except Product.DoesNotExist:
+                except (Product.DoesNotExist, ValueError):
                     continue
         
         if count > 0:
@@ -431,6 +448,7 @@ def load_set(request, set_id):
     """Načíta vybraný set do aktuálneho košíka."""
     plan = get_object_or_404(SavedPlan, id=set_id, user=request.user)
     
+    # Vymažeme aktuálny košík pred načítaním setu (voliteľné)
     PlannerItem.objects.filter(user=request.user).delete()
     
     for saved_item in plan.items.all():
@@ -468,7 +486,7 @@ def builder_view(request):
         for i, product in enumerate(products):
             prefill_data.append({
                 'slot': i + 1,
-                'cat_id': product.category.id,
+                'cat_id': product.category.id if product.category else None,
                 'brand': product.brand,
                 'prod_id': product.id
             })
@@ -487,7 +505,9 @@ def api_get_brands(request, category_id):
         if p.brand:
             brands.add(p.brand)
         else:
-            brands.add(p.name.split()[0])
+            # Fallback ak nie je značka - vezmeme prvé slovo z názvu
+            if p.name:
+                brands.add(p.name.split()[0])
             
     return JsonResponse({'brands': sorted(list(brands))})
 
@@ -497,6 +517,9 @@ def api_get_products(request, category_id):
     
     if brand_name:
         products = products.filter(brand__iexact=brand_name) | products.filter(name__istartswith=brand_name)
+    
+    # Obmedzíme počet výsledkov pre API na 50 pre rýchlosť
+    products = products[:50]
         
     data = []
     for p in products:
@@ -505,7 +528,7 @@ def api_get_products(request, category_id):
             lowest_offer = p.offers.order_by('price').first()
             price = lowest_offer.price if lowest_offer else 0
         
-        short_desc = p.description[:80] + "..." if p.description else "Bez popisu."
+        short_desc = (p.description[:80] + "...") if p.description else "Bez popisu."
         
         data.append({
             'id': p.id,
@@ -530,12 +553,14 @@ def trigger_import(request):
     sys.stdout = out
     try:
         try:
+            # Skúsime importovať, ak súbor existuje
             from generate_xml import generate_feed
             generate_feed()
             print("✅ XML vygenerované.", file=out)
         except ImportError:
             print("⚠️ generate_xml.py nenájdený, preskakujem generovanie XML.", file=out)
 
+        # Spustenie importného príkazu
         call_command('import_real_xml', stdout=out)
         result = out.getvalue()
         return HttpResponse(f"<pre>{result}</pre>", content_type="text/html")
