@@ -1,11 +1,11 @@
 {% extends 'products/base.html' %}
 
 {% block title %}{{ product.name }} | Porovnanie cien{% endblock %}
-{% block meta_description %}Najlepšia cena pre {{ product.name }}: {{ offers.first.price }} €. Porovnajte si {{ offers.count }} obchodov a pozrite si vývoj ceny.{% endblock %}
+{% block meta_description %}Najlepšia cena pre {{ product.name }}: {{ offers.first.price|default:"-" }} €. Porovnajte si {{ offers.count }} obchodov a pozrite si vývoj ceny.{% endblock %}
 
 {% block og_title %}{{ product.name }} - Vývoj ceny{% endblock %}
 {% block og_description %}Aktuálne najlacnejšie v obchode {{ offers.first.shop_name }}.{% endblock %}
-{% block og_image %}{{ product.image_url }}{% endblock %}
+{% block og_image %}{% if product.image_url %}{{ product.image_url }}{% else %}https://placehold.co/600x400?text={{ product.name|urlencode }}{% endif %}{% endblock %}
 
 {% block schema %}
 <script type="application/ld+json">
@@ -13,7 +13,7 @@
   "@context": "https://schema.org/",
   "@type": "Product",
   "name": "{{ product.name }}",
-  "image": "{{ product.image_url }}",
+  "image": "{% if product.image_url %}{{ product.image_url }}{% else %}https://placehold.co/600x400?text=No+Image{% endif %}",
   "description": "{{ product.description|truncatechars:150 }}",
   "offers": {
     "@type": "AggregateOffer",
@@ -27,30 +27,42 @@
 
 {% block content %}
 <div class="container mx-auto px-6 py-12">
-    <nav class="flex mb-8 text-sm text-gray-500 gap-2">
-        <a href="{% url 'home' %}" class="hover:text-blue-600">Domov</a>
+    <nav class="flex mb-8 text-sm text-gray-500 gap-2 items-center flex-wrap">
+        <a href="{% url 'home' %}" class="hover:text-blue-600 transition">Domov</a>
         <span>/</span>
-        <a href="{% url 'category_detail' product.category.slug %}" class="hover:text-blue-600">{{ product.category.name }}</a>
+        {% if product.category %}
+            <a href="{% url 'category_detail' product.category.slug %}" class="hover:text-blue-600 transition">{{ product.category.name }}</a>
+        {% else %}
+            <span class="text-gray-400">Nezaradené</span>
+        {% endif %}
         <span>/</span>
-        <span class="text-gray-900 font-bold">{{ product.name }}</span>
+        <span class="text-gray-900 font-bold truncate max-w-[200px] md:max-w-none">{{ product.name }}</span>
     </nav>
 
     <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="flex flex-col md:flex-row">
-            <div class="md:w-1/2 p-12 bg-white flex items-center justify-center border-r border-gray-50">
-                {% if product.image_url %}
-                    <img src="{{ product.image_url }}" alt="{{ product.name }}" class="max-h-96 object-contain">
-                {% else %}
-                    <i class="fa fa-image text-9xl text-gray-100"></i>
-                {% endif %}
+            <div class="md:w-1/2 p-8 md:p-12 bg-white flex items-center justify-center border-b md:border-b-0 md:border-r border-gray-50 relative group">
+                <img src="{% if product.image_url %}{{ product.image_url }}{% else %}https://placehold.co/600x600?text=Bez+obrazka{% endif %}" 
+                     alt="{{ product.name }}" 
+                     class="max-h-96 w-full object-contain transition transform duration-500 group-hover:scale-105"
+                     onerror="this.onerror=null;this.src='https://placehold.co/600x600?text=Bez+obrazka';">
             </div>
             
-            <div class="md:w-1/2 p-12 flex flex-col">
-                <h1 class="text-4xl font-black text-gray-900 mb-4">{{ product.name }}</h1>
-                <div class="mb-6 flex gap-2">
-                    <span class="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-1 rounded">EAN: {{ product.ean|default:"-" }}</span>
+            <div class="md:w-1/2 p-8 md:p-12 flex flex-col">
+                <h1 class="text-3xl md:text-4xl font-black text-gray-900 mb-4 leading-tight">{{ product.name }}</h1>
+                
+                <div class="mb-6 flex flex-wrap gap-2">
+                    {% if product.ean %}
+                        <span class="bg-gray-100 text-gray-600 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded">EAN: {{ product.ean }}</span>
+                    {% endif %}
+                    {% if product.category %}
+                        <span class="bg-blue-50 text-blue-600 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded">{{ product.category.name }}</span>
+                    {% endif %}
                 </div>
-                <p class="text-gray-600 mb-10 leading-relaxed text-lg">{{ product.description }}</p>
+
+                <p class="text-gray-600 mb-10 leading-relaxed text-lg line-clamp-4 hover:line-clamp-none transition-all duration-300">
+                    {{ product.description|default:"Popis produktu pripravujeme." }}
+                </p>
 
                 <div class="mb-10">
                     <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -61,25 +73,35 @@
                     </div>
                 </div>
 
-                <h3 class="text-xl font-bold text-gray-800 mb-4">Najlepšie ponuky:</h3>
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Najlepšie ponuky ({{ offers.count }})</h3>
+                
+                {% if offers %}
                 <div class="space-y-3 mb-10 flex-grow">
                     {% for offer in offers %}
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-blue-200 transition">
-                        <div>
-                            <span class="font-bold text-gray-900 text-lg">{{ offer.shop_name }}</span>
-                            <div class="text-xs text-gray-500">Doručenie: {{ offer.delivery_days }} dní</div>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-blue-200 hover:bg-blue-50/30 transition duration-200">
+                        <div class="mb-2 sm:mb-0">
+                            <span class="font-bold text-gray-900 text-lg block">{{ offer.shop_name }}</span>
+                            <div class="text-xs text-gray-500 flex items-center gap-1">
+                                <i class="fa fa-truck text-gray-400"></i> 
+                                Doručenie: {{ offer.delivery_days|default:"Neznáme" }} dní
+                            </div>
                         </div>
-                        <div class="flex items-center gap-6">
-                            <span class="text-2xl font-black text-blue-600">{{ offer.price }} €</span>
-                            <a href="{{ offer.url }}" target="_blank" class="bg-white border-2 border-gray-900 text-gray-900 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-900 hover:text-white transition">
-                                Do obchodu <i class="fa fa-external-link-alt ml-1 text-xs"></i>
+                        <div class="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+                            <span class="text-2xl font-black text-blue-600 whitespace-nowrap">{{ offer.price }} €</span>
+                            <a href="{{ offer.url }}" target="_blank" rel="nofollow noopener" class="bg-gray-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-200 transition-all duration-200 flex items-center gap-2">
+                                Do obchodu <i class="fa fa-external-link-alt text-[10px]"></i>
                             </a>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
+                {% else %}
+                <div class="p-6 bg-yellow-50 rounded-2xl text-yellow-800 mb-10 border border-yellow-100">
+                    Momentálne nemáme žiadne ponuky pre tento produkt.
+                </div>
+                {% endif %}
 
-                <a href="{% url 'add_to_planner' product.id %}" class="block w-full text-center bg-blue-600 text-white py-4 rounded-2xl font-black text-xl hover:bg-blue-700 shadow-xl shadow-blue-100 transition transform hover:-translate-y-1">
+                <a href="{% url 'add_to_planner' product.id %}" class="block w-full text-center bg-blue-600 text-white py-4 rounded-2xl font-black text-xl hover:bg-blue-700 shadow-xl shadow-blue-200 transition transform hover:-translate-y-1 active:translate-y-0">
                     <i class="fa fa-clipboard-list mr-2"></i> Pridať do môjho plánu
                 </a>
             </div>
@@ -90,41 +112,82 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const ctx = document.getElementById('priceChart').getContext('2d');
+    
+    // Gradient pre graf
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(34, 197, 94, 0.2)');
+    gradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
+
     const priceChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: {{ chart_dates|safe }}, 
+            labels: {{ chart_dates|safe|default:"[]" }}, 
             datasets: [
                 {
                     label: 'Najnižšia cena (€)',
-                    data: {{ chart_min_prices|safe }}, 
+                    data: {{ chart_min_prices|safe|default:"[]" }}, 
                     borderColor: '#22c55e', // Zelená
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    borderWidth: 2,
+                    backgroundColor: gradient,
+                    borderWidth: 3,
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#22c55e',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
                 },
                 {
                     label: 'Priemerná cena (€)',
-                    data: {{ chart_avg_prices|safe }}, 
-                    borderColor: '#94a3b8', // Sivá
+                    data: {{ chart_avg_prices|safe|default:"[]" }}, 
+                    borderColor: '#cbd5e1', // Sivá
                     borderWidth: 2,
                     borderDash: [5, 5],
                     tension: 0.4,
-                    pointRadius: 0
+                    pointRadius: 0,
+                    fill: false
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             plugins: {
-                tooltip: { intersect: false, mode: 'index' },
-                legend: { position: 'bottom' }
+                tooltip: {
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    titleColor: '#1e293b',
+                    bodyColor: '#1e293b',
+                    borderColor: '#e2e8f0',
+                    borderWidth: 1,
+                    padding: 10,
+                    displayColors: true,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' €';
+                        }
+                    }
+                },
+                legend: { 
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                }
             },
             scales: {
-                y: { beginAtZero: false, grid: { color: '#f3f4f6' } },
-                x: { grid: { display: false } }
+                y: { 
+                    beginAtZero: false, 
+                    grid: { color: '#f1f5f9' },
+                    ticks: { callback: function(value) { return value + ' €'; } }
+                },
+                x: { 
+                    grid: { display: false } 
+                }
             }
         }
     });
