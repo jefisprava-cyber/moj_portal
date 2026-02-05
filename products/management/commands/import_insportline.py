@@ -12,7 +12,7 @@ import shutil
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import Insportline (Final Fix - No original_url)'
+    help = 'Import Insportline (Final Fix - No is_active on Product)'
 
     def handle(self, *args, **kwargs):
         # 1. NASTAVENIA
@@ -113,29 +113,23 @@ class Command(BaseCommand):
                     
                     ean = ean_raw[:13]
 
-                    # 👇👇👇 ZMENA: Hľadáme podľa EAN alebo Názvu (nie original_url) 👇👇👇
+                    # Hľadanie produktu (bez original_url)
                     product = None
-                    
-                    # 1. Skúsime nájsť podľa EAN (ak je platný)
                     if ean and len(ean) > 6:
                         product = Product.objects.filter(ean=ean).first()
                     
-                    # 2. Ak nemáme produkt podľa EAN, skúsime podľa Názvu
                     if not product:
                         product = Product.objects.filter(name=name).first()
 
                     if product:
-                        # UPDATE
-                        # product.name = name  <-- Názov radšej nemením, aby sa nemenil slug
+                        # UPDATE (Bez is_active)
                         product.price = price
                         product.category = category
-                        # product.image_url = image_url <-- Obrázok tiež radšej nemením ak už je
-                        if not product.ean and ean: product.ean = ean # Doplníme EAN ak chýba
-                        product.is_active = True
+                        if not product.ean and ean: product.ean = ean
                         product.save()
                         updated_count += 1
                     else:
-                        # CREATE
+                        # CREATE (Bez is_active a bez original_url)
                         unique_slug = f"{slugify(name)[:150]}-{str(uuid.uuid4())[:4]}"
                         product = Product.objects.create(
                             name=name,
@@ -144,13 +138,11 @@ class Command(BaseCommand):
                             price=price,
                             category=category,
                             image_url=image_url,
-                            ean=ean,
-                            is_active=True
-                            # ❌ original_url tu už nedávame, lebo v modeli neexistuje
+                            ean=ean
                         )
                         created_count += 1
                     
-                    # Ponuka (Offer) - Tu sa URL uloží
+                    # Ponuka (Offer) - Tu 'active' zvyčajne býva, nechávam ho tam
                     Offer.objects.update_or_create(
                         product=product,
                         shop_name=SHOP_NAME,
