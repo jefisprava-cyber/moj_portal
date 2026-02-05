@@ -8,17 +8,24 @@ import uuid
 from decimal import Decimal
 
 class Command(BaseCommand):
-    help = 'Import produktov z CJ Affiliate (Bez knižnice cjpy)'
+    help = 'Import produktov z CJ Affiliate - KancelarskeStolicky'
 
     def handle(self, *args, **kwargs):
-        # Tvoje CJ údaje
-        CJ_ADVERTISER_ID = "5493235"  # Kancelarske
-        CJ_WEBSITE_ID = settings.CJ_WEBSITE_ID
-        CJ_TOKEN = settings.CJ_DEVELOPER_KEY
+        # 1. NASTAVENIA
+        # ID inzerenta pre KancelarskeStolicky.com
+        CJ_ADVERTISER_ID = "5493235" 
+        
+        # Načítame tvoje údaje zo settings.py
+        try:
+            CJ_WEBSITE_ID = settings.CJ_WEBSITE_ID
+            CJ_TOKEN = settings.CJ_DEVELOPER_KEY
+        except AttributeError:
+            self.stdout.write(self.style.ERROR("❌ CHYBA: V súbore settings.py chýba CJ_WEBSITE_ID alebo CJ_DEVELOPER_KEY."))
+            return
 
         self.stdout.write(f"⏳ Pripájam sa na CJ API pre inzerenta: {CJ_ADVERTISER_ID}...")
 
-        # GraphQL Query (Pýtame si produkty priamo)
+        # 2. PRÍPRAVA DÁT (GraphQL Query)
         query = """
         query {
             products(advertiserIds: ["%s"], recordsPerPage: 100) {
@@ -39,35 +46,42 @@ class Command(BaseCommand):
         }
         """ % (CJ_ADVERTISER_ID, CJ_WEBSITE_ID)
 
-        # Hlavičky pre API
         headers = {
             "Authorization": f"Bearer {CJ_TOKEN}",
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
 
-        # Odoslanie požiadavky
+        # 3. ODOSLANIE POŽIADAVKY NA CJ SERVER
         try:
             response = requests.post("https://ads.api.cj.com/query", json={'query': query}, headers=headers)
             
             if response.status_code != 200:
-                self.stdout.write(self.style.ERROR(f"❌ Chyba API: {response.text}"))
+                self.stdout.write(self.style.ERROR(f"❌ Chyba API ({response.status_code}): {response.text}"))
                 return
                 
             data = response.json()
+            
+            # Kontrola chýb v odpovedi
+            if 'errors' in data:
+                self.stdout.write(self.style.ERROR(f"❌ API vrátilo chybu: {data['errors']}"))
+                return
+
             products_list = data.get('data', {}).get('products', {}).get('resultList', [])
 
             if not products_list:
-                self.stdout.write(self.style.WARNING("⚠️ Žiadne produkty sa nenašli (skontroluj ID alebo token)."))
+                self.stdout.write(self.style.WARNING("⚠️ Žiadne produkty sa nenašli. Skontroluj, či si schválený v programe."))
                 return
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Chyba pripojenia: {e}"))
             return
 
-        # Spracovanie produktov
+        # 4. ULOŽENIE DO DATABÁZY
         count = 0
-        default_cat, _ = Category.objects.get_or_create(slug='nezaradene', defaults={'name': 'Nezaradené'})
+        default_cat, _ = Category.objects.get_or_create(slug='kancelaria', defaults={'name': 'Kancelária'})
+
+        self.stdout.write("🚀 Začínam ukladanie produktov...")
 
         for item in products_list:
             try:
@@ -78,21 +92,26 @@ class Command(BaseCommand):
                 img = item.get('imageLink')
                 cat_raw = item.get('productCategory', '')
 
-                if not name or not price_val: continue
+                if not name or not price_val:
+                    continue
 
-                # Kategória
+                # Spracovanie kategórie (vezmeme poslednú časť cesty)
                 if cat_raw:
                     cat_name = cat_raw.split('>')[-1].strip()
-                    category, _ = Category.objects.get_or_create(slug=slugify(cat_name)[:50], defaults={'name': cat_name, 'parent': default_cat})
+                    category, _ = Category.objects.get_or_create(
+                        slug=slugify(cat_name)[:50], 
+                        defaults={'name': cat_name, 'parent': default_cat}
+                    )
                 else:
                     category = default_cat
 
-                # Uloženie
+                # Cena a unikátny slug
                 price = Decimal(str(price_val))
                 unique_slug = f"{slugify(name)[:150]}-{str(uuid.uuid4())[:4]}"
 
+                # Vytvorenie alebo aktualizácia produktu
                 product, created = Product.objects.update_or_create(
-                    original_url=url, # Pri CJ je URL dobrý identifikátor
+                    original_url=url,
                     defaults={
                         'name': name,
                         'slug': unique_slug if created else slugify(name)[:150] + "-" + str(count),
@@ -104,6 +123,7 @@ class Command(BaseCommand):
                     }
                 )
                 
+                # Vytvorenie ponuky (Offer)
                 Offer.objects.update_or_create(
                     product=product,
                     shop_name="KancelarskeStolicky",
@@ -114,8 +134,10 @@ class Command(BaseCommand):
                     }
                 )
                 count += 1
+                if count % 20 == 0:
+                     self.stdout.write(f"   Spracovaných {count}...")
 
-            except Exception:
+            except Exception as e:
                 continue
 
         self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! Importovaných {count} produktov z CJ."))
