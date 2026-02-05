@@ -12,7 +12,7 @@ import shutil
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import Insportline (Fixed Logic)'
+    help = 'Import Insportline (Final Fix - No original_url)'
 
     def handle(self, *args, **kwargs):
         # 1. NASTAVENIA
@@ -113,27 +113,31 @@ class Command(BaseCommand):
                     
                     ean = ean_raw[:13]
 
-                    # 👇👇👇 OPRAVENÁ LOGIKA UKLADANIA 👇👇👇
+                    # 👇👇👇 ZMENA: Hľadáme podľa EAN alebo Názvu (nie original_url) 👇👇👇
+                    product = None
                     
-                    # 1. Skúsime nájsť existujúci produkt
-                    product = Product.objects.filter(original_url=raw_url).first()
+                    # 1. Skúsime nájsť podľa EAN (ak je platný)
+                    if ean and len(ean) > 6:
+                        product = Product.objects.filter(ean=ean).first()
+                    
+                    # 2. Ak nemáme produkt podľa EAN, skúsime podľa Názvu
+                    if not product:
+                        product = Product.objects.filter(name=name).first()
 
                     if product:
-                        # UPDATE (Ak existuje, len aktualizujeme cenu a info, slug nemeníme)
-                        product.name = name
-                        product.description = description
+                        # UPDATE
+                        # product.name = name  <-- Názov radšej nemením, aby sa nemenil slug
                         product.price = price
                         product.category = category
-                        product.image_url = image_url
-                        product.ean = ean
+                        # product.image_url = image_url <-- Obrázok tiež radšej nemením ak už je
+                        if not product.ean and ean: product.ean = ean # Doplníme EAN ak chýba
                         product.is_active = True
                         product.save()
                         updated_count += 1
                     else:
-                        # CREATE (Ak neexistuje, vytvoríme nový aj so slugom)
+                        # CREATE
                         unique_slug = f"{slugify(name)[:150]}-{str(uuid.uuid4())[:4]}"
                         product = Product.objects.create(
-                            original_url=raw_url,
                             name=name,
                             slug=unique_slug,
                             description=description,
@@ -142,10 +146,11 @@ class Command(BaseCommand):
                             image_url=image_url,
                             ean=ean,
                             is_active=True
+                            # ❌ original_url tu už nedávame, lebo v modeli neexistuje
                         )
                         created_count += 1
                     
-                    # Ponuka (Offer)
+                    # Ponuka (Offer) - Tu sa URL uloží
                     Offer.objects.update_or_create(
                         product=product,
                         shop_name=SHOP_NAME,
