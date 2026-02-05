@@ -16,13 +16,25 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write(f"Sťahujem XML feed z: {self.XML_URL}...")
         
-        response = requests.get(self.XML_URL, stream=True)
+        # 👇👇👇 FIX: Pridané hlavičky, aby sme vyzerali ako prehliadač 👇👇👇
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        # Pridané headers=headers do požiadavky
+        response = requests.get(self.XML_URL, headers=headers, stream=True)
+        
         if response.status_code != 200:
-            self.stdout.write(self.style.ERROR('Chyba pri sťahovaní feedu'))
+            self.stdout.write(self.style.ERROR(f'Chyba pri sťahovaní feedu. Status code: {response.status_code}'))
             return
 
-        tree = ET.parse(response.raw)
-        root = tree.getroot()
+        # Parsovanie XML
+        try:
+            tree = ET.parse(response.raw)
+            root = tree.getroot()
+        except ET.ParseError as e:
+            self.stdout.write(self.style.ERROR(f'Chyba pri čítaní XML (Server asi poslal HTML namiesto XML): {e}'))
+            return
 
         count = 0
         # Univerzálny parser pre Heureka aj Google formát

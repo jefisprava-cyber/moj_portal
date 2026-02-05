@@ -10,7 +10,7 @@ class Command(BaseCommand):
 
     # ==========================================
     # 👇👇👇 TU ZMEŇ URL ADRESU PRE KONKRÉTNY E-SHOP 👇👇👇
-    XML_URL = "https://www.4home.sk/export/google-products.xmlNAMU"
+    XML_URL = "https://www.4home.sk/export/google-products.xml"
     # ==========================================
 
     def handle(self, *args, **kwargs):
