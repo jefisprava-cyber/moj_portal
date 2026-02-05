@@ -1,83 +1,104 @@
 from django.core.management.base import BaseCommand
-from products.models import Product, Category
-import xml.etree.ElementTree as ET
 import requests
+import xml.etree.ElementTree as ET
+from products.models import Product, Category, Offer
 from django.utils.text import slugify
 from decimal import Decimal
+import urllib.parse
+import tempfile
+import os
+import gzip
+import shutil
+import uuid
 
 class Command(BaseCommand):
-    help = 'Import produktov z XML feedu'
-
-    # ==========================================
-    # 👇👇👇 TU ZMEŇ URL ADRESU PRE KONKRÉTNY E-SHOP 👇👇👇
-    XML_URL = "Shttps://www.dizajnove-doplnky.sk/heureka.xml"
-    # ==========================================
+    help = 'Import produktov z Dizajnove Doplnky (Robustná verzia)'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write(f"Sťahujem XML feed z: {self.XML_URL}...")
-        
-        response = requests.get(self.XML_URL, stream=True)
-        if response.status_code != 200:
-            self.stdout.write(self.style.ERROR('Chyba pri sťahovaní feedu'))
-            return
+        url = "https://www.dizajnove-doplnky.sk/heureka.xml"
+        DOGNET_PUBLISHER_ID = "26197" 
+        SHOP_NAME = "Dizajnove-doplnky"
 
-        tree = ET.parse(response.raw)
-        root = tree.getroot()
+        self.stdout.write(f"⏳ Sťahujem XML feed z {SHOP_NAME}...")
 
+        headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+
+        # 1. Stiahnutie
+        raw_file = tempfile.NamedTemporaryFile(delete=False)
+        raw_file_path = raw_file.name
+        raw_file.close()
+
+        try:
+            with requests.get(url, headers=headers, stream=True) as response:
+                if response.status_code != 200: return
+                with open(raw_file_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=1024*1024):
+                        if chunk: f.write(chunk)
+        except Exception: return
+
+        # 2. GZIP Check
+        final_file_path = raw_file_path
+        try:
+            with open(raw_file_path, 'rb') as f:
+                if f.read(2) == b'\x1f\x8b':
+                    unzipped = tempfile.NamedTemporaryFile(delete=False)
+                    final_file_path = unzipped.name
+                    unzipped.close()
+                    with gzip.open(raw_file_path, 'rb') as f_in, open(final_file_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                    os.remove(raw_file_path)
+        except Exception: pass
+
+        # 3. Import
         count = 0
-        # Univerzálny parser pre Heureka aj Google formát
-        for item in root.findall('shopitem') or root.findall('item'):
-            try:
-                # 1. Názov (Skúša rôzne tagy)
-                name = item.findtext('PRODUCTNAME') or item.findtext('product') or item.findtext('title') or item.findtext('{http://base.google.com/ns/1.0}title')
-                if not name: continue
+        default_cat, _ = Category.objects.get_or_create(slug='nezaradene', defaults={'name': 'Nezaradené'})
 
-                # 2. Cena
-                price_text = item.findtext('PRICE_VAT') or item.findtext('price_vat') or item.findtext('{http://base.google.com/ns/1.0}price')
-                if not price_text: continue
-                # Očistenie ceny (napr. "12.90 EUR" -> 12.90)
-                price = Decimal(price_text.replace('EUR', '').replace('€', '').strip().replace(',', '.'))
+        try:
+            context = ET.iterparse(final_file_path, events=("end",))
+            for event, elem in context:
+                if elem.tag not in ['SHOPITEM', 'item']: continue
 
-                # 3. Popis
-                description = item.findtext('DESCRIPTION') or item.findtext('description') or item.findtext('{http://base.google.com/ns/1.0}description') or ""
-
-                # 4. URL
-                url = item.findtext('URL') or item.findtext('link') or item.findtext('{http://base.google.com/ns/1.0}link')
-                
-                # 5. Obrázok
-                image_url = item.findtext('IMGURL') or item.findtext('image_link') or item.findtext('{http://base.google.com/ns/1.0}image_link')
-
-                # 6. Kategória
-                category_full = item.findtext('CATEGORYTEXT') or item.findtext('category_text') or item.findtext('{http://base.google.com/ns/1.0}product_type')
-                
-                if category_full:
-                    # Uložíme celú cestu, reorganize.py to potom uprace
-                    cats = [c.strip() for c in category_full.split('|')]
-                    final_cat_name = cats[-1] # Zoberieme poslednú
+                try:
+                    name = elem.findtext('PRODUCTNAME') or elem.findtext('PRODUCT')
+                    description = elem.findtext('DESCRIPTION') or ""
+                    price_str = elem.findtext('PRICE_VAT')
+                    image_url = elem.findtext('IMGURL')
+                    raw_url = elem.findtext('URL')
+                    category_text = elem.findtext('CATEGORYTEXT') or "Bývanie"
                     
-                    category, _ = Category.objects.get_or_create(name=final_cat_name)
-                else:
-                    category, _ = Category.objects.get_or_create(name="Nezaradené")
+                    if not name or not price_str or not raw_url:
+                        elem.clear(); continue
 
-                # ULOŽENIE PRODUKTU
-                Product.objects.update_or_create(
-                    original_url=url,
-                    defaults={
-                        'name': name,
-                        'slug': slugify(name)[:200] + "-" + str(count), # Unikátny slug
-                        'description': description,
-                        'price': price,
-                        'image_url': image_url,
-                        'category': category,
-                        'is_active': True
-                    }
-                )
-                
-                count += 1
-                if count % 100 == 0:
-                    self.stdout.write(f"Importovaných {count} produktov...")
+                    encoded_url = urllib.parse.quote_plus(raw_url)
+                    affiliate_url = f"https://login.dognet.sk/scripts/fc234pi?a_aid={DOGNET_PUBLISHER_ID}&a_bid=default&dest={encoded_url}"
+                    price = Decimal(price_str.replace('EUR', '').replace(',', '.').strip())
 
-            except Exception as e:
-                continue
+                    cat_name = category_text.split('|')[-1].strip()
+                    category, _ = Category.objects.get_or_create(slug=slugify(cat_name)[:50], defaults={'name': cat_name, 'parent': default_cat})
 
-        self.stdout.write(self.style.SUCCESS(f'HOTOVO! Importovaných {count} produktov.'))
+                    unique_slug = f"{slugify(name)[:150]}-{str(uuid.uuid4())[:4]}"
+                    product, created = Product.objects.update_or_create(
+                        original_url=raw_url,
+                        defaults={
+                            'name': name,
+                            'slug': unique_slug if created else slugify(name)[:150] + "-" + str(count),
+                            'description': description,
+                            'price': price,
+                            'category': category,
+                            'image_url': image_url,
+                            'is_active': True
+                        }
+                    )
+                    Offer.objects.update_or_create(product=product, shop_name=SHOP_NAME, defaults={'price': price, 'url': affiliate_url, 'active': True})
+                    
+                    count += 1
+                    if count % 200 == 0: self.stdout.write(f"✅ {count}...")
+
+                except Exception: pass
+                finally: elem.clear()
+
+        except Exception as e: self.stdout.write(self.style.ERROR(f"❌ XML Error: {e}"))
+        finally: 
+            if os.path.exists(final_file_path): os.remove(final_file_path)
+        
+        self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! {count} produktov."))
