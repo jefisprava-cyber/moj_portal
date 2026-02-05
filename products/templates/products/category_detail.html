@@ -7,14 +7,14 @@
     
     <div class="bg-white border-b border-gray-200 sticky top-20 z-30 shadow-sm">
         <div class="container mx-auto px-6 py-3">
-            <nav class="flex text-sm text-gray-500 overflow-x-auto whitespace-nowrap">
-                <a href="{% url 'home' %}" class="hover:text-blue-600 flex items-center gap-1">
+            <nav class="flex text-sm text-gray-500 overflow-x-auto whitespace-nowrap items-center">
+                <a href="{% url 'home' %}" class="hover:text-blue-600 flex items-center gap-1 transition-colors">
                     <i class="fa fa-home"></i> Domov
                 </a>
                 
                 {% if category.parent %}
                 <span class="mx-2 text-gray-300">/</span>
-                <a href="{% url 'category_detail' category.parent.slug %}" class="hover:text-blue-600">
+                <a href="{% url 'category_detail' category.parent.slug %}" class="hover:text-blue-600 transition-colors">
                     {{ category.parent.name }}
                 </a>
                 {% endif %}
@@ -35,7 +35,7 @@
                             <i class="fa fa-list-ul text-blue-600"></i> Kategórie
                         </h3>
                     </div>
-                    <nav class="p-2">
+                    <nav class="p-2 max-h-[calc(100vh-250px)] overflow-y-auto custom-scrollbar">
                         <ul class="space-y-1">
                             {% for cat in all_categories %}
                             <li>
@@ -52,6 +52,21 @@
                                         <i class="fa fa-chevron-right text-xs text-gray-300 group-hover:text-blue-400"></i>
                                     {% endif %}
                                 </a>
+                                
+                                {% if cat.slug == category.slug or cat.slug == category.parent.slug %}
+                                    {% if cat.children.exists %}
+                                    <ul class="ml-4 mt-1 border-l-2 border-blue-100 pl-2 space-y-1">
+                                        {% for child in cat.children.all %}
+                                        <li>
+                                            <a href="{% url 'category_detail' child.slug %}" class="block px-3 py-1.5 text-xs rounded-md transition
+                                                {% if child.slug == category.slug %} text-blue-700 font-bold bg-blue-50 {% else %} text-gray-500 hover:text-blue-600 hover:bg-gray-50 {% endif %}">
+                                                {{ child.name }}
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% endif %}
+                                {% endif %}
                             </li>
                             {% endfor %}
                         </ul>
@@ -59,7 +74,7 @@
                     
                     <div class="p-4 mt-2 border-t border-gray-100 bg-orange-50/50">
                         <p class="text-xs text-gray-500 mb-2 font-semibold">Neviete si vybrať?</p>
-                        <a href="{% url 'builder' %}" class="block text-center bg-white border border-orange-200 text-orange-600 font-bold text-xs py-2 rounded-lg hover:bg-orange-600 hover:text-white transition">
+                        <a href="{% url 'builder' %}" class="block text-center bg-white border border-orange-200 text-orange-600 font-bold text-xs py-2 rounded-lg hover:bg-orange-600 hover:text-white transition shadow-sm">
                             <i class="fa fa-magic mr-1"></i> Skúsiť Konfigurátor
                         </a>
                     </div>
@@ -93,15 +108,17 @@
 
                 {% if category.children.all %}
                 <div class="mb-10">
-                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Podkategórie</h2>
+                    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <i class="fa fa-folder text-blue-300"></i> Podkategórie
+                    </h2>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                         {% for child in category.children.all %}
-                        <a href="{% url 'category_detail' child.slug %}" class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-300 transition text-center group">
-                            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-blue-600 group-hover:text-white transition">
+                        <a href="{% url 'category_detail' child.slug %}" class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-300 transition text-center group h-full flex flex-col items-center justify-center">
+                            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-blue-600 group-hover:text-white transition">
                                 <i class="fa fa-folder-open"></i>
                             </div>
-                            <h3 class="font-bold text-sm text-gray-800 group-hover:text-blue-700">{{ child.name }}</h3>
-                            <span class="text-xs text-gray-400">{{ child.products.count }} ks</span>
+                            <h3 class="font-bold text-sm text-gray-800 group-hover:text-blue-700 leading-tight">{{ child.name }}</h3>
+                            <span class="text-xs text-gray-400 mt-1">{{ child.products.count }} ks</span>
                         </a>
                         {% endfor %}
                     </div>
@@ -115,46 +132,55 @@
                         
                         <div class="h-52 p-6 flex items-center justify-center bg-gray-50 group-hover:bg-white transition relative">
                             {% if product.is_oversized %}
-                            <span class="absolute top-3 left-3 bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-orange-200">
+                            <span class="absolute top-3 left-3 bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-orange-200 shadow-sm z-10">
                                 <i class="fa fa-truck"></i> Nadrozmer
                             </span>
                             {% endif %}
                             
-                            {# --- OPRAVA: Odstránené .url (teraz je to už textové pole) --- #}
-                            <img src="{{ product.image_url|default:'https://via.placeholder.com/300' }}" alt="{{ product.name }}" class="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition duration-500">
+                            <img src="{% if product.image_url %}{{ product.image_url }}{% else %}https://placehold.co/300x300?text={{ product.name|urlencode }}{% endif %}" 
+                                 alt="{{ product.name }}" 
+                                 class="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition duration-500"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/300x300?text=Bez+obrazka';">
                         </div>
                         
                         <div class="p-5 flex-grow flex flex-col border-t border-gray-50">
-                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-wider">{{ product.category.name }}</p>
+                            {% if product.category %}
+                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-wider truncate">{{ product.category.name }}</p>
+                            {% endif %}
                             
-                            <h3 class="font-bold text-gray-900 mb-2 leading-snug group-hover:text-blue-600 transition">
+                            <h3 class="font-bold text-gray-900 mb-2 leading-snug group-hover:text-blue-600 transition line-clamp-2" title="{{ product.name }}">
                                 <a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a>
                             </h3>
 
-                            {# --- NOVÉ: Zobrazenie hodnotenia (keďže sme opravili DB) --- #}
                             <div class="flex items-center gap-1 mb-3">
                                 <div class="flex text-yellow-400 text-xs">
-                                    <i class="fa fa-star"></i>
+                                    {% if product.average_rating > 0 %}
+                                        <i class="fa fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-gray-300"></i>
+                                    {% endif %}
                                 </div>
                                 <span class="text-xs font-bold text-gray-600">{{ product.average_rating|default:"0.0" }}</span>
-                                <span class="text-[10px] text-gray-400">({{ product.review_count }} hodnotení)</span>
+                                <span class="text-[10px] text-gray-400">({{ product.review_count|default:"0" }} hodnotení)</span>
                             </div>
                             
                             <div class="mt-auto pt-4 flex items-end justify-between border-t border-gray-50">
                                 <div>
                                     <span class="text-xs text-gray-400 block mb-0.5 font-medium">Cena od</span>
                                     <span class="text-xl font-black text-blue-700">
-                                        {# --- OPRAVA: Zmenené z min_price na price (podľa DB) --- #}
-                                        {% if product.price %}
+                                        {% if product.price > 0 %}
                                             {{ product.price }} €
                                         {% else %}
-                                            --
+                                            <span class="text-sm text-gray-500">Zistite v obchode</span>
                                         {% endif %}
                                     </span>
                                 </div>
-                                <a href="{% url 'add_to_planner' product.id %}" class="w-10 h-10 bg-gray-50 text-gray-600 rounded-lg flex items-center justify-center hover:bg-green-500 hover:text-white transition shadow-sm" title="Pridať do zoznamu">
-                                    <i class="fa fa-plus"></i>
-                                </a>
+                                <form action="{% url 'add_to_planner' product.id %}" method="POST">
+                                    {% csrf_token %}
+                                    <button type="submit" class="w-10 h-10 bg-gray-50 text-gray-600 rounded-lg flex items-center justify-center hover:bg-green-500 hover:text-white transition shadow-sm" title="Pridať do zoznamu">
+                                        <i class="fa fa-plus"></i>
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
