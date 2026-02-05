@@ -16,7 +16,10 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write(f"Sťahujem XML feed z: {self.XML_URL}...")
         
-        response = requests.get(self.XML_URL, stream=True)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        response = requests.get(self.XML_URL, headers=headers, stream=True)
         if response.status_code != 200:
             self.stdout.write(self.style.ERROR('Chyba pri sťahovaní feedu'))
             return
