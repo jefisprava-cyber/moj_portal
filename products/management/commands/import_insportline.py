@@ -12,7 +12,7 @@ import shutil
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import Insportline (Robustný Parser)'
+    help = 'Import Insportline (Fixed Logic)'
 
     def handle(self, *args, **kwargs):
         # 1. NASTAVENIA
@@ -60,44 +60,38 @@ class Command(BaseCommand):
         self.stdout.write(f"🚀 Začínam import {SHOP_NAME}...")
 
         count = 0
+        created_count = 0
+        updated_count = 0
         errors = 0
         default_cat, _ = Category.objects.get_or_create(slug='sport', defaults={'name': 'Šport'})
 
-        # 4. PARSOVANIE (Slepý režim - ignoruje case sensitivity)
+        # 4. PARSOVANIE
         try:
             context = ET.iterparse(final_file_path, events=("end",))
             
             for event, elem in context:
-                # Získame len názov tagu bez namespace a malými písmenami
                 tag = elem.tag.lower().split('}')[-1]
 
                 if tag != 'shopitem':
                     continue
                 
-                # Načítame všetky pod-tagy do slovníka pre jednoduchší prístup
                 data = {}
                 for child in elem:
                     child_tag = child.tag.lower().split('}')[-1]
                     data[child_tag] = child.text
 
-                # Teraz bezpečne vyberáme dáta
                 try:
                     name = data.get('productname') or data.get('product')
                     description = data.get('description') or ""
-                    
                     price_str = data.get('price_vat') or data.get('price')
-                    
                     raw_url = data.get('url') or data.get('link')
                     image_url = data.get('imgurl') or data.get('image')
                     category_text = data.get('categorytext')
                     ean_raw = data.get('ean') or ""
 
-                    # Validácia
                     if not name or not price_str or not raw_url:
-                        elem.clear()
-                        continue
+                        elem.clear(); continue
 
-                    # Konverzia ceny (Insportline má "75.9" bez EUR, ale pre istotu čistíme)
                     price_clean = price_str.lower().replace('eur', '').replace('€', '').replace(',', '.').strip()
                     price = Decimal(price_clean)
 
@@ -106,7 +100,6 @@ class Command(BaseCommand):
                         cat_parts = category_text.split('|')
                         cat_name = cat_parts[-1].strip()
                         if not cat_name and len(cat_parts) > 1: cat_name = cat_parts[-2].strip()
-                        
                         category, _ = Category.objects.get_or_create(
                             slug=slugify(cat_name)[:50],
                             defaults={'name': cat_name, 'parent': default_cat}
@@ -117,25 +110,42 @@ class Command(BaseCommand):
                     # Affiliate URL
                     encoded_url = urllib.parse.quote_plus(raw_url)
                     affiliate_url = f"https://login.dognet.sk/scripts/fc234pi?a_aid={DOGNET_PUBLISHER_ID}&a_bid=default&dest={encoded_url}"
-
-                    # Uloženie
-                    unique_slug = f"{slugify(name)[:150]}-{str(uuid.uuid4())[:4]}"
+                    
                     ean = ean_raw[:13]
 
-                    product, created = Product.objects.update_or_create(
-                        original_url=raw_url,
-                        defaults={
-                            'name': name,
-                            'slug': unique_slug if created else slugify(name)[:150] + "-" + str(count),
-                            'description': description,
-                            'price': price,
-                            'category': category,
-                            'image_url': image_url,
-                            'ean': ean,
-                            'is_active': True
-                        }
-                    )
+                    # 👇👇👇 OPRAVENÁ LOGIKA UKLADANIA 👇👇👇
                     
+                    # 1. Skúsime nájsť existujúci produkt
+                    product = Product.objects.filter(original_url=raw_url).first()
+
+                    if product:
+                        # UPDATE (Ak existuje, len aktualizujeme cenu a info, slug nemeníme)
+                        product.name = name
+                        product.description = description
+                        product.price = price
+                        product.category = category
+                        product.image_url = image_url
+                        product.ean = ean
+                        product.is_active = True
+                        product.save()
+                        updated_count += 1
+                    else:
+                        # CREATE (Ak neexistuje, vytvoríme nový aj so slugom)
+                        unique_slug = f"{slugify(name)[:150]}-{str(uuid.uuid4())[:4]}"
+                        product = Product.objects.create(
+                            original_url=raw_url,
+                            name=name,
+                            slug=unique_slug,
+                            description=description,
+                            price=price,
+                            category=category,
+                            image_url=image_url,
+                            ean=ean,
+                            is_active=True
+                        )
+                        created_count += 1
+                    
+                    # Ponuka (Offer)
                     Offer.objects.update_or_create(
                         product=product,
                         shop_name=SHOP_NAME,
@@ -148,9 +158,8 @@ class Command(BaseCommand):
 
                 except Exception as e:
                     errors += 1
-                    # Vypíšeme prvú chybu, aby sme vedeli, čo sa deje
                     if errors == 1:
-                        self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri spracovaní produktu '{name}': {e}"))
+                        self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri produkte '{name}': {e}"))
                 finally:
                     elem.clear()
 
@@ -160,4 +169,4 @@ class Command(BaseCommand):
             if os.path.exists(final_file_path):
                 os.remove(final_file_path)
 
-        self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! {SHOP_NAME} importované: {count} ks (Chyby: {errors})."))
+        self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! Celkovo: {count} (Nové: {created_count}, Upravené: {updated_count}, Chyby: {errors})."))
