@@ -7,15 +7,21 @@ from decimal import Decimal
 import urllib.parse
 import tempfile
 import os
+import gzip
+import shutil
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import produktov z 4Home (Blind Parser - ignoruje namespaces)'
+    help = 'Import produktov z 4Home (Google RSS Feed - Fixed)'
 
     def handle(self, *args, **kwargs):
+        # 1. NASTAVENIA
         url = "https://www.4home.sk/export/google-products.xml"
         DOGNET_PUBLISHER_ID = "26197" 
         SHOP_NAME = "4Home"
+
+        # Definícia menného priestoru (Namespace) pre Google tagy (g:price, g:image_link...)
+        ns = {'g': 'http://base.google.com/ns/1.0'}
 
         self.stdout.write(f"⏳ Sťahujem XML feed {SHOP_NAME}...")
 
@@ -23,16 +29,14 @@ class Command(BaseCommand):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
 
-        # 1. Stiahnutie
+        # 2. STIAHNUTIE SÚBORU
         raw_file = tempfile.NamedTemporaryFile(delete=False)
         raw_file_path = raw_file.name
         raw_file.close()
 
         try:
             with requests.get(url, headers=headers, stream=True) as response:
-                if response.status_code != 200:
-                    self.stdout.write(self.style.ERROR(f"❌ Chyba servera: {response.status_code}"))
-                    return
+                response.raise_for_status()
                 with open(raw_file_path, 'wb') as f:
                     for chunk in response.iter_content(chunk_size=1024*1024):
                         if chunk: f.write(chunk)
@@ -40,52 +44,72 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"❌ Chyba sťahovania: {e}"))
             return
 
-        self.stdout.write(f"🚀 Začínam import {SHOP_NAME} (Blind Mode)...")
-        count = 0
-        default_cat, _ = Category.objects.get_or_create(slug='nezaradene', defaults={'name': 'Dom a záhrada'})
-
+        # 3. KONTROLA GZIP
+        final_file_path = raw_file_path
         try:
-            # Používame iterparse
-            context = ET.iterparse(raw_file_path, events=("end",))
+            with open(raw_file_path, 'rb') as f:
+                if f.read(2) == b'\x1f\x8b':
+                    self.stdout.write("📦 Rozbaľujem GZIP...")
+                    unzipped = tempfile.NamedTemporaryFile(delete=False)
+                    final_file_path = unzipped.name
+                    unzipped.close()
+                    with gzip.open(raw_file_path, 'rb') as f_in, open(final_file_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                    os.remove(raw_file_path)
+        except Exception: pass
+
+        self.stdout.write(f"🚀 Začínam import {SHOP_NAME}...")
+
+        count = 0
+        default_cat, _ = Category.objects.get_or_create(slug='dom-a-zahrada', defaults={'name': 'Dom a záhrada'})
+
+        # 4. PARSOVANIE (Presne podľa tvojho XML)
+        try:
+            # Načítame celý strom (je to bezpečnejšie pre namespaces ako iterparse)
+            tree = ET.parse(final_file_path)
+            root = tree.getroot()
             
-            for event, elem in context:
-                # 1. Získame čistý názov tagu (bez {http://...})
-                tag = elem.tag.split('}')[-1].lower()
+            # Vo RSS feede sú položky v ceste: channel -> item
+            channel = root.find('channel')
+            if channel is None:
+                items = root.findall('item') # Niekedy sú priamo v roote
+            else:
+                items = channel.findall('item')
 
-                # Hľadáme 'item', 'entry' alebo 'shopitem'
-                if tag not in ['item', 'entry', 'shopitem']:
-                    continue
+            if not items:
+                # Fallback, ak by to bolo inak
+                items = root.findall('.//item')
 
-                # 2. Prejdeme všetky deti tohto itemu a uložíme ich do slovníka
-                data = {}
-                for child in elem:
-                    child_tag = child.tag.split('}')[-1].lower() # Očistíme tag
-                    data[child_tag] = child.text
-
-                # 3. Vytiahneme dáta (bez ohľadu na prefixy)
-                name = data.get('title') or data.get('productname') or data.get('name')
-                description = data.get('description') or ""
-                price_str = data.get('price') or data.get('price_vat') or data.get('g:price')
-                image_url = data.get('image_link') or data.get('imgurl') or data.get('image')
-                raw_url = data.get('link') or data.get('url')
-                category_text = data.get('product_type') or data.get('categorytext')
-
-                if not name or not price_str or not raw_url:
-                    elem.clear()
-                    continue
-
+            for item in items:
                 try:
-                    # Čistenie ceny (napr. "12.90 EUR" -> 12.90)
+                    # A. Získanie dát (Standard RSS tags)
+                    name = item.findtext('title')
+                    description = item.findtext('description') or ""
+                    raw_url = item.findtext('link')
+
+                    # B. Získanie dát (Google Namespace tags g:...)
+                    # Používame mapu 'ns', ktorú sme definovali hore
+                    price_str = item.findtext('g:price', namespaces=ns)
+                    image_url = item.findtext('g:image_link', namespaces=ns)
+                    category_text = item.findtext('g:product_type', namespaces=ns)
+                    ean_raw = item.findtext('g:gtin', namespaces=ns) or ""
+
+                    # Kontrola povinných dát
+                    if not name or not price_str or not raw_url:
+                        continue
+
+                    # C. Čistenie ceny (Tvoj formát: "34,99 EUR")
+                    # Najprv odstránime menu a medzery
                     price_clean = price_str.lower().replace('eur', '').replace('€', '').strip()
-                    price = Decimal(price_clean.replace(',', '.').replace(' ', ''))
+                    # Potom zameníme čiarku za bodku
+                    price = Decimal(price_clean.replace(',', '.'))
 
-                    # Affiliate link
-                    encoded_url = urllib.parse.quote_plus(raw_url)
-                    affiliate_url = f"https://login.dognet.sk/scripts/fc234pi?a_aid={DOGNET_PUBLISHER_ID}&a_bid=default&dest={encoded_url}"
-
-                    # Kategória
+                    # D. Spracovanie Kategórie
+                    # Tvoj formát: "Bytový textil > Posteľná bielizeň > ..."
                     if category_text:
-                        cat_name = category_text.split('|')[-1].split('>')[-1].strip()
+                        # Rozdelíme podľa '>' a zoberieme poslednú časť
+                        parts = category_text.split('>')
+                        cat_name = parts[-1].strip()
                         category, _ = Category.objects.get_or_create(
                             slug=slugify(cat_name)[:50],
                             defaults={'name': cat_name, 'parent': default_cat}
@@ -93,9 +117,13 @@ class Command(BaseCommand):
                     else:
                         category = default_cat
 
-                    # Uloženie
+                    # E. Affiliate URL
+                    encoded_url = urllib.parse.quote_plus(raw_url)
+                    affiliate_url = f"https://login.dognet.sk/scripts/fc234pi?a_aid={DOGNET_PUBLISHER_ID}&a_bid=default&dest={encoded_url}"
+
+                    # F. Uloženie
                     unique_slug = f"{slugify(name)[:150]}-{str(uuid.uuid4())[:4]}"
-                    ean = (data.get('gtin') or data.get('ean') or '')[:13]
+                    ean = ean_raw[:13]
 
                     product, created = Product.objects.update_or_create(
                         original_url=raw_url,
@@ -116,21 +144,19 @@ class Command(BaseCommand):
                         shop_name=SHOP_NAME,
                         defaults={'price': price, 'url': affiliate_url, 'active': True}
                     )
-                    
+
                     count += 1
                     if count % 200 == 0:
-                        self.stdout.write(f"✅ {count}...")
+                        self.stdout.write(f"✅ {SHOP_NAME}: Spracovaných {count}...")
 
-                except Exception:
-                    pass
-                
-                # Uvoľnenie pamäte
-                elem.clear()
+                except Exception as e:
+                    # self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri produkte: {e}"))
+                    continue
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Chyba XML: {e}"))
+            self.stdout.write(self.style.ERROR(f"❌ Chyba pri otváraní XML: {e}"))
         finally:
-            if os.path.exists(raw_file_path):
-                os.remove(raw_file_path)
+            if os.path.exists(final_file_path):
+                os.remove(final_file_path)
 
         self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! {SHOP_NAME} importované: {count} ks."))
