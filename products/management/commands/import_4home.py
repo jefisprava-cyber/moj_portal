@@ -12,31 +12,30 @@ import shutil
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import produktov z 4Home (Google RSS Feed - Fixed)'
+    help = 'Import 4Home (Golden Logic - Robust)'
 
     def handle(self, *args, **kwargs):
-        # 1. NASTAVENIA
+        # 1. NASTAVENIA PRE 4HOME
         url = "https://www.4home.sk/export/google-products.xml"
-        DOGNET_PUBLISHER_ID = "26197" 
         SHOP_NAME = "4Home"
-
-        # Definícia menného priestoru (Namespace) pre Google tagy (g:price, g:image_link...)
-        ns = {'g': 'http://base.google.com/ns/1.0'}
+        DOGNET_PUBLISHER_ID = "26197" 
 
         self.stdout.write(f"⏳ Sťahujem XML feed {SHOP_NAME}...")
 
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         }
 
-        # 2. STIAHNUTIE SÚBORU
+        # 2. STIAHNUTIE
         raw_file = tempfile.NamedTemporaryFile(delete=False)
         raw_file_path = raw_file.name
         raw_file.close()
 
         try:
-            with requests.get(url, headers=headers, stream=True) as response:
-                response.raise_for_status()
+            with requests.get(url, headers=headers, stream=True, timeout=60) as response:
+                if response.status_code != 200:
+                    self.stdout.write(self.style.ERROR(f"❌ Chyba servera: {response.status_code}"))
+                    return
                 with open(raw_file_path, 'wb') as f:
                     for chunk in response.iter_content(chunk_size=1024*1024):
                         if chunk: f.write(chunk)
@@ -44,7 +43,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"❌ Chyba sťahovania: {e}"))
             return
 
-        # 3. KONTROLA GZIP
+        # 3. GZIP CHECK
         final_file_path = raw_file_path
         try:
             with open(raw_file_path, 'rb') as f:
@@ -61,55 +60,67 @@ class Command(BaseCommand):
         self.stdout.write(f"🚀 Začínam import {SHOP_NAME}...")
 
         count = 0
+        created_count = 0
+        updated_count = 0
+        errors = 0
+        # Zmena: Predvolená kategória pre 4Home
         default_cat, _ = Category.objects.get_or_create(slug='dom-a-zahrada', defaults={'name': 'Dom a záhrada'})
 
-        # 4. PARSOVANIE (Presne podľa tvojho XML)
+        # 4. PARSOVANIE (Univerzálne pre Heureka aj Google formát)
         try:
-            # Načítame celý strom (je to bezpečnejšie pre namespaces ako iterparse)
-            tree = ET.parse(final_file_path)
-            root = tree.getroot()
+            context = ET.iterparse(final_file_path, events=("end",))
             
-            # Vo RSS feede sú položky v ceste: channel -> item
-            channel = root.find('channel')
-            if channel is None:
-                items = root.findall('item') # Niekedy sú priamo v roote
-            else:
-                items = channel.findall('item')
+            for event, elem in context:
+                # Získame čistý názov tagu
+                tag = elem.tag.lower().split('}')[-1]
 
-            if not items:
-                # Fallback, ak by to bolo inak
-                items = root.findall('.//item')
+                # 4Home používa 'item', Insportline 'shopitem'. Berieme oboje.
+                if tag not in ['item', 'shopitem', 'entry']:
+                    continue
+                
+                # Načítame dáta do slovníka
+                data = {}
+                for child in elem:
+                    child_tag = child.tag.lower().split('}')[-1]
+                    data[child_tag] = child.text
 
-            for item in items:
                 try:
-                    # A. Získanie dát (Standard RSS tags)
-                    name = item.findtext('title')
-                    description = item.findtext('description') or ""
-                    raw_url = item.findtext('link')
+                    # Hľadáme názov (Google má 'title', Heureka 'productname')
+                    name = data.get('title') or data.get('productname') or data.get('name')
+                    description = data.get('description') or ""
+                    
+                    # Cena (Google má 'price', 'g:price')
+                    price_str = data.get('price') or data.get('price_vat') or data.get('g:price')
+                    
+                    # URL a Obrázok
+                    raw_url = data.get('link') or data.get('url')
+                    image_url = data.get('image_link') or data.get('imgurl') or data.get('image')
+                    
+                    # Kategória
+                    category_text = data.get('product_type') or data.get('categorytext') or data.get('g:product_type')
+                    
+                    # EAN (gtin)
+                    ean_raw = data.get('gtin') or data.get('ean') or ""
 
-                    # B. Získanie dát (Google Namespace tags g:...)
-                    # Používame mapu 'ns', ktorú sme definovali hore
-                    price_str = item.findtext('g:price', namespaces=ns)
-                    image_url = item.findtext('g:image_link', namespaces=ns)
-                    category_text = item.findtext('g:product_type', namespaces=ns)
-                    ean_raw = item.findtext('g:gtin', namespaces=ns) or ""
-
-                    # Kontrola povinných dát
                     if not name or not price_str or not raw_url:
-                        continue
+                        elem.clear(); continue
 
-                    # C. Čistenie ceny (Tvoj formát: "34,99 EUR")
-                    # Najprv odstránime menu a medzery
-                    price_clean = price_str.lower().replace('eur', '').replace('€', '').strip()
-                    # Potom zameníme čiarku za bodku
-                    price = Decimal(price_clean.replace(',', '.'))
+                    # Čistenie ceny
+                    price_clean = price_str.lower().replace('eur', '').replace('€', '').replace(',', '.').strip()
+                    price = Decimal(price_clean)
 
-                    # D. Spracovanie Kategórie
-                    # Tvoj formát: "Bytový textil > Posteľná bielizeň > ..."
+                    # Spracovanie kategórie
                     if category_text:
-                        # Rozdelíme podľa '>' a zoberieme poslednú časť
-                        parts = category_text.split('>')
-                        cat_name = parts[-1].strip()
+                        # 4Home má kategórie oddelené '>', Heureka '|'
+                        if '>' in category_text:
+                            cat_parts = category_text.split('>')
+                        else:
+                            cat_parts = category_text.split('|')
+                            
+                        cat_name = cat_parts[-1].strip()
+                        # Fallback ak je názov prázdny
+                        if not cat_name and len(cat_parts) > 1: cat_name = cat_parts[-2].strip()
+                        
                         category, _ = Category.objects.get_or_create(
                             slug=slugify(cat_name)[:50],
                             defaults={'name': cat_name, 'parent': default_cat}
@@ -117,46 +128,63 @@ class Command(BaseCommand):
                     else:
                         category = default_cat
 
-                    # E. Affiliate URL
+                    # Affiliate URL
                     encoded_url = urllib.parse.quote_plus(raw_url)
                     affiliate_url = f"https://login.dognet.sk/scripts/fc234pi?a_aid={DOGNET_PUBLISHER_ID}&a_bid=default&dest={encoded_url}"
-
-                    # F. Uloženie
-                    unique_slug = f"{slugify(name)[:150]}-{str(uuid.uuid4())[:4]}"
+                    
                     ean = ean_raw[:13]
 
-                    product, created = Product.objects.update_or_create(
-                        original_url=raw_url,
-                        defaults={
-                            'name': name,
-                            'slug': unique_slug if created else slugify(name)[:150] + "-" + str(count),
-                            'description': description,
-                            'price': price,
-                            'category': category,
-                            'image_url': image_url,
-                            'ean': ean,
-                            'is_active': True
-                        }
-                    )
+                    # LOGIKA UKLADANIA (EAN -> Názov)
+                    product = None
+                    if ean and len(ean) > 6:
+                        product = Product.objects.filter(ean=ean).first()
                     
+                    if not product:
+                        product = Product.objects.filter(name=name).first()
+
+                    if product:
+                        # UPDATE
+                        product.price = price
+                        product.category = category
+                        if not product.ean and ean: product.ean = ean
+                        product.save()
+                        updated_count += 1
+                    else:
+                        # CREATE (Bez problémových stĺpcov)
+                        unique_slug = f"{slugify(name)[:150]}-{str(uuid.uuid4())[:4]}"
+                        product = Product.objects.create(
+                            name=name,
+                            slug=unique_slug,
+                            description=description,
+                            price=price,
+                            category=category,
+                            image_url=image_url,
+                            ean=ean
+                        )
+                        created_count += 1
+                    
+                    # Ponuka
                     Offer.objects.update_or_create(
                         product=product,
                         shop_name=SHOP_NAME,
                         defaults={'price': price, 'url': affiliate_url, 'active': True}
                     )
-
+                    
                     count += 1
                     if count % 200 == 0:
-                        self.stdout.write(f"✅ {SHOP_NAME}: Spracovaných {count}...")
+                        self.stdout.write(f"✅ {count}...")
 
                 except Exception as e:
-                    # self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri produkte: {e}"))
-                    continue
+                    errors += 1
+                    if errors == 1: # Vypíšeme len prvú chybu
+                        self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri '{name}': {e}"))
+                finally:
+                    elem.clear()
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Chyba pri otváraní XML: {e}"))
+            self.stdout.write(self.style.ERROR(f"❌ Chyba XML: {e}"))
         finally:
             if os.path.exists(final_file_path):
                 os.remove(final_file_path)
 
-        self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! {SHOP_NAME} importované: {count} ks."))
+        self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! {SHOP_NAME}: {count} (Nové: {created_count}, Upravené: {updated_count}, Chyby: {errors})."))
