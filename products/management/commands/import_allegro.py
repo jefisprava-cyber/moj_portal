@@ -1,69 +1,184 @@
 from django.core.management.base import BaseCommand
-from products.models import Product, Category
-from django.conf import settings
-from cjpy import CJ
+import requests
+import json
+from products.models import Product, Category, Offer
 from django.utils.text import slugify
+from decimal import Decimal
+import uuid
 
 class Command(BaseCommand):
-    help = 'Import produktov z CJ Affiliate'
-
-    # ==========================================
-    # 👇👇👇 TU ZMEŇ ID INZERENTA 👇👇👇
-    CJ_ADVERTISER_ID = "7167444" 
-    # ==========================================
+    # 👇 1. ZMEŇ NÁZOV PRÍKAZU (aby si vedel, čo to robí)
+    help = 'Import produktov z CJ Network (Allegro/Iný shop) - API GraphQL'
 
     def handle(self, *args, **kwargs):
-        cj = CJ(settings.CJ_DEVELOPER_KEY)
+        # ---------------------------------------------------------
+        # 👇 2. NASTAVENIA KONKRÉTNEHO OBCHODU (TOTO ZMEŇ)
+        # ---------------------------------------------------------
+        SHOP_NAME = "Allegro"   # Názov obchodu (napr. "Allegro", "Sinsay")
+        ADVERTISER_ID = "7167444" # ⚠️ SEM VLOŽ ID OBCHODNÍKA Z CJ (napr. 5326577 pre Allegro)
         
-        self.stdout.write(f"Pripájam sa k CJ pre inzerenta ID: {self.CJ_ADVERTISER_ID}...")
+        # Predvolená kategória (ak API nepošle typ produktu)
+        DEFAULT_CAT_NAME = "Rozličný tovar" 
+        DEFAULT_CAT_SLUG = "rozlicny-tovar"
+        # ---------------------------------------------------------
 
-        products = cj.get_products(
-            website_id=settings.CJ_WEBSITE_ID,
-            advertiser_ids=[self.CJ_ADVERTISER_ID],
-            records_per_page=100
-        )
+        # TVOJE FIXNÉ ÚDAJE (Nemenia sa)
+        CJ_COMPANY_ID = "7864472"      # Tvoje Company ID
+        CJ_WEBSITE_ID = "100646612"    # Tvoje Website ID (PID)
+        CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q" # Tvoj Token
+        
+        LIMIT = 5000
+        API_URL = "https://ads.api.cj.com/query"
+        
+        self.stdout.write(f"⏳ Pripájam sa na CJ API ({SHOP_NAME})...")
 
-        if not products:
-            self.stdout.write(self.style.ERROR('Žiadne produkty nenájdené alebo chyba API.'))
-            return
-
-        count = 0
-        for item in products:
-            try:
-                name = item.get('title')
-                price = item.get('price')
-                description = item.get('description', '')
-                url = item.get('linkCode', {}).get('clickUrl')
-                image_url = item.get('imageUrl')
-                category_path = item.get('productCategory', '')
-
-                if not name or not price:
-                    continue
-
-                # Kategória
-                if category_path:
-                    cat_name = category_path.split('>')[-1].strip()
-                    category, _ = Category.objects.get_or_create(name=cat_name)
-                else:
-                    category, _ = Category.objects.get_or_create(name="Nezaradené")
-
-                Product.objects.update_or_create(
-                    original_url=url,
-                    defaults={
-                        'name': name,
-                        'slug': slugify(name)[:200] + "-" + str(count),
-                        'description': description,
-                        'price': price,
-                        'image_url': image_url,
-                        'category': category,
-                        'is_active': True
+        # GraphQL Query (Optimalizované pre Shopping produkty)
+        query = """
+        query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $pid: ID!) {
+            products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit) {
+                totalCount
+                resultList {
+                    title
+                    description
+                    
+                    ... on Shopping {
+                        price {
+                            amount
+                            currency
+                        }
+                        gtin
+                        productType
+                        imageLink
                     }
-                )
-                count += 1
-                if count % 50 == 0:
-                    self.stdout.write(f"   Spracovaných {count} produktov...")
 
-            except Exception as e:
-                continue
+                    linkCode(pid: $pid) {
+                        clickUrl
+                    }
+                }
+            }
+        }
+        """
 
-        self.stdout.write(self.style.SUCCESS(f'🎉 Import hotový! Uložených {count} produktov.'))
+        variables = {
+            "partnerIds": [ADVERTISER_ID],
+            "companyId": CJ_COMPANY_ID,
+            "pid": CJ_WEBSITE_ID,
+            "limit": LIMIT
+        }
+
+        headers = {
+            "Authorization": f"Bearer {CJ_TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        try:
+            # Volanie API
+            response = requests.post(API_URL, json={'query': query, 'variables': variables}, headers=headers)
+            
+            if response.status_code != 200:
+                self.stdout.write(self.style.ERROR(f"❌ Chyba {response.status_code}"))
+                self.stdout.write(self.style.WARNING(f"📩 {response.text}"))
+                return
+
+            data = response.json()
+            
+            if 'errors' in data:
+                self.stdout.write(self.style.ERROR(f"❌ Chyba API: {json.dumps(data['errors'], indent=2)}"))
+                return
+
+            products_data = data.get('data', {}).get('products', {}).get('resultList', [])
+            total_found = data.get('data', {}).get('products', {}).get('totalCount', 0)
+
+            if total_found == 0:
+                self.stdout.write(self.style.WARNING(f"⚠️ CJ nenašiel žiadne produkty pre ID {ADVERTISER_ID}. Skontroluj ID."))
+                return
+
+            self.stdout.write(f"📦 Našiel som {total_found} produktov. Sťahujem prvých {LIMIT}...")
+
+            count = 0
+            # Vytvorenie základnej kategórie
+            default_cat, _ = Category.objects.get_or_create(slug=DEFAULT_CAT_SLUG, defaults={'name': DEFAULT_CAT_NAME})
+
+            for item in products_data:
+                try:
+                    name = item.get('title')
+                    description = item.get('description') or ""
+                    
+                    # Cena a Obrázok
+                    price_info = item.get('price')
+                    price = Decimal(price_info.get('amount')) if price_info else Decimal('0.00')
+                    image_url = item.get('imageLink')
+                    
+                    # Link
+                    link_code = item.get('linkCode')
+                    affiliate_url = link_code.get('clickUrl') if link_code else ""
+                    
+                    # Kategória a EAN
+                    category_text = item.get('productType') or DEFAULT_CAT_NAME
+                    ean = item.get('gtin') or ""
+
+                    # Validácia
+                    if not name or not price or not affiliate_url:
+                        continue
+
+                    # Kategória
+                    # CJ posiela kategórie ako "Home > Furniture". Berieme poslednú časť.
+                    cat_clean = category_text.split('>')[-1].strip()
+                    category, created = Category.objects.get_or_create(
+                        slug=slugify(cat_clean)[:50],
+                        defaults={'name': cat_clean, 'parent': default_cat}
+                    )
+
+                    # Identifikácia produktu (EAN -> Názov)
+                    product = None
+                    if ean and len(ean) > 6:
+                        product = Product.objects.filter(ean=ean).first()
+                    
+                    if not product:
+                        product = Product.objects.filter(name=name).first()
+
+                    # Uloženie / Update
+                    if product:
+                        # Update
+                        product.price = price
+                        product.category = category # Aktualizujeme kategóriu? Môžeme.
+                        if not product.ean and ean: product.ean = ean
+                        product.save()
+                    else:
+                        # Create
+                        base_slug = slugify(name)[:40]
+                        unique_slug = f"{base_slug}-{str(uuid.uuid4())[:4]}"
+                        
+                        product = Product.objects.create(
+                            name=name,
+                            slug=unique_slug,
+                            description=description,
+                            price=price,
+                            category=category,
+                            image_url=image_url,
+                            ean=ean[:13]
+                        )
+
+                    # Offer (Ponuka)
+                    Offer.objects.update_or_create(
+                        product=product,
+                        shop_name=SHOP_NAME, 
+                        defaults={
+                            'price': price,
+                            'url': affiliate_url,
+                            'active': True
+                        }
+                    )
+
+                    count += 1
+                    if count % 50 == 0:
+                        self.stdout.write(f"✅ {count}...")
+
+                except Exception as e:
+                    # Tichá chyba pri jednom produkte, ideme ďalej
+                    pass
+
+            self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! Importovaných {count} produktov z {SHOP_NAME}."))
+
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"❌ Kritická chyba: {e}"))
