@@ -23,7 +23,7 @@ class Command(BaseCommand):
         # ---------------------------------------------------------
 
         # TVOJE FIXNÉ ÚDAJE (Nemenia sa)
-        CJ_COMPANY_ID = "77864372"      # Tvoje Company ID
+        CJ_COMPANY_ID = "7864372"      # Tvoje Company ID
         CJ_WEBSITE_ID = "101646612"    # Tvoje Website ID (PID)
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q" # Tvoj Token
         
