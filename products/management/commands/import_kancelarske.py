@@ -96,6 +96,7 @@ class Command(BaseCommand):
             self.stdout.write(f"📦 Našiel som {total_found} produktov. Sťahujem prvých {LIMIT}...")
 
             count = 0
+            errors = 0
             # Vytvorenie základnej kategórie
             default_cat, _ = Category.objects.get_or_create(slug=DEFAULT_CAT_SLUG, defaults={'name': DEFAULT_CAT_NAME})
 
@@ -180,4 +181,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! Importovaných {count} produktov z {SHOP_NAME}."))
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Kritická chyba: {e}"))
+                    errors += 1
+                    if errors < 10:  # Vypíš len prvých 10 chýb, nech nezahltíme konzolu
+                         self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri '{name}': {e}"))
