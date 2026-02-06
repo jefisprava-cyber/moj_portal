@@ -7,24 +7,24 @@ from decimal import Decimal
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import KancelarskeStolicky.com (CJ Network) - API GraphQL'
+    help = 'Import KancelarskeStolicky.com (CJ Network) - ROBUST DEBUG'
 
     def handle(self, *args, **kwargs):
         # ---------------------------------------------------------
         # 👇 1. NASTAVENIA KONKRÉTNEHO OBCHODU
         # ---------------------------------------------------------
         SHOP_NAME = "Kancelárske stoličky"
-        ADVERTISER_ID = "5493235"  # ✅ Tvoje ID pre tento obchod
+        ADVERTISER_ID = "5493235"   # ✅ ID pre Kancelárske stoličky
         
         # Predvolená kategória
         DEFAULT_CAT_NAME = "Kancelária" 
         DEFAULT_CAT_SLUG = "kancelaria"
 
         # ---------------------------------------------------------
-        # 👇 2. TVOJE FIXNÉ ÚDAJE (Už správne, bez preklepov)
+        # 👇 2. FIXNÉ ÚDAJE (Overené z Unizdravu)
         # ---------------------------------------------------------
-        CJ_COMPANY_ID = "7864372"       # ✅ Správne ID (overené z Gorily)
-        CJ_WEBSITE_ID = "101646612"     # ✅ Správne PID
+        CJ_COMPANY_ID = "7864372"       
+        CJ_WEBSITE_ID = "101646612"     
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
         
         LIMIT = 5000
@@ -40,20 +40,13 @@ class Command(BaseCommand):
                 resultList {
                     title
                     description
-                    
                     ... on Shopping {
-                        price {
-                            amount
-                            currency
-                        }
+                        price { amount currency }
                         gtin
                         productType
                         imageLink
                     }
-
-                    linkCode(pid: $pid) {
-                        clickUrl
-                    }
+                    linkCode(pid: $pid) { clickUrl }
                 }
             }
         }
@@ -66,13 +59,9 @@ class Command(BaseCommand):
             "limit": LIMIT
         }
 
-        headers = {
-            "Authorization": f"Bearer {CJ_TOKEN}",
-            "Content-Type": "application/json"
-        }
+        headers = { "Authorization": f"Bearer {CJ_TOKEN}", "Content-Type": "application/json" }
 
         try:
-            # Volanie API
             response = requests.post(API_URL, json={'query': query, 'variables': variables}, headers=headers)
             
             if response.status_code != 200:
@@ -89,54 +78,48 @@ class Command(BaseCommand):
             products_data = data.get('data', {}).get('products', {}).get('resultList', [])
             total_found = data.get('data', {}).get('products', {}).get('totalCount', 0)
 
-            if total_found == 0:
-                self.stdout.write(self.style.WARNING(f"⚠️ CJ nenašiel žiadne produkty pre ID {ADVERTISER_ID}. Možno nemáš schválené partnerstvo?"))
-                return
-
-            self.stdout.write(f"📦 Našiel som {total_found} produktov. Sťahujem prvých {LIMIT}...")
+            self.stdout.write(f"📦 Našiel som {total_found} produktov. Spracovávam...")
 
             count = 0
             errors = 0
-            # Vytvorenie základnej kategórie
             default_cat, _ = Category.objects.get_or_create(slug=DEFAULT_CAT_SLUG, defaults={'name': DEFAULT_CAT_NAME})
 
             for item in products_data:
                 try:
                     name = item.get('title')
+                    # OCHRANA: Ak je popis None, dáme prázdny text
                     description = item.get('description') or ""
                     
-                    # Cena a Obrázok
                     price_info = item.get('price')
+                    # OCHRANA: Ak chýba cena, dáme 0
                     price = Decimal(price_info.get('amount')) if price_info else Decimal('0.00')
-                    image_url = item.get('imageLink')
                     
-                    # Link
+                    # OCHRANA: Ak chýba obrázok, dáme prázdny string
+                    image_url = item.get('imageLink') or ""
+                    
                     link_code = item.get('linkCode')
                     affiliate_url = link_code.get('clickUrl') if link_code else ""
                     
-                    # Kategória a EAN
                     category_text = item.get('productType') or DEFAULT_CAT_NAME
                     ean = item.get('gtin') or ""
 
-                    # Validácia
-                    if not name or not price or not affiliate_url:
+                    if not name or not affiliate_url:
                         continue
 
-                    # Kategória (Ošetrenie "Home > Office > Chairs")
-                    if category_text:
+                    # Kategória
+                    cat_clean = category_text
+                    if '>' in category_text:
                         cat_clean = category_text.split('>')[-1].strip()
-                        category, created = Category.objects.get_or_create(
-                            slug=slugify(cat_clean)[:50],
-                            defaults={'name': cat_clean, 'parent': default_cat}
-                        )
-                    else:
-                        category = default_cat
+                        
+                    category, _ = Category.objects.get_or_create(
+                        slug=slugify(cat_clean)[:50],
+                        defaults={'name': cat_clean, 'parent': default_cat}
+                    )
 
-                    # Identifikácia produktu (EAN -> Názov)
+                    # Produkt (Logika EAN -> Názov)
                     product = None
                     if ean and len(ean) > 6:
                         product = Product.objects.filter(ean=ean).first()
-                    
                     if not product:
                         product = Product.objects.filter(name=name).first()
 
@@ -144,12 +127,13 @@ class Command(BaseCommand):
                     if product:
                         product.price = price
                         product.category = category
+                        # Aktualizujeme obrázok len ak máme nový a starý chýba (voliteľné)
+                        if image_url: 
+                            product.image_url = image_url
                         if not product.ean and ean: product.ean = ean
                         product.save()
                     else:
-                        base_slug = slugify(name)[:40]
-                        unique_slug = f"{base_slug}-{str(uuid.uuid4())[:4]}"
-                        
+                        unique_slug = f"{slugify(name)[:40]}-{str(uuid.uuid4())[:4]}"
                         product = Product.objects.create(
                             name=name,
                             slug=unique_slug,
@@ -160,27 +144,23 @@ class Command(BaseCommand):
                             ean=ean[:13]
                         )
 
-                    # Offer (Ponuka)
                     Offer.objects.update_or_create(
                         product=product,
                         shop_name=SHOP_NAME, 
-                        defaults={
-                            'price': price,
-                            'url': affiliate_url,
-                            'active': True
-                        }
+                        defaults={'price': price, 'url': affiliate_url, 'active': True}
                     )
 
                     count += 1
-                    if count % 50 == 0:
+                    if count % 200 == 0:
                         self.stdout.write(f"✅ {count}...")
 
                 except Exception as e:
-                    pass
+                    errors += 1
+                    # Vypíšeme PRVÝCH 5 chýb, aby sme vedeli, kde je problém
+                    if errors <= 5:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri '{name}': {e}"))
 
-            self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! Importovaných {count} produktov z {SHOP_NAME}."))
+            self.stdout.write(self.style.SUCCESS(f"🎉 Hotovo! {SHOP_NAME}: {count} (Chyby: {errors})"))
 
         except Exception as e:
-                    errors += 1
-                    if errors < 10:  # Vypíš len prvých 10 chýb, nech nezahltíme konzolu
-                         self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri '{name}': {e}"))
+            self.stdout.write(self.style.ERROR(f"❌ Kritická chyba: {e}"))
