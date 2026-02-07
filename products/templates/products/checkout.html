@@ -131,15 +131,16 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Premenné
-        const totalGoods = {{ total_price|stringformat:".2f" }};
+        // 👇 OPRAVA: Bezpečný prevod čísla z Django do JS, aby editor nehlásil chybu
+        const totalGoodsStr = "{{ total_price|stringformat:'.2f' }}".replace(',', '.');
+        const totalGoods = parseFloat(totalGoodsStr);
+
         const radios = document.querySelectorAll('input[name="delivery_method"]');
         const shippingDisplay = document.getElementById('shipping-display');
         const totalDisplay = document.getElementById('total-display');
         
-        // Elementy pre dynamickú zmenu textu
         const addressLabel = document.getElementById('address-label');
-        const addressInput = document.getElementById('id_customer_address'); // Django ID
+        const addressInput = document.getElementById('id_customer_address');
         const addressHint = document.getElementById('address-hint');
         const mapLink = document.getElementById('map-link');
 
@@ -147,42 +148,33 @@
             let selectedValue = 'courier';
             let shippingCost = 4.90;
 
-            // Zisti, čo je vybraté
             radios.forEach(radio => {
                 if (radio.checked) {
                     selectedValue = radio.value;
                 }
             });
 
-            // Logika prepínania
             if (selectedValue === 'courier') {
                 shippingCost = 4.90;
-                
-                // Zmena textov pre Kuriéra
                 addressLabel.innerText = "Adresa doručenia (Domov/Práca)";
                 addressInput.placeholder = "Ulica 123, 821 01 Bratislava";
                 addressHint.innerText = "Tovar vám doručí kuriér priamo do rúk.";
-                mapLink.classList.add('hidden'); // Skryť mapu
+                mapLink.classList.add('hidden'); 
             } else {
                 shippingCost = 2.90;
-                
-                // Zmena textov pre Box
                 addressLabel.innerText = "Názov a adresa výdajného miesta";
                 addressInput.placeholder = "Napr. Z-Box Tesco, Panónska cesta...";
                 addressHint.innerText = "Prosím, skopírujte presný názov boxu z mapy.";
-                mapLink.classList.remove('hidden'); // Ukázať mapu
+                mapLink.classList.remove('hidden'); 
             }
 
-            // Prepočet cien
             shippingDisplay.innerText = shippingCost.toFixed(2) + " €";
-            const total = parseFloat(totalGoods) + shippingCost;
+            const total = totalGoods + shippingCost;
             totalDisplay.innerText = total.toFixed(2) + " €";
         }
 
-        // Event Listeners
         radios.forEach(r => r.addEventListener('change', updateUI));
         
-        // Inicializácia
         if (!document.querySelector('input[name="delivery_method"]:checked')) {
             radios[0].checked = true;
         }

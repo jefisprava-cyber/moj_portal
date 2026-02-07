@@ -32,7 +32,8 @@
     </div>
 </div>
 
-<div class="container mx-auto px-6 -mt-20 pb-32 relative z-20"> <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-3xl">
+<div class="container mx-auto px-6 -mt-20 pb-32 relative z-20"> 
+    <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-3xl">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
         <p class="text-blue-800 font-bold animate-pulse">Načítavam vašu zostavu...</p>
     </div>
@@ -133,13 +134,21 @@
 <script>
     // --- 1. INIT ---
     document.addEventListener('DOMContentLoaded', async function() {
-        const prefillData = {{ prefill_data|safe }};
+        // 👇 OPRAVA: Používame JSON.parse a escapejs, aby editor nehlásil chybu
+        const prefillDataRaw = '{{ prefill_data|escapejs|default:"[]" }}';
+        let prefillData = [];
+        try {
+            prefillData = JSON.parse(prefillDataRaw);
+        } catch (e) {
+            console.error("Chyba pri parsovaní dát:", e);
+        }
+
         if (prefillData && prefillData.length > 0) {
             document.getElementById('loading-overlay').classList.remove('hidden');
             for (const item of prefillData) { await prefillSlot(item); }
             document.getElementById('loading-overlay').classList.add('hidden');
         }
-        updateHiddenInputs(); // Inicializácia inputov
+        updateHiddenInputs();
     });
 
     // --- 2. ASYNC PREFILL LOGIKA ---
@@ -237,7 +246,7 @@
         }
         
         recalcTotal();
-        updateHiddenInputs(); // <--- DÔLEŽITÉ: Aktualizujeme inputy pre formulár
+        updateHiddenInputs(); 
     }
 
     function recalcTotal() {
@@ -254,11 +263,10 @@
     // --- 5. LOGIKA PRE ODOSLANIE DÁT (FORMULÁR) ---
     function updateHiddenInputs() {
         const container = document.getElementById('hidden-inputs-container');
-        container.innerHTML = ''; // Vyčistíme staré inputy
+        container.innerHTML = ''; 
 
         document.querySelectorAll('.product-select').forEach(select => {
             if (select.value) {
-                // Pre každý vybraný produkt vytvoríme <input type="hidden" name="product_ids" value="ID">
                 const input = document.createElement('input');
                 input.type = 'hidden';
                 input.name = 'product_ids';
