@@ -2,6 +2,8 @@ from django.core.management.base import BaseCommand
 from products.models import Category, Product
 from django.utils.text import slugify
 import html
+import random
+import string
 
 class Command(BaseCommand):
     help = 'Opraví rozbité kategórie z importov (zlúči duplicity a vytvorí strom)'
@@ -18,36 +20,52 @@ class Command(BaseCommand):
         for bad_cat in broken_cats:
             original_name = bad_cat.name
             
-            # 1. Očistenie názvu: odstráni [' a '] a dekóduje &gt; na >
+            # 1. Očistenie názvu
             clean_name = original_name.replace("['", "").replace("']", "").replace("'", "")
-            clean_name = html.unescape(clean_name) # Zmení "Autá &gt; Fiat" na "Autá > Fiat"
+            clean_name = html.unescape(clean_name) 
             
-            # 2. Rozdelenie na časti podľa ">" alebo ","
+            # 2. Rozdelenie na časti
             if '>' in clean_name:
                 parts = [p.strip() for p in clean_name.split('>')]
             else:
                 parts = [p.strip() for p in clean_name.split(',')]
 
-            # 3. Budovanie správnej štruktúry (Strom)
+            # 3. Budovanie stromu
             current_parent = None
             
             for part_name in parts:
-                if not part_name: continue # Preskoč prázdne
+                if not part_name: continue 
                 
                 slug = slugify(part_name)
                 if not slug: slug = "nezaradene"
 
-                # Nájdi alebo vytvor kategóriu v správnej úrovni (podľa rodiča)
-                category_obj, created = Category.objects.get_or_create(
-                    slug=slug,
-                    parent=current_parent,
-                    defaults={'name': part_name}
-                )
+                # Skúsime nájsť existujúcu kategóriu v tejto úrovni
+                category_obj = Category.objects.filter(slug=slug, parent=current_parent).first()
+
+                if not category_obj:
+                    # Ak neexistuje presne táto kombinácia (slug + parent), musíme ju vytvoriť.
+                    # ALE POZOR: Slug musí byť globálne unikátny.
+                    # Takže ak už existuje slug (hoci inde), musíme ho zmeniť.
+                    
+                    original_slug = slug
+                    counter = 1
+                    while Category.objects.filter(slug=slug).exists():
+                        slug = f"{original_slug}-{counter}"
+                        counter += 1
+                        # Poistka proti nekonečnému cyklu
+                        if counter > 100:
+                            slug = f"{original_slug}-{random.randint(1000, 9999)}"
+                            break
+
+                    category_obj = Category.objects.create(
+                        name=part_name,
+                        slug=slug,
+                        parent=current_parent
+                    )
                 
                 # Posuň sa o úroveň nižšie
                 current_parent = category_obj
 
-            # Na konci cyklu je 'current_parent' tá posledná (cieľová) kategória
             target_category = current_parent
 
             # 4. Presun produktov
@@ -62,9 +80,8 @@ class Command(BaseCommand):
             if processed % 50 == 0:
                 self.stdout.write(f"Spracovaných {processed}/{count}...")
 
-        # Finálne čistenie prázdnych kategórií
-        self.stdout.write("Mažem prázdne kategórie bez produktov a podkategórií...")
-        # Toto zmaže len tie najspodnejšie prázdne, aby sme nezmazali rodičov
+        # Finálne čistenie
+        self.stdout.write("Mažem prázdne kategórie...")
         Category.objects.filter(products__isnull=True, children__isnull=True).delete()
 
         self.stdout.write(self.style.SUCCESS(f'HOTOVO! Úspešne opravených {processed} kategórií.'))
