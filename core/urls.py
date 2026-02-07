@@ -14,6 +14,10 @@ sitemaps = {
 urlpatterns = [
     # --- ADMIN A CORE ---
     path('admin/', admin.site.urls),
+    
+    # 👇 TOTO JE TEN NOVÝ RIADOK PRE ROBOTS.TXT:
+    path('robots.txt', TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
+
     path('', views.home, name='home'),
     path('accounts/', include('django.contrib.auth.urls')),
 

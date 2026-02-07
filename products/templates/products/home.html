@@ -92,12 +92,9 @@
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition duration-300 overflow-hidden flex flex-col h-full group relative">
                         
                         <div class="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition duration-300">
-                             <form action="{% url 'add_to_planner' product.id %}" method="POST">
-                                {% csrf_token %}
-                                <button type="submit" class="w-8 h-8 bg-white rounded-full shadow text-gray-400 hover:text-blue-600 flex items-center justify-center" title="Pridať do zoznamu">
-                                    <i class="fa fa-plus"></i>
-                                </button>
-                            </form>
+                             <a href="{% url 'add_to_planner' product.id %}" rel="nofollow" class="w-8 h-8 bg-white rounded-full shadow text-gray-400 hover:text-blue-600 flex items-center justify-center transition" title="Pridať do zoznamu">
+                                <i class="fa fa-plus"></i>
+                            </a>
                         </div>
 
                         <div class="h-48 p-6 flex items-center justify-center bg-gray-50 group-hover:bg-white transition relative">

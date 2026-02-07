@@ -7,3 +7,6 @@ User-agent: *
 Disallow: /add/
 Disallow: /remove/
 Disallow: /planner/
+Disallow: /admin/
+
+Sitemap: https://jefi.sk/sitemap.xml

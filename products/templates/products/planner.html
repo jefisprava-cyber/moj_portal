@@ -34,7 +34,7 @@
                         {% endif %}
                         
                         {% if item.cheapest_offer %}
-                            <a href="{{ item.cheapest_offer.url }}" target="_blank" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200 transition flex items-center gap-1">
+                            <a href="{{ item.cheapest_offer.url }}" target="_blank" rel="nofollow noopener" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200 transition flex items-center gap-1">
                                 <i class="fa fa-external-link-alt"></i> 
                                 Najlacnejšie: {{ item.cheapest_offer.price|floatformat:2 }} € ({{ item.cheapest_offer.shop_name }})
                             </a>
@@ -50,11 +50,12 @@
 
                 <div class="flex items-center gap-2">
                     {% if item.cheapest_offer %}
-                    <a href="{{ item.cheapest_offer.url }}" target="_blank" class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition" title="Kúpiť v obchode">
+                    <a href="{{ item.cheapest_offer.url }}" target="_blank" rel="nofollow noopener" class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition" title="Kúpiť v obchode">
                         <i class="fa fa-shopping-cart"></i>
                     </a>
                     {% endif %}
-                    <a href="{% url 'remove_from_planner' item.id %}" class="text-gray-400 hover:text-red-500 p-2 transition" title="Odstrániť">
+                    
+                    <a href="{% url 'remove_from_planner' item.id %}" rel="nofollow" class="text-gray-400 hover:text-red-500 p-2 transition" title="Odstrániť">
                         <i class="fa fa-trash-alt"></i>
                     </a>
                 </div>
