@@ -56,11 +56,11 @@
                 </div>
 
                 <div class="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
-                    <a href="{% url 'load_set' set.id %}" onclick="return confirm('Pozor: Toto vyprázdni váš aktuálny košík a nahrá tento set. Pokračovať?')" class="flex-grow text-center bg-gray-900 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-blue-600 transition shadow-md flex items-center justify-center gap-2">
+                    <a href="{% url 'load_set' set.id %}" rel="nofollow" onclick="return confirm('Pozor: Toto vyprázdni váš aktuálny košík a nahrá tento set. Pokračovať?')" class="flex-grow text-center bg-gray-900 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-blue-600 transition shadow-md flex items-center justify-center gap-2">
                         Použiť set <i class="fa fa-arrow-right"></i>
                     </a>
                     
-                    <a href="{% url 'delete_set' set.id %}" onclick="return confirm('Naozaj chcete zmazať tento set?')" class="w-12 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition border border-gray-200 bg-white" title="Zmazať set">
+                    <a href="{% url 'delete_set' set.id %}" rel="nofollow" onclick="return confirm('Naozaj chcete zmazať tento set?')" class="w-12 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition border border-gray-200 bg-white" title="Zmazať set">
                         <i class="fa fa-trash"></i>
                     </a>
                 </div>
