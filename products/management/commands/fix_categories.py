@@ -2,8 +2,7 @@ from django.core.management.base import BaseCommand
 from products.models import Category, Product
 from django.utils.text import slugify
 import html
-import random
-import string
+import uuid
 
 class Command(BaseCommand):
     help = 'Opraví rozbité kategórie z importov (zlúči duplicity a vytvorí strom)'
@@ -43,19 +42,11 @@ class Command(BaseCommand):
                 category_obj = Category.objects.filter(slug=slug, parent=current_parent).first()
 
                 if not category_obj:
-                    # Ak neexistuje presne táto kombinácia (slug + parent), musíme ju vytvoriť.
-                    # ALE POZOR: Slug musí byť globálne unikátny.
-                    # Takže ak už existuje slug (hoci inde), musíme ho zmeniť.
-                    
-                    original_slug = slug
-                    counter = 1
-                    while Category.objects.filter(slug=slug).exists():
-                        slug = f"{original_slug}-{counter}"
-                        counter += 1
-                        # Poistka proti nekonečnému cyklu
-                        if counter > 100:
-                            slug = f"{original_slug}-{random.randint(1000, 9999)}"
-                            break
+                    # Ak neexistuje (slug + parent), musíme ju vytvoriť.
+                    # Kontrola globálnej unikátnosti slugu
+                    if Category.objects.filter(slug=slug).exists():
+                        # Ak už slug existuje (hoci inde), pridáme UUID pre istotu
+                        slug = f"{slug}-{str(uuid.uuid4())[:8]}"
 
                     category_obj = Category.objects.create(
                         name=part_name,
