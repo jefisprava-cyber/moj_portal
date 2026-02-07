@@ -77,7 +77,8 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [], 
+        # 👇 ZMENA: Pridaná cesta k hlavnému priečinku templates
+        'DIRS': [BASE_DIR / 'templates'], 
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -121,6 +122,11 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# 👇 ZMENA: Toto hovorí Djangu, aby hľadalo output.css aj v hlavnom priečinku static
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 # TOTO JE KĽÚČOVÉ PRE PRODUKCIU (Whitenoise bez Manifestu, aby nepadalo 500)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
