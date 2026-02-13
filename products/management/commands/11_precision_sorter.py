@@ -405,32 +405,35 @@ class Command(BaseCommand):
         # =========================================================================
         self.stdout.write("👁️  SMART ACTIVATOR: Analyzujem štruktúru webu...")
         
-        # 1. Reset: Všetko skryjeme
+        # 1. Reset: Všetko skryjeme (aby sme nezobrazovali prázdne)
         Category.objects.update(is_active=False)
         
-        # 2. Nájdeme kategórie, ktoré majú produkty s aktívnymi ponukami
-        # (Tým vyradíme kategórie, kde sú len "mŕtve" produkty bez ceny)
-        active_cat_ids = Product.objects.filter(offers__active=True).values_list('category_id', flat=True).distinct()
+        # 2. Získame ID kategórií, v ktorých je ASPOŇ JEDEN PRODUKT
+        # (Zmenili sme logiku: stačí, že tam je produkt, nemusí mať Active Offer)
+        active_cat_ids = Product.objects.values_list('category_id', flat=True).distinct()
         
-        # Zapneme "Leaf" kategórie (tie čo majú produkty)
-        Category.objects.filter(id__in=active_cat_ids).update(is_active=True)
+        # Zapneme "Leaf" kategórie (tie, čo majú produkty)
+        count_leaf = Category.objects.filter(id__in=active_cat_ids).update(is_active=True)
+        self.stdout.write(f"   -> Aktivovaných {count_leaf} koncových kategórií (majú tovar).")
+
+        # 3. Rekurzívne zapneme rodičov (Bublanie hore)
+        self.stdout.write("🌲 Budujem navigačný strom smerom nahor...")
         
-        # 3. Rekurzívne zapneme rodičov (aby sa dalo preklikať v menu)
-        self.stdout.write("🌲 Budujem navigačný strom...")
-        
-        # Cyklus beží, kým nachádza neaktívnych rodičov aktívnych detí
+        parents_activated_total = 0
         changed = True
         while changed:
-            # Nájdi rodičov, ktorí sú False, ale majú dieťa True
-            inactive_parents = Category.objects.filter(
+            # Nájdi rodičov, ktorí sú False (skrytí), ale majú aspoň jedno dieťa True (viditeľné)
+            parents_to_wake = Category.objects.filter(
                 is_active=False, 
                 children__is_active=True
             ).distinct()
             
-            if inactive_parents.exists():
-                inactive_parents.update(is_active=True)
+            count = parents_to_wake.count()
+            if count > 0:
+                parents_to_wake.update(is_active=True)
+                parents_activated_total += count
             else:
-                changed = False
+                changed = False # Už nie je koho zobudiť, končíme
 
         visible_count = Category.objects.filter(is_active=True).count()
-        self.stdout.write(self.style.SUCCESS(f"🎉 KOMPLET HOTOVO! Váš e-shop teraz zobrazuje {visible_count} relevantných kategórií."))
+        self.stdout.write(self.style.SUCCESS(f"🎉 KOMPLET HOTOVO! Váš e-shop teraz zobrazuje {visible_count} kategórií."))
