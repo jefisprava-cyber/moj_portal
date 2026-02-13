@@ -3,277 +3,334 @@
 {% block title %}Inteligentný Konfigurátor | JEFI.sk{% endblock %}
 
 {% block content %}
-<div class="bg-blue-600 pb-32 pt-12 relative overflow-hidden">
+<div class="bg-gradient-to-r from-blue-600 to-blue-800 pb-32 pt-12 relative overflow-hidden">
     <div class="absolute top-0 right-0 opacity-10 transform translate-x-1/3 -translate-y-1/4">
         <i class="fa fa-cogs text-[400px] text-white"></i>
     </div>
 
     <div class="container mx-auto px-6 text-center text-white relative z-10">
-        <h1 class="text-3xl md:text-5xl font-black mb-4 tracking-tight">Postavte si nákupný zoznam</h1>
+        <h1 class="text-3xl md:text-5xl font-black mb-4 tracking-tight">Postavte si vlastný set</h1>
         <p class="text-blue-100 text-lg max-w-2xl mx-auto mb-8">
-            Vyberte si viac produktov naraz, porovnajte varianty a uložte si set na neskôr.
+            Vyberte si komponenty, poskladajte ideálnu zostavu a uložte si ju na neskôr alebo vložte priamo do košíka.
         </p>
 
         <div class="flex flex-wrap justify-center gap-3">
-            <span class="text-xs font-bold uppercase tracking-wider text-blue-200 py-2">Rýchle inšpirácie:</span>
-            
-            <a href="?bundle=kuchyna-bosch" class="bg-white/10 hover:bg-white text-white hover:text-blue-600 border border-white/30 px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-2 backdrop-blur-sm">
+             <a href="?bundle=kuchyna-bosch" class="bg-white/10 hover:bg-white hover:text-blue-600 border border-white/30 px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-2 backdrop-blur-sm">
                 <i class="fa fa-bolt text-yellow-400"></i> Kuchyňa Bosch
             </a>
-            
-            <a href="?bundle=herna-sony" class="bg-white/10 hover:bg-white text-white hover:text-blue-600 border border-white/30 px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-2 backdrop-blur-sm">
-                <i class="fa fa-gamepad text-purple-400"></i> Herná Zostava
-            </a>
-
             <a href="{% url 'builder' %}" class="bg-white/10 hover:bg-red-500 hover:border-red-500 text-white border border-white/30 px-4 py-1.5 rounded-full text-sm font-bold transition flex items-center gap-2 backdrop-blur-sm">
-                <i class="fa fa-times"></i> Vyčistiť
+                <i class="fa fa-trash-alt"></i> Vyčistiť všetko
             </a>
         </div>
     </div>
 </div>
 
 <div class="container mx-auto px-6 -mt-20 pb-32 relative z-20"> 
-    <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-3xl">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-        <p class="text-blue-800 font-bold animate-pulse">Načítavam vašu zostavu...</p>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
-        {% for i in "12345" %}
-        <div class="bg-white p-5 rounded-2xl shadow-xl border border-gray-100 flex flex-col h-full slot-container relative overflow-hidden group hover:-translate-y-1 transition duration-300" data-slot="{{ i }}">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gray-100 group-hover:bg-blue-500 transition"></div>
-            <div class="text-xs font-bold text-gray-400 uppercase mb-4 flex justify-between items-center">
-                <span>Produkt #{{ i }}</span>
-                <i class="fa fa-box-open text-gray-200 text-lg"></i>
-            </div>
-            
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-700 mb-1 ml-1">Kategória</label>
-                <div class="relative">
-                    <select class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none category-select cursor-pointer" onchange="userSelectCategory(this, '{{ i }}')">
-                        <option value="">Vyberte kategóriu...</option>
-                        {% for cat in categories %}
-                        <option value="{{ cat.id }}">{{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <i class="fa fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
-                </div>
-            </div>
-
-            <div class="brand-wrapper hidden opacity-0 transition-all duration-500 mb-4">
-                <label class="block text-xs font-bold text-gray-700 mb-1 ml-1">Značka</label>
-                <div class="relative">
-                    <select class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none brand-select cursor-pointer" onchange="userSelectBrand(this, '{{ i }}')">
-                        <option value="">-- Vyberte --</option>
-                    </select>
-                    <i class="fa fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
-                </div>
-            </div>
-
-            <div class="product-wrapper hidden opacity-0 transition-all duration-500 flex-grow flex flex-col">
-                <label class="block text-xs font-bold text-gray-700 mb-1 ml-1">Model</label>
-                <div class="relative mb-2">
-                    <select class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none appearance-none product-select cursor-pointer" onchange="updatePrice('{{ i }}')">
-                        <option value="">-- Vyberte --</option>
-                    </select>
-                    <i class="fa fa-chevron-down absolute right-3 top-3 text-gray-400 text-xs pointer-events-none"></i>
-                </div>
+    
+    <form action="{% url 'save_builder_set' %}" method="POST" id="builder-form">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
+            {% for i in "12345" %}
+            <div class="bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col h-[320px] slot-container relative overflow-hidden group hover:-translate-y-1 transition duration-300" data-slot="{{ i }}">
                 
-                <div class="selected-detail hidden mt-auto text-center border-t border-dashed border-gray-200 pt-4">
-                    <div class="h-24 flex items-center justify-center mb-3 bg-white rounded-lg p-2 shadow-inner">
-                         <img src="" class="max-h-full max-w-full object-contain product-img transform transition hover:scale-110 duration-500">
+                <div class="empty-state flex flex-col items-center justify-center h-full p-6 text-center">
+                    <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 mb-4 group-hover:bg-blue-50 group-hover:text-blue-500 transition">
+                        <i class="fa fa-plus text-2xl"></i>
                     </div>
-                    
-                    <p class="text-xs text-gray-500 mb-3 leading-tight px-1 product-desc italic line-clamp-3"></p>
+                    <h3 class="font-bold text-gray-800 mb-1">Slot #{{ i }}</h3>
+                    <p class="text-xs text-gray-400 mb-4">Pridajte produkt do tohto slotu</p>
+                    <button type="button" onclick="openSelectionModal('{{ i }}')" class="add-btn bg-gray-900 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-600 transition shadow-lg shadow-gray-200">
+                        Vybrať produkt
+                    </button>
+                </div>
 
-                    <div class="flex items-baseline justify-center gap-1.5 text-gray-900 bg-gray-50 py-2 rounded-lg mb-2">
-                        <span class="text-xs text-gray-400 font-medium">od</span>
-                        <span class="text-xl font-black price-tag tracking-tight text-blue-700">0 €</span>
+                <div class="product-content hidden h-full p-4 flex flex-col relative">
                     </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 shadow-[0_-5px_30px_rgba(0,0,0,0.1)] z-40">
+            <div class="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xl animate-pulse">
+                        <i class="fa fa-calculator"></i>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 text-xs uppercase font-bold tracking-wider block mb-0.5">Celková cena</span>
+                        <div class="text-3xl font-black text-gray-900 leading-none" id="total-price">0.00 €</div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 w-full md:w-auto">
+                    <input type="text" name="set_name" required placeholder="Názov vašej zostavy" 
+                           class="flex-grow md:w-64 border border-gray-300 rounded-full px-5 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                     
-                    <a href="#" class="inline-flex items-center text-[11px] font-bold text-gray-400 hover:text-blue-600 transition uppercase tracking-wide product-link" target="_blank" rel="nofollow noopener">
-                        Detail produktu <i class="fa fa-external-link-alt ml-1.5"></i>
-                    </a>
+                    <button type="submit" class="bg-green-600 text-white px-8 py-3 rounded-full font-bold hover:bg-green-700 hover:shadow-lg transition flex items-center gap-2 whitespace-nowrap">
+                        <i class="fa fa-save"></i> Uložiť Set
+                    </button>
                 </div>
             </div>
         </div>
-        {% endfor %}
-    </div>
+    </form>
 </div>
 
-<div class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 shadow-[0_-5px_30px_rgba(0,0,0,0.1)] z-50">
-    <div class="container mx-auto">
-        <form action="{% url 'save_builder_set' %}" method="POST" class="flex flex-col md:flex-row items-center justify-between gap-4">
-            {% csrf_token %}
-            
-            <div id="hidden-inputs-container"></div>
+<div id="selectionModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-900/75 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
 
-            <div class="flex items-center gap-4 w-full md:w-auto justify-center md:justify-start">
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xl animate-pulse flex-shrink-0">
-                    <i class="fa fa-calculator"></i>
-                </div>
-                <div>
-                    <span class="text-gray-500 text-xs uppercase font-bold tracking-wider block mb-0.5">Celková suma (od)</span>
-                    <div class="text-3xl font-black text-gray-900 leading-none" id="total-price">0,00 €</div>
-                </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                <input type="text" name="set_name" required placeholder="Názov setu (napr. Kuchyňa Bosch)" 
-                       class="flex-grow border border-gray-300 rounded-full px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
-                       value="{{ active_bundle|default:'' }}">
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-5xl h-[85vh] flex flex-col">
                 
-                <button type="submit" class="bg-gradient-to-r from-green-600 to-green-500 text-white px-8 py-3 rounded-full font-bold text-md hover:shadow-lg hover:shadow-green-200 hover:-translate-y-1 transition flex items-center justify-center gap-2 whitespace-nowrap">
-                    <i class="fa fa-save"></i> Uložiť Set
-                </button>
+                <div class="bg-white px-4 py-3 sm:px-6 border-b border-gray-100 flex justify-between items-center sticky top-0 z-10">
+                    <h3 class="text-lg font-bold leading-6 text-gray-900" id="modal-title">Vyberte produkt</h3>
+                    <button type="button" onclick="closeModal()" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                        <span class="sr-only">Zavrieť</span>
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex flex-1 overflow-hidden">
+                    
+                    <div class="w-1/3 md:w-1/4 bg-gray-50 border-r border-gray-200 overflow-y-auto p-4 custom-scrollbar">
+                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Kategórie</h4>
+                        <div class="space-y-1">
+                            {% for cat in categories %}
+                            <button onclick="loadSubcategories('{{ cat.id }}', this)" class="category-btn w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-white hover:shadow-sm transition flex justify-between items-center group">
+                                {{ cat.name }}
+                                <i class="fa fa-chevron-right text-[10px] text-gray-300 group-hover:text-blue-500"></i>
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="flex-1 bg-white flex flex-col h-full overflow-hidden">
+                        
+                        <div id="modal-subcategories" class="p-4 border-b border-gray-100 bg-white/50 overflow-x-auto whitespace-nowrap min-h-[60px] flex items-center">
+                            <p class="text-gray-400 text-sm italic pl-2">👈 Vyberte kategóriu vľavo</p>
+                        </div>
+
+                        <div id="modal-brands" class="px-4 py-2 border-b border-gray-100 text-xs hidden"></div>
+
+                        <div id="modal-products" class="flex-1 overflow-y-auto p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 custom-scrollbar content-start">
+                            </div>
+                    </div>
+                </div>
+
             </div>
-        </form>
+        </div>
     </div>
 </div>
 
 <script>
-    // --- 1. INIT ---
-    document.addEventListener('DOMContentLoaded', async function() {
-        // 👇 OPRAVA: Používame JSON.parse a escapejs, aby editor nehlásil chybu
-        const prefillDataRaw = '{{ prefill_data|escapejs|default:"[]" }}';
-        let prefillData = [];
-        try {
-            prefillData = JSON.parse(prefillDataRaw);
-        } catch (e) {
-            console.error("Chyba pri parsovaní dát:", e);
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    let activeSlot = null;
 
-        if (prefillData && prefillData.length > 0) {
-            document.getElementById('loading-overlay').classList.remove('hidden');
-            for (const item of prefillData) { await prefillSlot(item); }
-            document.getElementById('loading-overlay').classList.add('hidden');
-        }
-        updateHiddenInputs();
-    });
-
-    // --- 2. ASYNC PREFILL LOGIKA ---
-    async function prefillSlot(item) {
-        const slotId = item.slot;
-        const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
+    // --- 1. OTVORENIE OKNA ---
+    window.openSelectionModal = function(slotId) {
+        activeSlot = slotId;
+        document.getElementById('selectionModal').classList.remove('hidden');
+        // Reset obsahu
+        document.getElementById('modal-subcategories').innerHTML = '<p class="text-gray-500 italic">Vyberte kategóriu vľavo...</p>';
+        document.getElementById('modal-products').innerHTML = '';
+        document.getElementById('modal-brands').innerHTML = '';
         
-        slot.querySelector('.category-select').value = item.cat_id;
-        await loadBrandsAsync(slotId, item.cat_id);
-        
-        const brandSelect = slot.querySelector('.brand-select');
-        for (let i = 0; i < brandSelect.options.length; i++) {
-            if (brandSelect.options[i].text.toLowerCase() === item.brand.toLowerCase()) {
-                brandSelect.selectedIndex = i;
-                break;
-            }
-        }
-        
-        const selectedBrand = brandSelect.options[brandSelect.selectedIndex].value;
-        await loadProductsAsync(slotId, item.cat_id, selectedBrand);
-
-        slot.querySelector('.product-select').value = item.prod_id;
-        updatePrice(slotId);
-    }
-
-    // --- 3. HELPER FUNCTIONS ---
-    function userSelectCategory(el, slotId) { loadBrandsAsync(slotId, el.value); }
-    function userSelectBrand(el, slotId) { 
-        const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
-        loadProductsAsync(slotId, slot.querySelector('.category-select').value, el.value); 
-    }
-
-    function loadBrandsAsync(slotId, catId) {
-        return new Promise((resolve) => {
-            const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
-            const brandSelect = slot.querySelector('.brand-select');
-            const brandWrapper = slot.querySelector('.brand-wrapper');
-
-            brandWrapper.classList.remove('hidden', 'opacity-0');
-            brandSelect.innerHTML = '<option>Načítavam...</option>';
-            if (!catId) { resolve(); return; }
-
-            fetch(`/api/brands/${catId}/`)
-                .then(r => r.json())
-                .then(data => {
-                    brandSelect.innerHTML = '<option value="">-- Vyberte značku --</option>';
-                    data.brands.forEach(b => brandSelect.innerHTML += `<option value="${b}">${b}</option>`);
-                    resolve();
-                });
+        // Reset tlačidiel kategórií
+        document.querySelectorAll('.category-btn').forEach(b => {
+            b.classList.remove('bg-blue-600', 'text-white');
+            b.classList.add('bg-gray-100', 'text-gray-700');
         });
     }
 
-    function loadProductsAsync(slotId, catId, brand) {
-        return new Promise((resolve) => {
-            const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
-            const productSelect = slot.querySelector('.product-select');
-            const productWrapper = slot.querySelector('.product-wrapper');
+    window.closeModal = function() {
+        document.getElementById('selectionModal').classList.add('hidden');
+    }
 
-            productWrapper.classList.remove('hidden', 'opacity-0');
-            productSelect.innerHTML = '<option>Načítavam...</option>';
+    // --- 2. NAČÍTANIE PODKATEGÓRIÍ (API) ---
+    window.loadSubcategories = function(categoryId, btnElement) {
+        // Zvýraznenie vybranej hlavnej kategórie
+        document.querySelectorAll('.category-btn').forEach(b => {
+            b.classList.remove('bg-blue-600', 'text-white');
+            b.classList.add('bg-gray-100', 'text-gray-700');
+        });
+        btnElement.classList.remove('bg-gray-100', 'text-gray-700');
+        btnElement.classList.add('bg-blue-600', 'text-white');
 
-            fetch(`/api/products/${catId}/?brand=${brand}`)
-                .then(r => r.json())
-                .then(data => {
-                    productSelect.innerHTML = '<option value="">-- Vyberte model --</option>';
-                    data.products.forEach(p => {
-                        productSelect.innerHTML += `<option value="${p.id}" data-price="${p.price}" data-img="${p.image}" data-slug="${p.slug}" data-desc="${p.description || ''}">${p.name}</option>`;
+        const subContainer = document.getElementById('modal-subcategories');
+        subContainer.innerHTML = '<div class="text-blue-600 font-bold text-sm p-2">Načítavam...</div>';
+
+        // Volanie API
+        fetch(`/api/subcategories/${categoryId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.subcategories.length === 0) {
+                    // Ak nemá podkategórie, rovno načítaj produkty
+                    subContainer.innerHTML = '<p class="text-green-600 text-sm px-2">✓ Kategória vybratá</p>';
+                    loadProducts(categoryId);
+                } else {
+                    let html = '<div class="flex gap-2 pb-2">';
+                    data.subcategories.forEach(sub => {
+                        html += `<button type="button" onclick="loadProducts(${sub.id}, this)" 
+                                 class="px-3 py-1.5 bg-white border border-gray-200 hover:border-blue-500 hover:text-blue-600 rounded-full text-xs font-medium transition shadow-sm whitespace-nowrap">
+                                 ${sub.name}
+                                 </button>`;
                     });
-                    resolve();
-                });
-        });
+                    html += '</div>';
+                    subContainer.innerHTML = html;
+                }
+                loadBrands(categoryId);
+            })
+            .catch(err => {
+                console.error(err);
+                subContainer.innerHTML = '<p class="text-red-500 text-sm">Chyba pri načítaní.</p>';
+            });
     }
 
-    // --- 4. UPDATE UI & FORM DATA ---
-    function updatePrice(slotId) {
-        const slot = document.querySelector(`.slot-container[data-slot="${slotId}"]`);
-        const productSelect = slot.querySelector('.product-select');
-        const detailDiv = slot.querySelector('.selected-detail');
-        
-        const selectedOption = productSelect.options[productSelect.selectedIndex];
-        
-        if (selectedOption.value) {
-            const price = parseFloat(selectedOption.getAttribute('data-price') || 0);
-            const imgUrl = selectedOption.getAttribute('data-img');
-            const slug = selectedOption.getAttribute('data-slug');
-            const desc = selectedOption.getAttribute('data-desc'); 
-            
-            slot.querySelector('.price-tag').innerText = price.toFixed(2) + ' €';
-            slot.querySelector('.product-img').src = imgUrl || 'https://via.placeholder.com/150?text=No+Image';
-            slot.querySelector('.product-desc').innerText = desc || 'Bez popisu.';
-            slot.querySelector('.product-link').href = `/p/${slug}/`;
-            detailDiv.classList.remove('hidden');
-        } else {
-            detailDiv.classList.add('hidden');
+    // --- 3. NAČÍTANIE PRODUKTOV (API) ---
+    window.loadProducts = function(categoryId, btnElement = null) {
+        // Zvýraznenie podkategórie (ak bolo kliknuté)
+        if(btnElement) {
+            const parent = btnElement.parentElement;
+            parent.querySelectorAll('button').forEach(b => b.classList.remove('bg-blue-50', 'border-blue-500', 'text-blue-600'));
+            btnElement.classList.add('bg-blue-50', 'border-blue-500', 'text-blue-600');
         }
+
+        const prodContainer = document.getElementById('modal-products');
+        prodContainer.innerHTML = '<div class="col-span-3 text-center py-10"><div class="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"></div></div>';
+
+        fetch(`/api/products/${categoryId}/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.products.length === 0) {
+                    prodContainer.innerHTML = '<div class="col-span-3 text-center text-gray-400 py-10">Žiadne produkty v tejto kategórii.</div>';
+                } else {
+                    let html = '';
+                    data.products.forEach(p => {
+                        // Ošetrenie obrázka
+                        let imgUrl = p.image;
+                        if (!imgUrl || imgUrl.includes('placeholder')) {
+                            imgUrl = `https://placehold.co/150x150?text=${encodeURIComponent(p.name)}`;
+                        }
+
+                        html += `
+                        <div onclick="selectProduct('${p.id}', '${p.name.replace(/'/g, "\\'")}', '${p.price}', '${imgUrl}')" 
+                             class="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:shadow-md hover:border-blue-300 cursor-pointer transition bg-white group h-24">
+                            <img src="${imgUrl}" class="w-16 h-16 object-contain p-1 rounded" loading="lazy">
+                            <div class="flex-1 min-w-0 flex flex-col justify-between h-full py-1">
+                                <h4 class="font-medium text-xs text-gray-800 line-clamp-2 leading-tight group-hover:text-blue-600">${p.name}</h4>
+                                <div class="flex justify-between items-end mt-auto">
+                                    <p class="text-blue-700 font-bold text-sm">${p.price} €</p>
+                                    <span class="w-6 h-6 rounded-full bg-gray-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition text-xs">
+                                        <i class="fa fa-plus"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        `;
+                    });
+                    prodContainer.innerHTML = html;
+                }
+            });
+    }
+
+    // --- 4. NAČÍTANIE ZNAČIEK (FILTER) ---
+    function loadBrands(categoryId) {
+        fetch(`/api/brands/${categoryId}/`)
+            .then(res => res.json())
+            .then(data => {
+                const brandContainer = document.getElementById('modal-brands');
+                if (data.brands.length > 0) {
+                    brandContainer.classList.remove('hidden');
+                    let html = '<div class="flex flex-wrap gap-1 items-center"><span class="text-gray-400 font-bold uppercase mr-2" style="font-size: 10px;">Značky:</span>';
+                    data.brands.forEach(brand => {
+                        html += `<button type="button" class="px-2 py-0.5 bg-gray-50 text-[10px] rounded border border-gray-200 text-gray-600 hover:bg-gray-100">${brand}</button>`;
+                    });
+                    html += '</div>';
+                    brandContainer.innerHTML = html;
+                } else {
+                    brandContainer.classList.add('hidden');
+                    brandContainer.innerHTML = '';
+                }
+            });
+    }
+
+    // --- 5. VÝBER PRODUKTU (AKCIA) ---
+    window.selectProduct = function(id, name, price, image) {
+        const slotEl = document.querySelector(`[data-slot="${activeSlot}"]`);
         
-        recalcTotal();
-        updateHiddenInputs(); 
+        // Skryť prázdny stav
+        slotEl.querySelector('.empty-state').classList.add('hidden');
+        
+        // Zobraziť produkt v slote
+        const content = slotEl.querySelector('.product-content');
+        content.classList.remove('hidden');
+        content.innerHTML = `
+            <div class="relative group h-full flex flex-col items-center text-center">
+                <button type="button" onclick="removeProduct(event, ${activeSlot}, ${price})" class="absolute -top-2 -right-2 bg-red-100 text-red-500 hover:bg-red-500 hover:text-white rounded-full w-6 h-6 flex items-center justify-center transition z-10">
+                    <i class="fa fa-times text-xs"></i>
+                </button>
+                
+                <div class="h-32 w-full flex items-center justify-center mb-3">
+                    <img src="${image}" class="max-h-full max-w-full object-contain">
+                </div>
+                
+                <div class="flex-1 w-full flex flex-col justify-between">
+                    <h3 class="text-xs font-bold leading-tight mb-2 text-gray-800 line-clamp-3 hover:text-blue-600 transition" title="${name}">${name}</h3>
+                    <div class="bg-blue-50 text-blue-700 font-black py-1 px-3 rounded-lg text-sm inline-block mx-auto">
+                        ${price} €
+                    </div>
+                </div>
+                
+                <input type="hidden" name="product_ids" value="${id}">
+            </div>
+        `;
+
+        updateTotalPrice(parseFloat(price));
+        closeModal();
     }
 
-    function recalcTotal() {
-        let total = 0;
-        document.querySelectorAll('.product-select').forEach(select => {
-            const option = select.options[select.selectedIndex];
-            if (option && option.getAttribute('data-price')) {
-                total += parseFloat(option.getAttribute('data-price'));
-            }
-        });
-        document.getElementById('total-price').innerText = total.toFixed(2) + ' €';
+    // --- 6. ODSTRÁNENIE PRODUKTU ---
+    window.removeProduct = function(e, slotId, price) {
+        if(e) e.stopPropagation(); 
+        const slotEl = document.querySelector(`[data-slot="${slotId}"]`);
+        
+        slotEl.querySelector('.empty-state').classList.remove('hidden');
+        slotEl.querySelector('.product-content').classList.add('hidden');
+        slotEl.querySelector('.product-content').innerHTML = '';
+        
+        updateTotalPrice(-price);
     }
 
-    // --- 5. LOGIKA PRE ODOSLANIE DÁT (FORMULÁR) ---
-    function updateHiddenInputs() {
-        const container = document.getElementById('hidden-inputs-container');
-        container.innerHTML = ''; 
-
-        document.querySelectorAll('.product-select').forEach(select => {
-            if (select.value) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'product_ids';
-                input.value = select.value;
-                container.appendChild(input);
-            }
-        });
+    // --- 7. PREPOČET CENY ---
+    function updateTotalPrice(delta) {
+        const totalEl = document.getElementById('total-price');
+        let current = parseFloat(totalEl.innerText.replace(' €', '').replace(',', '.'));
+        if(isNaN(current)) current = 0;
+        let newPrice = Math.max(0, current + delta);
+        totalEl.innerText = newPrice.toFixed(2) + ' €';
     }
+
+    // --- 8. PREFILL (AK SA NAČÍTA ULOŽENÝ SET) ---
+    // Toto sa spustí, ak Django pošle dáta v prefill_data
+    const prefillDataRaw = '{{ prefill_data|escapejs|default:"[]" }}';
+    if(prefillDataRaw && prefillDataRaw !== "[]") {
+        try {
+            const data = JSON.parse(prefillDataRaw);
+            data.forEach(item => {
+                // Musíme získať detaily produktu (ak ich nemáme v prefill, museli by sme volať API)
+                // Pre zjednodušenie tu predpokladáme, že prefillData už obsahuje názov a cenu
+                // Ak nie, musel by si upraviť views.py aby posielal viac info.
+                
+                // Provizórne volanie selectProduct (ak by sme mali dáta)
+                // activeSlot = item.slot;
+                // selectProduct(item.prod_id, item.name, item.price, item.image);
+            });
+        } catch(e) { console.error(e); }
+    }
+});
 </script>
 {% endblock %}

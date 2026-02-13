@@ -7,25 +7,34 @@ from decimal import Decimal
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import Unizdrav (CJ Network) - ROBUST DEBUG'
+    help = 'Import Rajhraciek.sk (CJ Network) - ROBUST DEBUG'
 
     def handle(self, *args, **kwargs):
-        # 1. NASTAVENIA
-        SHOP_NAME = "Unizdrav"
-        ADVERTISER_ID = "5654758"
-        DEFAULT_CAT_NAME = "Zdravotnícke potreby" 
-        DEFAULT_CAT_SLUG = "zdravotnicke-potreby"
+        # ---------------------------------------------------------
+        # 👇 1. NASTAVENIA KONKRÉTNEHO OBCHODU
+        # ---------------------------------------------------------
+        SHOP_NAME = "Rajhračiek.sk"
+        
+        # ⚠️ SEM VLOŽ ID PRE Rajhraciek.sk (napr. 5326577 alebo iné z tvojho CJ)
+        ADVERTISER_ID = "7260722" 
+        
+        # Predvolená kategória
+        DEFAULT_CAT_NAME = "Rozličný tovar" 
+        DEFAULT_CAT_SLUG = "rozlicny-tovar"
 
-        # 2. FIXNÉ ÚDAJE
+        # ---------------------------------------------------------
+        # 👇 2. FIXNÉ ÚDAJE (Overené)
+        # ---------------------------------------------------------
         CJ_COMPANY_ID = "7864372"       
         CJ_WEBSITE_ID = "101646612"     
-        CJ_TOKEN = "bx7Rpc1lf6uy-3jThfx-W6-Mcw"
+        CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
         
         LIMIT = 5000
         API_URL = "https://ads.api.cj.com/query"
         
         self.stdout.write(f"⏳ Pripájam sa na CJ API ({SHOP_NAME})...")
 
+        # GraphQL Query
         query = """
         query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $pid: ID!) {
             products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit) {
@@ -59,11 +68,21 @@ class Command(BaseCommand):
             
             if response.status_code != 200:
                 self.stdout.write(self.style.ERROR(f"❌ Chyba {response.status_code}"))
+                self.stdout.write(self.style.WARNING(f"📩 {response.text}"))
                 return
 
             data = response.json()
+            
+            if 'errors' in data:
+                self.stdout.write(self.style.ERROR(f"❌ Chyba API: {json.dumps(data['errors'], indent=2)}"))
+                return
+
             products_data = data.get('data', {}).get('products', {}).get('resultList', [])
             total_found = data.get('data', {}).get('products', {}).get('totalCount', 0)
+
+            if total_found == 0:
+                self.stdout.write(self.style.WARNING(f"⚠️ CJ nenašiel žiadne produkty pre ID {ADVERTISER_ID}. Skontroluj ID."))
+                return
 
             self.stdout.write(f"📦 Našiel som {total_found} produktov. Spracovávam...")
 
@@ -74,13 +93,14 @@ class Command(BaseCommand):
             for item in products_data:
                 try:
                     name = item.get('title')
-                    # OCHRANA: Ak je popis None, dáme prázdny text (Unizdrav má často chýbajúce popisy)
+                    # OCHRANA: Ak je popis None, dáme prázdny text
                     description = item.get('description') or ""
                     
                     price_info = item.get('price')
+                    # OCHRANA: Ak chýba cena, dáme 0
                     price = Decimal(price_info.get('amount')) if price_info else Decimal('0.00')
                     
-                    # OCHRANA: Ak chýba obrázok
+                    # OCHRANA: Ak chýba obrázok, dáme prázdny string
                     image_url = item.get('imageLink') or ""
                     
                     link_code = item.get('linkCode')
@@ -109,10 +129,12 @@ class Command(BaseCommand):
                     if not product:
                         product = Product.objects.filter(name=name).first()
 
+                    # Uloženie / Update
                     if product:
                         product.price = price
                         product.category = category
-                        product.image_url = image_url
+                        if image_url:
+                            product.image_url = image_url
                         if not product.ean and ean: product.ean = ean
                         product.save()
                     else:
@@ -139,7 +161,6 @@ class Command(BaseCommand):
 
                 except Exception as e:
                     errors += 1
-                    # Vypíšeme PRVÝCH 5 chýb, aby sme vedeli, kde je problém
                     if errors <= 5:
                         self.stdout.write(self.style.WARNING(f"⚠️ Chyba pri '{name}': {e}"))
 

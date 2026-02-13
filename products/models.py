@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify 
-from django.db.models import Avg  # <--- NOVÝ IMPORT
+from django.db.models import Avg
 import random
 
 # --- KATEGÓRIE (Stromová štruktúra) ---
@@ -9,7 +9,6 @@ class Category(models.Model):
     name = models.CharField(max_length=200, verbose_name="Názov kategórie")
     slug = models.SlugField(unique=True, blank=True, max_length=255)
     
-    # Väzba na rodiča (umožňuje podkategórie: Nábytok -> Obývačka -> Sedačky)
     parent = models.ForeignKey(
         'self', 
         null=True, 
@@ -19,6 +18,8 @@ class Category(models.Model):
         verbose_name="Nadradená kategória"
     )
 
+    is_active = models.BooleanField(default=False, verbose_name="Viditeľná na webe")
+
     class Meta:
         verbose_name = "Kategória"
         verbose_name_plural = "Kategórie"
@@ -27,13 +28,11 @@ class Category(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
-            # Ošetrenie duplicity slugu
             if Category.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
                 self.slug = f"{self.slug}-{random.randint(100, 999)}"
         super().save(*args, **kwargs)
 
     def __str__(self):
-        # Vypíše celú cestu: "Nábytok -> Obývačka -> Sedačky"
         full_path = [self.name]
         k = self.parent
         while k is not None:
@@ -46,30 +45,24 @@ class Product(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True, max_length=255)
     description = models.TextField(blank=True)
-    
-    # Hlavná cena produktu (zvyčajne najnižšia cena z ponúk) - pre rýchle triedenie
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Cena od")
-    
     image_url = models.URLField(max_length=1000, blank=True, null=True)
     ean = models.CharField(max_length=13, blank=True, null=True)
-    
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
-    
-    # DÔLEŽITÉ PRE IMPORT: Sem sa uloží text z feedu (napr. "Dom | Záhrada | Stoličky")
     original_category_text = models.CharField(max_length=500, blank=True, null=True)
-    
     is_oversized = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    
-    # Pole pre konfigurátor
     brand = models.CharField(max_length=100, blank=True, null=True)
+    average_rating = models.FloatField(default=0.0)
+    review_count = models.IntegerField(default=0)
 
-    # --- NOVÉ POLIA PRE RECENZIE ---
-    average_rating = models.FloatField(default=0.0) # Priemerné hodnotenie (napr. 4.5)
-    review_count = models.IntegerField(default=0)   # Počet hodnotení
+    @property
+    def get_image(self):
+        if self.image_url and self.image_url.startswith('http') and 'via.placeholder.com' not in self.image_url:
+            return self.image_url
+        return "https://placehold.co/500x500?text=Bez+obrazka"
 
     def recalculate_rating(self):
-        """Prepočíta priemer hviezdičiek na základe recenzií."""
         reviews = self.reviews.all()
         if reviews.exists():
             self.average_rating = reviews.aggregate(Avg('rating'))['rating__avg']
@@ -83,19 +76,23 @@ class Product(models.Model):
         if not self.slug:
             base_slug = slugify(self.name)
             self.slug = base_slug
-            # Bezpečné generovanie unikátneho slugu
             if Product.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
                 self.slug = f"{base_slug}-{random.randint(1000, 9999)}"
-        
-        # Automatické doplnenie značky (ak chýba, vezme prvé slovo z názvu)
         if not self.brand and self.name:
              self.brand = self.name.split()[0]
-
         super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
 
+# --- PARAMETRE PRODUKTOV ---
+class ProductParameter(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='parameters')
+    name = models.CharField(max_length=100, db_index=True)
+    value = models.CharField(max_length=100, db_index=True)
+
+    def __str__(self):
+        return f"{self.product.name} - {self.name}: {self.value}"
 
 # --- PONUKY (Offers) ---
 class Offer(models.Model):
@@ -106,14 +103,12 @@ class Offer(models.Model):
     delivery_days = models.IntegerField(default=0)
     active = models.BooleanField(default=True)
     external_item_id = models.CharField(max_length=100, blank=True)
-
-    # --- NOVÉ POLE PRE MONETIZÁCIU ---
-    is_sponsored = models.BooleanField(default=False) # Ak True, zobrazí sa ako "Náš tip"
+    is_sponsored = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.shop_name} - {self.product.name} ({self.price} €)"
 
-# --- PLÁNOVAČ (Nákupný zoznam) ---
+# --- PLÁNOVAČ ---
 class PlannerItem(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     session_key = models.CharField(max_length=40, null=True, blank=True)
@@ -124,7 +119,7 @@ class PlannerItem(models.Model):
     def __str__(self):
         return f"{self.quantity}x {self.product.name}"
 
-# --- BALÍČKY (Bundles) ---
+# --- BALÍČKY ---
 class Bundle(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -135,7 +130,7 @@ class Bundle(models.Model):
     def __str__(self):
         return self.name
 
-# --- ULOŽENÉ PLÁNY (Sety užívateľov) ---
+# --- ULOŽENÉ PLÁNY ---
 class SavedPlan(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_plans')
     name = models.CharField(max_length=200, default="Môj projekt")
@@ -165,18 +160,17 @@ class PriceHistory(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.min_price} € ({self.date})"
 
-# --- NOVÝ MODEL: RECENZIE ---
+# --- RECENZIE ---
 class Review(models.Model):
     product = models.ForeignKey(Product, related_name='reviews', on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)]) # 1 až 5 hviezd
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
     comment = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-created_at'] # Najnovšie hore
+        ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Po uložení recenzie prepočítame priemer produktu
         self.product.recalculate_rating()

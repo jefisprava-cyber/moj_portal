@@ -5,7 +5,7 @@
 
 {% block og_title %}{{ product.name }} - Vývoj ceny{% endblock %}
 {% block og_description %}Aktuálne najlacnejšie v obchode {{ offers.first.shop_name }}.{% endblock %}
-{% block og_image %}{% if product.image_url %}{{ product.image_url }}{% else %}https://placehold.co/600x400?text={{ product.name|urlencode }}{% endif %}{% endblock %}
+{% block og_image %}{{ product.get_image }}{% endblock %}
 
 {% block schema %}
 <script type="application/ld+json">
@@ -13,7 +13,7 @@
   "@context": "https://schema.org/",
   "@type": "Product",
   "name": "{{ product.name }}",
-  "image": "{% if product.image_url %}{{ product.image_url }}{% else %}https://placehold.co/600x400?text=No+Image{% endif %}",
+  "image": "{{ product.get_image }}",
   "description": "{{ product.description|truncatechars:150 }}",
   "offers": {
     "@type": "AggregateOffer",
@@ -42,7 +42,7 @@
     <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="flex flex-col md:flex-row">
             <div class="md:w-1/2 p-8 md:p-12 bg-white flex items-center justify-center border-b md:border-b-0 md:border-r border-gray-50 relative group">
-                <img src="{% if product.image_url %}{{ product.image_url }}{% else %}https://placehold.co/600x600?text=Bez+obrazka{% endif %}" 
+                <img src="{{ product.get_image }}" 
                      alt="{{ product.name }}" 
                      class="max-h-96 w-full object-contain transition transform duration-500 group-hover:scale-105"
                      onerror="this.onerror=null;this.src='https://placehold.co/600x600?text=Bez+obrazka';">

@@ -15,7 +15,7 @@ urlpatterns = [
     # --- ADMIN A CORE ---
     path('admin/', admin.site.urls),
     
-    # 👇 TOTO JE TEN NOVÝ RIADOK PRE ROBOTS.TXT:
+    # Robots.txt
     path('robots.txt', TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
 
     path('', views.home, name='home'),
@@ -29,31 +29,36 @@ urlpatterns = [
     # Fallback pre staré odkazy
     path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
 
-    # --- VYHĽADÁVANIE A POROVNANIE (Dávame vyššie pred produktový slug) ---
-    path('hladat/', views.search, name='search'),  # Zmenené na 'hladat/' pre slovenčinu
+    # --- VYHĽADÁVANIE A POROVNANIE ---
+    path('hladat/', views.search, name='search'),
     path('compare/', views.comparison, name='comparison'),
 
-    # --- NOVÉ: INTELIGENTNÝ KONFIGURÁTOR ---
+    # --- INTELIGENTNÝ KONFIGURÁTOR ---
     path('inteligentny-konfigurator/', views.builder_view, name='builder'),
-    # API pre konfigurátor
+    
+    # 👇👇👇 TOTO TI CHÝBALO! (Preto to hádzalo chybu 404) 👇👇👇
+    path('api/subcategories/<int:category_id>/', views.api_get_subcategories, name='api_get_subcategories'),
+    # 👆👆👆
+    
     path('api/brands/<int:category_id>/', views.api_get_brands, name='api_get_brands'),
     path('api/products/<int:category_id>/', views.api_get_products, name='api_get_products'),
 
-    # --- NOVÉ: UŽÍVATEĽSKÉ SETY (GARÁŽ PROJEKTOV) ---
+    # --- UŽÍVATEĽSKÉ SETY (GARÁŽ PROJEKTOV) ---
     path('moje-sety/', views.my_sets_view, name='my_sets'),
     path('set/ulozit/', views.save_builder_set, name='save_builder_set'),
     path('set/nahrat/<int:set_id>/', views.load_set, name='load_set'),
     path('set/zmazat/<int:set_id>/', views.delete_set, name='delete_set'),
 
-    # --- NOVÉ: AUTOMATICKÝ IMPORT ---
+    # --- AUTOMATICKÝ IMPORT ---
     path('import-data/', views.trigger_import, name='trigger_import'),
+    # Pre istotu aj stará cesta, ak by ju niečo volalo:
+    path('trigger-import/', views.trigger_import, name='trigger_import_alt'),
 
     # --- KATEGÓRIE A BALÍČKY ---
     path('category/<slug:slug>/', views.category_detail, name='category_detail'),
     path('bundle/<slug:bundle_slug>/', views.bundle_detail, name='bundle_detail'),
 
     # --- SEO & DETAIL PRODUKTU ---
-    # Toto dávame naschvál nižšie, aby 'p/nieco' neodchytilo iné špeciálne URL
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     path('p/<slug:slug>/', views.product_detail, name='product_detail'),
 
@@ -69,7 +74,7 @@ urlpatterns = [
     path('add-bundle/<int:bundle_id>/', views.add_bundle_to_planner, name='add_bundle_to_planner'),
     path('remove/<int:item_id>/', views.remove_from_planner, name='remove_from_planner'),
     
-    # --- STARÉ ULOŽENIE A NAČÍTANIE (Pre kompatibilitu) ---
+    # --- STARÉ ULOŽENIE A NAČÍTANIE ---
     path('save-plan/', views.save_current_plan, name='save_current_plan'),
     path('load-plan/<int:plan_id>/', views.load_plan, name='load_plan'),
     path('delete-plan/<int:plan_id>/', views.delete_plan, name='delete_plan'),

@@ -1,0 +1,553 @@
+<?xml version="1.0" ?>
+<SHOP>
+   <SHOPITEM>
+      <ITEM_ID>10000</ITEM_ID>
+      <PRODUCTNAME>Lenovo Smart Tablet 8969</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Lenovo Smart Tablet 8969&lt;/b&gt; je skvelá voľba. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Tento model je špičkou na trhu vďaka inovatívnej technológii. Zaručuje nízku spotrebu energie a vysoký výkon.</DESCRIPTION>
+      <URL>https://example.com/p/10000</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1239.56</PRICE_VAT>
+      <EAN>3075510822995</EAN>
+      <CATEGORYTEXT>Elektronika | Tablety</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10001</ITEM_ID>
+      <PRODUCTNAME>Bosch Výkonný Televízor 5122</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Bosch Výkonný Televízor 5122&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Tento model je špičkou na trhu vďaka inovatívnej technológii. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10001</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1122.04</PRICE_VAT>
+      <EAN>7879641883804</EAN>
+      <CATEGORYTEXT>Elektronika | Televízory</CATEGORYTEXT>
+      <DELIVERY_DATE>4</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10002</ITEM_ID>
+      <PRODUCTNAME>Dyson Ultra Televízor 5488</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Dyson Ultra Televízor 5488&lt;/b&gt; je skvelá voľba. Zaručuje nízku spotrebu energie a vysoký výkon. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10002</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1245.80</PRICE_VAT>
+      <EAN>8141544013307</EAN>
+      <CATEGORYTEXT>Elektronika | Televízory</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10003</ITEM_ID>
+      <PRODUCTNAME>Samsung Herný Telefón 2831</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Samsung Herný Telefón 2831&lt;/b&gt; je skvelá voľba. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Zaručuje nízku spotrebu energie a vysoký výkon. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10003</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>92.48</PRICE_VAT>
+      <EAN>5733735910103</EAN>
+      <CATEGORYTEXT>Elektronika | Telefóny</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10004</ITEM_ID>
+      <PRODUCTNAME>LG Úsporný Televízor 4330</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;LG Úsporný Televízor 4330&lt;/b&gt; je skvelá voľba. Tento model je špičkou na trhu vďaka inovatívnej technológii. V balení nájdete aj bohaté príslušenstvo. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10004</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>907.52</PRICE_VAT>
+      <EAN>6590850256448</EAN>
+      <CATEGORYTEXT>Elektronika | Televízory</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10005</ITEM_ID>
+      <PRODUCTNAME>Samsung Tichý Telefón 6105</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Samsung Tichý Telefón 6105&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Zaručuje nízku spotrebu energie a vysoký výkon. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10005</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>836.55</PRICE_VAT>
+      <EAN>1235537683605</EAN>
+      <CATEGORYTEXT>Elektronika | Telefóny</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10006</ITEM_ID>
+      <PRODUCTNAME>Samsung Úsporný Monitor 8325</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Samsung Úsporný Monitor 8325&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Zaručuje nízku spotrebu energie a vysoký výkon. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10006</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>325.48</PRICE_VAT>
+      <EAN>6564266737294</EAN>
+      <CATEGORYTEXT>Elektronika | Monitory</CATEGORYTEXT>
+      <DELIVERY_DATE>2</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10007</ITEM_ID>
+      <PRODUCTNAME>Apple Ultra Vysávač 6460</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Apple Ultra Vysávač 6460&lt;/b&gt; je skvelá voľba. Tento model je špičkou na trhu vďaka inovatívnej technológii. Zaručuje nízku spotrebu energie a vysoký výkon. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu.</DESCRIPTION>
+      <URL>https://example.com/p/10007</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>376.90</PRICE_VAT>
+      <EAN>1726891476366</EAN>
+      <CATEGORYTEXT>Elektronika | Vysávačy</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10008</ITEM_ID>
+      <PRODUCTNAME>Bosch Ultra Kávovar 4042</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Bosch Ultra Kávovar 4042&lt;/b&gt; je skvelá voľba. Dizajn, ktorý sa hodí do každej modernej domácnosti. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10008</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>463.04</PRICE_VAT>
+      <EAN>7349329445033</EAN>
+      <CATEGORYTEXT>Elektronika | Kávovary</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10009</ITEM_ID>
+      <PRODUCTNAME>Samsung Profesionálny Vysávač 4370</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Samsung Profesionálny Vysávač 4370&lt;/b&gt; je skvelá voľba. Tento model je špičkou na trhu vďaka inovatívnej technológii. Dizajn, ktorý sa hodí do každej modernej domácnosti. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10009</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>88.37</PRICE_VAT>
+      <EAN>1574399485699</EAN>
+      <CATEGORYTEXT>Elektronika | Vysávačy</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10010</ITEM_ID>
+      <PRODUCTNAME>Apple Úsporný Monitor 7546</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Apple Úsporný Monitor 7546&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Zaručuje nízku spotrebu energie a vysoký výkon. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10010</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>811.33</PRICE_VAT>
+      <EAN>4238007821355</EAN>
+      <CATEGORYTEXT>Elektronika | Monitory</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10011</ITEM_ID>
+      <PRODUCTNAME>Philips Profesionálny Monitor 7602</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Philips Profesionálny Monitor 7602&lt;/b&gt; je skvelá voľba. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Zaručuje nízku spotrebu energie a vysoký výkon. Dizajn, ktorý sa hodí do každej modernej domácnosti.</DESCRIPTION>
+      <URL>https://example.com/p/10011</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1406.01</PRICE_VAT>
+      <EAN>6180828911967</EAN>
+      <CATEGORYTEXT>Elektronika | Monitory</CATEGORYTEXT>
+      <DELIVERY_DATE>2</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10012</ITEM_ID>
+      <PRODUCTNAME>Bosch Domáci Monitor 2409</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Bosch Domáci Monitor 2409&lt;/b&gt; je skvelá voľba. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Dizajn, ktorý sa hodí do každej modernej domácnosti. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10012</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>315.30</PRICE_VAT>
+      <EAN>5832303105589</EAN>
+      <CATEGORYTEXT>Elektronika | Monitory</CATEGORYTEXT>
+      <DELIVERY_DATE>2</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10013</ITEM_ID>
+      <PRODUCTNAME>Apple Smart Tablet 6982</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Apple Smart Tablet 6982&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Dizajn, ktorý sa hodí do každej modernej domácnosti. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10013</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>303.51</PRICE_VAT>
+      <EAN>8701254537297</EAN>
+      <CATEGORYTEXT>Elektronika | Tablety</CATEGORYTEXT>
+      <DELIVERY_DATE>0</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10014</ITEM_ID>
+      <PRODUCTNAME>Bosch Profesionálny Televízor 8678</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Bosch Profesionálny Televízor 8678&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Zaručuje nízku spotrebu energie a vysoký výkon. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu.</DESCRIPTION>
+      <URL>https://example.com/p/10014</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>739.10</PRICE_VAT>
+      <EAN>4242113761674</EAN>
+      <CATEGORYTEXT>Elektronika | Televízory</CATEGORYTEXT>
+      <DELIVERY_DATE>0</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10015</ITEM_ID>
+      <PRODUCTNAME>Lenovo Herný Televízor 5036</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Lenovo Herný Televízor 5036&lt;/b&gt; je skvelá voľba. Tento model je špičkou na trhu vďaka inovatívnej technológii. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10015</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1047.65</PRICE_VAT>
+      <EAN>6082473077688</EAN>
+      <CATEGORYTEXT>Elektronika | Televízory</CATEGORYTEXT>
+      <DELIVERY_DATE>4</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10016</ITEM_ID>
+      <PRODUCTNAME>Sony Smart Tablet 4919</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Sony Smart Tablet 4919&lt;/b&gt; je skvelá voľba. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Tento model je špičkou na trhu vďaka inovatívnej technológii. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10016</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>809.39</PRICE_VAT>
+      <EAN>4043343448843</EAN>
+      <CATEGORYTEXT>Elektronika | Tablety</CATEGORYTEXT>
+      <DELIVERY_DATE>5</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10017</ITEM_ID>
+      <PRODUCTNAME>LG Domáci Notebook 6243</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;LG Domáci Notebook 6243&lt;/b&gt; je skvelá voľba. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Zaručuje nízku spotrebu energie a vysoký výkon. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10017</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>351.73</PRICE_VAT>
+      <EAN>8806384248990</EAN>
+      <CATEGORYTEXT>Elektronika | Notebooky</CATEGORYTEXT>
+      <DELIVERY_DATE>0</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10018</ITEM_ID>
+      <PRODUCTNAME>Sony Úsporný Telefón 6764</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Sony Úsporný Telefón 6764&lt;/b&gt; je skvelá voľba. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Zaručuje nízku spotrebu energie a vysoký výkon. Dizajn, ktorý sa hodí do každej modernej domácnosti.</DESCRIPTION>
+      <URL>https://example.com/p/10018</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1236.30</PRICE_VAT>
+      <EAN>5886097666387</EAN>
+      <CATEGORYTEXT>Elektronika | Telefóny</CATEGORYTEXT>
+      <DELIVERY_DATE>5</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10019</ITEM_ID>
+      <PRODUCTNAME>LG Tichý Monitor 2528</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;LG Tichý Monitor 2528&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Zaručuje nízku spotrebu energie a vysoký výkon. Dizajn, ktorý sa hodí do každej modernej domácnosti.</DESCRIPTION>
+      <URL>https://example.com/p/10019</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>895.62</PRICE_VAT>
+      <EAN>5178229125384</EAN>
+      <CATEGORYTEXT>Elektronika | Monitory</CATEGORYTEXT>
+      <DELIVERY_DATE>2</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10020</ITEM_ID>
+      <PRODUCTNAME>Philips Výkonný Mixér 5700</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Philips Výkonný Mixér 5700&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10020</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1338.35</PRICE_VAT>
+      <EAN>4933987914877</EAN>
+      <CATEGORYTEXT>Elektronika | Mixéry</CATEGORYTEXT>
+      <DELIVERY_DATE>5</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10021</ITEM_ID>
+      <PRODUCTNAME>LG Úsporný Notebook 5800</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;LG Úsporný Notebook 5800&lt;/b&gt; je skvelá voľba. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. V balení nájdete aj bohaté príslušenstvo. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10021</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1291.20</PRICE_VAT>
+      <EAN>7375929121040</EAN>
+      <CATEGORYTEXT>Elektronika | Notebooky</CATEGORYTEXT>
+      <DELIVERY_DATE>5</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10022</ITEM_ID>
+      <PRODUCTNAME>Dyson Tichý Notebook 5342</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Dyson Tichý Notebook 5342&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Tento model je špičkou na trhu vďaka inovatívnej technológii. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10022</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>514.42</PRICE_VAT>
+      <EAN>1848460574812</EAN>
+      <CATEGORYTEXT>Elektronika | Notebooky</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10023</ITEM_ID>
+      <PRODUCTNAME>Dyson Smart Notebook 8139</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Dyson Smart Notebook 8139&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Zaručuje nízku spotrebu energie a vysoký výkon. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10023</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>425.79</PRICE_VAT>
+      <EAN>9055476713988</EAN>
+      <CATEGORYTEXT>Elektronika | Notebooky</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10024</ITEM_ID>
+      <PRODUCTNAME>Apple Domáci Tablet 5931</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Apple Domáci Tablet 5931&lt;/b&gt; je skvelá voľba. Tento model je špičkou na trhu vďaka inovatívnej technológii. V balení nájdete aj bohaté príslušenstvo. Dizajn, ktorý sa hodí do každej modernej domácnosti.</DESCRIPTION>
+      <URL>https://example.com/p/10024</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>882.70</PRICE_VAT>
+      <EAN>5785841131386</EAN>
+      <CATEGORYTEXT>Elektronika | Tablety</CATEGORYTEXT>
+      <DELIVERY_DATE>0</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10025</ITEM_ID>
+      <PRODUCTNAME>Philips Tichý Telefón 5452</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Philips Tichý Telefón 5452&lt;/b&gt; je skvelá voľba. Zaručuje nízku spotrebu energie a vysoký výkon. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10025</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1121.03</PRICE_VAT>
+      <EAN>9121239568426</EAN>
+      <CATEGORYTEXT>Elektronika | Telefóny</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10026</ITEM_ID>
+      <PRODUCTNAME>Bosch Herný Kávovar 8397</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Bosch Herný Kávovar 8397&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Zaručuje nízku spotrebu energie a vysoký výkon. Dizajn, ktorý sa hodí do každej modernej domácnosti.</DESCRIPTION>
+      <URL>https://example.com/p/10026</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>976.38</PRICE_VAT>
+      <EAN>4800217924871</EAN>
+      <CATEGORYTEXT>Elektronika | Kávovary</CATEGORYTEXT>
+      <DELIVERY_DATE>0</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10027</ITEM_ID>
+      <PRODUCTNAME>Dyson Výkonný Tablet 6691</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Dyson Výkonný Tablet 6691&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Tento model je špičkou na trhu vďaka inovatívnej technológii. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10027</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>637.67</PRICE_VAT>
+      <EAN>8114876080199</EAN>
+      <CATEGORYTEXT>Elektronika | Tablety</CATEGORYTEXT>
+      <DELIVERY_DATE>5</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10028</ITEM_ID>
+      <PRODUCTNAME>Dyson Úsporný Mixér 4198</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Dyson Úsporný Mixér 4198&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10028</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>324.19</PRICE_VAT>
+      <EAN>8989350714358</EAN>
+      <CATEGORYTEXT>Elektronika | Mixéry</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10029</ITEM_ID>
+      <PRODUCTNAME>LG Herný Telefón 8509</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;LG Herný Telefón 8509&lt;/b&gt; je skvelá voľba. Zaručuje nízku spotrebu energie a vysoký výkon. Tento model je špičkou na trhu vďaka inovatívnej technológii. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10029</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>928.58</PRICE_VAT>
+      <EAN>9059360582989</EAN>
+      <CATEGORYTEXT>Elektronika | Telefóny</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10030</ITEM_ID>
+      <PRODUCTNAME>Bosch Domáci Kávovar 7728</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Bosch Domáci Kávovar 7728&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Zaručuje nízku spotrebu energie a vysoký výkon. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu.</DESCRIPTION>
+      <URL>https://example.com/p/10030</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1293.59</PRICE_VAT>
+      <EAN>3817307936997</EAN>
+      <CATEGORYTEXT>Elektronika | Kávovary</CATEGORYTEXT>
+      <DELIVERY_DATE>2</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10031</ITEM_ID>
+      <PRODUCTNAME>Samsung Úsporný Televízor 2535</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Samsung Úsporný Televízor 2535&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10031</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>903.53</PRICE_VAT>
+      <EAN>6331594027784</EAN>
+      <CATEGORYTEXT>Elektronika | Televízory</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10032</ITEM_ID>
+      <PRODUCTNAME>LG Úsporný Tablet 4405</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;LG Úsporný Tablet 4405&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Obsahuje najnovší procesor a dlhú výdrž batérie. Zaručuje nízku spotrebu energie a vysoký výkon.</DESCRIPTION>
+      <URL>https://example.com/p/10032</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1311.28</PRICE_VAT>
+      <EAN>3978808240554</EAN>
+      <CATEGORYTEXT>Elektronika | Tablety</CATEGORYTEXT>
+      <DELIVERY_DATE>5</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10033</ITEM_ID>
+      <PRODUCTNAME>Samsung Ultra Televízor 8002</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Samsung Ultra Televízor 8002&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10033</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>912.39</PRICE_VAT>
+      <EAN>4688045983982</EAN>
+      <CATEGORYTEXT>Elektronika | Televízory</CATEGORYTEXT>
+      <DELIVERY_DATE>2</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10034</ITEM_ID>
+      <PRODUCTNAME>LG Domáci Telefón 7764</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;LG Domáci Telefón 7764&lt;/b&gt; je skvelá voľba. Obsahuje najnovší procesor a dlhú výdrž batérie. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Zaručuje nízku spotrebu energie a vysoký výkon.</DESCRIPTION>
+      <URL>https://example.com/p/10034</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>467.13</PRICE_VAT>
+      <EAN>2028657064034</EAN>
+      <CATEGORYTEXT>Elektronika | Telefóny</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10035</ITEM_ID>
+      <PRODUCTNAME>Apple Ultra Kávovar 8893</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Apple Ultra Kávovar 8893&lt;/b&gt; je skvelá voľba. Zaručuje nízku spotrebu energie a vysoký výkon. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10035</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1401.19</PRICE_VAT>
+      <EAN>8622083530589</EAN>
+      <CATEGORYTEXT>Elektronika | Kávovary</CATEGORYTEXT>
+      <DELIVERY_DATE>4</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10036</ITEM_ID>
+      <PRODUCTNAME>Samsung Profesionálny Mixér 5486</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Samsung Profesionálny Mixér 5486&lt;/b&gt; je skvelá voľba. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Tento model je špičkou na trhu vďaka inovatívnej technológii. Dizajn, ktorý sa hodí do každej modernej domácnosti.</DESCRIPTION>
+      <URL>https://example.com/p/10036</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>87.98</PRICE_VAT>
+      <EAN>6394289907384</EAN>
+      <CATEGORYTEXT>Elektronika | Mixéry</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10037</ITEM_ID>
+      <PRODUCTNAME>Sony Tichý Vysávač 2063</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Sony Tichý Vysávač 2063&lt;/b&gt; je skvelá voľba. Dizajn, ktorý sa hodí do každej modernej domácnosti. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10037</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>195.31</PRICE_VAT>
+      <EAN>6102750603843</EAN>
+      <CATEGORYTEXT>Elektronika | Vysávačy</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10038</ITEM_ID>
+      <PRODUCTNAME>Sony Herný Notebook 4533</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Sony Herný Notebook 4533&lt;/b&gt; je skvelá voľba. Zaručuje nízku spotrebu energie a vysoký výkon. V balení nájdete aj bohaté príslušenstvo. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10038</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>72.35</PRICE_VAT>
+      <EAN>9390342683905</EAN>
+      <CATEGORYTEXT>Elektronika | Notebooky</CATEGORYTEXT>
+      <DELIVERY_DATE>5</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10039</ITEM_ID>
+      <PRODUCTNAME>Lenovo Tichý Kávovar 6992</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Lenovo Tichý Kávovar 6992&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Tento model je špičkou na trhu vďaka inovatívnej technológii. Zaručuje nízku spotrebu energie a vysoký výkon.</DESCRIPTION>
+      <URL>https://example.com/p/10039</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1044.70</PRICE_VAT>
+      <EAN>3244341348788</EAN>
+      <CATEGORYTEXT>Elektronika | Kávovary</CATEGORYTEXT>
+      <DELIVERY_DATE>4</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10040</ITEM_ID>
+      <PRODUCTNAME>Dyson Profesionálny Notebook 4340</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Dyson Profesionálny Notebook 4340&lt;/b&gt; je skvelá voľba. Zaručuje nízku spotrebu energie a vysoký výkon. Tento model je špičkou na trhu vďaka inovatívnej technológii. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10040</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>929.74</PRICE_VAT>
+      <EAN>9619686772596</EAN>
+      <CATEGORYTEXT>Elektronika | Notebooky</CATEGORYTEXT>
+      <DELIVERY_DATE>3</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10041</ITEM_ID>
+      <PRODUCTNAME>Apple Úsporný Monitor 7368</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Apple Úsporný Monitor 7368&lt;/b&gt; je skvelá voľba. Zaručuje nízku spotrebu energie a vysoký výkon. Obsahuje najnovší procesor a dlhú výdrž batérie. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10041</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>405.53</PRICE_VAT>
+      <EAN>2369321396257</EAN>
+      <CATEGORYTEXT>Elektronika | Monitory</CATEGORYTEXT>
+      <DELIVERY_DATE>4</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10042</ITEM_ID>
+      <PRODUCTNAME>Sony Ultra Mixér 3027</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Sony Ultra Mixér 3027&lt;/b&gt; je skvelá voľba. Zaručuje nízku spotrebu energie a vysoký výkon. Obsahuje najnovší procesor a dlhú výdrž batérie. V balení nájdete aj bohaté príslušenstvo.</DESCRIPTION>
+      <URL>https://example.com/p/10042</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1309.17</PRICE_VAT>
+      <EAN>1497462107224</EAN>
+      <CATEGORYTEXT>Elektronika | Mixéry</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10043</ITEM_ID>
+      <PRODUCTNAME>Bosch Úsporný Vysávač 5094</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Bosch Úsporný Vysávač 5094&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Dizajn, ktorý sa hodí do každej modernej domácnosti. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10043</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1496.38</PRICE_VAT>
+      <EAN>8084579288219</EAN>
+      <CATEGORYTEXT>Elektronika | Vysávačy</CATEGORYTEXT>
+      <DELIVERY_DATE>2</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10044</ITEM_ID>
+      <PRODUCTNAME>Apple Herný Kávovar 4636</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Apple Herný Kávovar 4636&lt;/b&gt; je skvelá voľba. Tento model je špičkou na trhu vďaka inovatívnej technológii. Zaručuje nízku spotrebu energie a vysoký výkon. Obsahuje najnovší procesor a dlhú výdrž batérie.</DESCRIPTION>
+      <URL>https://example.com/p/10044</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>808.64</PRICE_VAT>
+      <EAN>9616971349780</EAN>
+      <CATEGORYTEXT>Elektronika | Kávovary</CATEGORYTEXT>
+      <DELIVERY_DATE>2</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10045</ITEM_ID>
+      <PRODUCTNAME>Sony Herný Televízor 8157</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Sony Herný Televízor 8157&lt;/b&gt; je skvelá voľba. Dizajn, ktorý sa hodí do každej modernej domácnosti. Obsahuje najnovší procesor a dlhú výdrž batérie. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu.</DESCRIPTION>
+      <URL>https://example.com/p/10045</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>79.23</PRICE_VAT>
+      <EAN>4690341211069</EAN>
+      <CATEGORYTEXT>Elektronika | Televízory</CATEGORYTEXT>
+      <DELIVERY_DATE>2</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10046</ITEM_ID>
+      <PRODUCTNAME>LG Ultra Tablet 3117</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;LG Ultra Tablet 3117&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Obsahuje najnovší procesor a dlhú výdrž batérie. Zaručuje nízku spotrebu energie a vysoký výkon.</DESCRIPTION>
+      <URL>https://example.com/p/10046</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>1453.64</PRICE_VAT>
+      <EAN>4218035005317</EAN>
+      <CATEGORYTEXT>Elektronika | Tablety</CATEGORYTEXT>
+      <DELIVERY_DATE>4</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10047</ITEM_ID>
+      <PRODUCTNAME>Samsung Profesionálny Monitor 8758</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Samsung Profesionálny Monitor 8758&lt;/b&gt; je skvelá voľba. V balení nájdete aj bohaté príslušenstvo. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Zaručuje nízku spotrebu energie a vysoký výkon.</DESCRIPTION>
+      <URL>https://example.com/p/10047</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>424.46</PRICE_VAT>
+      <EAN>6283516952931</EAN>
+      <CATEGORYTEXT>Elektronika | Monitory</CATEGORYTEXT>
+      <DELIVERY_DATE>4</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10048</ITEM_ID>
+      <PRODUCTNAME>Bosch Smart Monitor 6243</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Bosch Smart Monitor 6243&lt;/b&gt; je skvelá voľba. Dizajn, ktorý sa hodí do každej modernej domácnosti. Zaručuje nízku spotrebu energie a vysoký výkon. Tento model je špičkou na trhu vďaka inovatívnej technológii.</DESCRIPTION>
+      <URL>https://example.com/p/10048</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>671.03</PRICE_VAT>
+      <EAN>9445491245244</EAN>
+      <CATEGORYTEXT>Elektronika | Monitory</CATEGORYTEXT>
+      <DELIVERY_DATE>0</DELIVERY_DATE>
+   </SHOPITEM>
+   <SHOPITEM>
+      <ITEM_ID>10049</ITEM_ID>
+      <PRODUCTNAME>Philips Tichý Tablet 8915</PRODUCTNAME>
+      <DESCRIPTION>&lt;b&gt;Philips Tichý Tablet 8915&lt;/b&gt; je skvelá voľba. Zaručuje nízku spotrebu energie a vysoký výkon. Ideálny pre náročných používateľov, ktorí hľadajú kvalitu. Dizajn, ktorý sa hodí do každej modernej domácnosti.</DESCRIPTION>
+      <URL>https://example.com/p/10049</URL>
+      <IMGURL>https://via.placeholder.com/500x500.png?text=Produkt</IMGURL>
+      <PRICE_VAT>192.41</PRICE_VAT>
+      <EAN>3091120179067</EAN>
+      <CATEGORYTEXT>Elektronika | Tablety</CATEGORYTEXT>
+      <DELIVERY_DATE>1</DELIVERY_DATE>
+   </SHOPITEM>
+</SHOP>
