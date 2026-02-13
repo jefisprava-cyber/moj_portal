@@ -5,7 +5,7 @@ from django.db.models import Count, Q
 from django.db import transaction
 
 class Command(BaseCommand):
-    help = 'PRECISION SORTER v6.0: ULTIMATE EDITION - Kompletné pravidlá pre celý e-shop.'
+    help = 'PRECISION SORTER v6.1: ULTIMATE EDITION - Kompletné pravidlá pre celý e-shop.'
 
     def handle(self, *args, **kwargs):
         self.stdout.write("🦁 PRECISION SORTER: Štartujem masívnu analýzu produktov...")
@@ -383,20 +383,20 @@ class Command(BaseCommand):
                     
                     if best_category: break # Našli sme zhodu, ideme na ďalší produkt
 
-            # Ak sme našli lepšiu kategóriu, než má produkt teraz, zmeníme ju
-            if best_category and product.category != best_category:
-                product.category = best_category
-                batch.append(product)
-                matched += 1
-            
-            processed += 1
-            if len(batch) >= BATCH_SIZE:
-                Product.objects.bulk_update(batch, ['category'])
-                batch = []
-                self.stdout.write(f"   ...analyzovaných {processed}/{total} (Pretriedené: {matched})")
+                # Ak sme našli lepšiu kategóriu, než má produkt teraz, zmeníme ju
+                if best_category and product.category != best_category:
+                    product.category = best_category
+                    batch.append(product)
+                    matched += 1
+                
+                processed += 1
+                if len(batch) >= BATCH_SIZE:
+                    Product.objects.bulk_update(batch, ['category'])
+                    batch = []
+                    self.stdout.write(f"   ...analyzovaných {processed}/{total} (Pretriedené: {matched})")
 
-        if batch:
-            Product.objects.bulk_update(batch, ['category'])
+            if batch:
+                Product.objects.bulk_update(batch, ['category'])
         
         self.stdout.write(self.style.SUCCESS(f"✅ TRIEDENIE HOTOVÉ. Zmenená kategória u {matched} produktov."))
 
