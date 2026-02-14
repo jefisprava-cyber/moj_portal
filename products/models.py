@@ -49,7 +49,10 @@ class Product(models.Model):
     image_url = models.URLField(max_length=1000, blank=True, null=True)
     ean = models.CharField(max_length=13, blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
+    
+    # 👇 TOTO JE KĽÚČOVÉ POLE PRE SMART MAPPER 👇
     original_category_text = models.CharField(max_length=500, blank=True, null=True)
+    
     is_oversized = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     brand = models.CharField(max_length=100, blank=True, null=True)
