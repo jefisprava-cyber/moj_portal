@@ -42,4 +42,3 @@ class Command(BaseCommand):
         """
         self.stdout.write("ℹ️  Tento skript je len ukážka. Musíš ho integrovať do svojho '00_import_products.py'.")
         self.stdout.write("✅ Princíp: Importér prečíta <PARAM> tagy a uloží ich do tabuľky ProductParameter.")
-        

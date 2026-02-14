@@ -6,12 +6,13 @@ from django.utils.text import slugify
 from django.db import transaction
 
 class Command(BaseCommand):
-    help = 'ARCHITEKT v5.1 (FIXED): Buduje strom a bezpečne rieši unikátnosť slugov.'
+    help = 'ARCHITEKT v5.0: FULL VERSION - Buduje strom a agresívne zlučuje nábytok.'
 
     def handle(self, *args, **kwargs):
         self.stdout.write("🏗️  ARCHITEKT: Začínam kompletnú rekonštrukciu webu...")
 
-        # 1. MAPA PREMENOVANIA
+        # 1. MAPA PREMENOVANIA (Aby to vyzeralo profesionálne)
+        # Toto zabezpečí, že hlavné kategórie budú mať pekné názvy
         REMIX_MAP = {
             'Auto-moto': 'Motoristický svet',
             'Dom a záhrada': 'Bývanie a doplnky',
@@ -21,7 +22,7 @@ class Command(BaseCommand):
             'Oblečenie a móda': 'Fashion a Štýl',
             'Šport': 'Šport a Tréning',
             'Detský tovar': 'Svet detí',
-            'Nábytok': 'Interiérový dizajn',
+            'Nábytok': 'Interiérový dizajn', # HLAVNÝ CIEĽ PRE NÁBYTOK
             'Stavebniny': 'Stavba a Rekonštrukcia',
             'Biela technika': 'Domáce spotrebiče',
             'Filmy, knihy, hry': 'Knihy a Zábava',
@@ -40,11 +41,11 @@ class Command(BaseCommand):
             return
 
         with transaction.atomic():
-            # Reset viditeľnosti
+            # Reset viditeľnosti (všetko skryjeme, aktivuje to až skript 11)
             Category.objects.update(is_active=False)
 
             # -------------------------------------------------------
-            # 2. VÝSTAVBA ŠTANDARDNÉHO STROMU (S OPRAVOU SLUGOV)
+            # 2. VÝSTAVBA ŠTANDARDNÉHO STROMU
             # -------------------------------------------------------
             for category in root.findall('.//CATEGORY'):
                 full_path_node = category.find('CATEGORY_FULLNAME')
@@ -56,7 +57,7 @@ class Command(BaseCommand):
                 
                 if not parts: continue
 
-                # Premenovanie root kategórie
+                # Premenovanie root kategórie podľa mapy
                 if parts[0] in REMIX_MAP:
                     parts[0] = REMIX_MAP[parts[0]]
                 
@@ -66,76 +67,80 @@ class Command(BaseCommand):
                     part_name = part.strip()
                     if not part_name: continue
 
-                    # --- OPRAVENÁ GENERÁCIA SLUGU ---
-                    # Najprv skúsime nájsť, či kategória už neexistuje
-                    existing_cat = Category.objects.filter(name=part_name, parent=current_parent).first()
-                    
-                    if existing_cat:
-                        cat = existing_cat
-                    else:
-                        # Ak neexistuje, musíme vyrobiť nový UNIKÁTNY slug
-                        base_slug = slugify(part_name)
-                        slug = base_slug
-                        counter = 1
-                        
-                        # Cyklus kontroluje, či je slug voľný v CELEJ tabuľke
-                        while Category.objects.filter(slug=slug).exists():
-                            slug = f"{base_slug}-{counter}"
-                            counter += 1
-                        
-                        cat = Category.objects.create(
-                            name=part_name,
-                            parent=current_parent,
-                            slug=slug,
-                            is_active=False
-                        )
-                    
+                    slug = slugify(part_name)
+                    # Ošetrenie duplicít slugov
+                    if current_parent:
+                        slug = slugify(f"{current_parent.slug}-{part_name}")[:200]
+
+                    cat, created = Category.objects.get_or_create(
+                        name=part_name,
+                        parent=current_parent,
+                        defaults={'slug': slug, 'is_active': False} 
+                    )
                     current_parent = cat
 
-            self.stdout.write("✅ Strom postavený. Teraz idem zlučovať nábytok.")
+            self.stdout.write("✅ Strom postavený. Teraz idem opravovať duplicity.")
 
             # -------------------------------------------------------
-            # 3. AGRESÍVNE ZJEDNOTENIE NÁBYTKU
+            # 3. AGRESÍVNE ZJEDNOTENIE NÁBYTKU (THE FIX)
             # -------------------------------------------------------
             
-            # A. Vytvoríme/Nájdeme cieľovú kategóriu (bezpečne)
-            target_slug = 'interierovy-dizajn'
-            if not Category.objects.filter(slug=target_slug).exists():
-                target_furniture = Category.objects.create(
-                    name="Interiérový dizajn",
-                    parent=None,
-                    slug=target_slug,
-                    is_active=True
-                )
-            else:
-                target_furniture = Category.objects.get(slug=target_slug)
+            # A. Vytvoríme/Nájdeme tú JEDNU SPRÁVNU hlavnú kategóriu
+            target_furniture, _ = Category.objects.get_or_create(
+                name="Interiérový dizajn",
+                parent=None,
+                defaults={'slug': 'interierovy-dizajn', 'is_active': True}
+            )
 
-            # B. Zoznam kategórií na "odstrel"
+            # B. Zoznam kategórií na "odstrel" (Presun a vymazanie)
+            # Sem píšeme presné názvy kategórií, ktoré robia bordel (importované alebo staré)
             bad_categories_names = [
-                "Nábytok a Bývanie", "Nábytok", "Kancelária a Nábytok", "Dom a záhrada"
+                "Nábytok a Bývanie",       # Importované z CJ
+                "Nábytok",                 # Stará root kategória
+                "Kancelária a Nábytok",    # Iný import
+                "Dom a záhrada"            # Starý názov
             ]
 
-            # C. Riešenie ROOT duplicít
+            # C. Riešenie ROOT duplicít (Hlavné kategórie)
             for bad_name in bad_categories_names:
+                # Nájdi všetky root kategórie s týmto názvom (okrem našej cieľovej)
                 bad_cats = Category.objects.filter(name__iexact=bad_name, parent=None).exclude(id=target_furniture.id)
+                
                 for bad_cat in bad_cats:
                     self.stdout.write(f"   🧹 Zlučujem root '{bad_cat.name}' -> 'Interiérový dizajn'")
+                    
+                    # 1. Presuň všetky podkategórie pod nového rodiča
                     for child in bad_cat.children.all():
                         child.parent = target_furniture
                         child.save()
+                    
+                    # 2. Presuň všetky priame produkty
                     Product.objects.filter(category=bad_cat).update(category=target_furniture)
+                    
+                    # 3. Zmaž starú kategóriu
                     bad_cat.delete()
 
             # D. Riešenie VNORENEJ duplicity (Bývanie a doplnky -> Nábytok)
+            # Toto je častý problém Heureka stromu, kde je Nábytok pod Bývaním
             housing_cat = Category.objects.filter(name="Bývanie a doplnky", parent=None).first()
             if housing_cat:
                 nested_furniture = Category.objects.filter(name="Nábytok", parent=housing_cat).first()
                 if nested_furniture:
                     self.stdout.write("   🧹 Zlučujem vnorenú 'Bývanie -> Nábytok' -> 'Interiérový dizajn'")
+                    
+                    # Presun podkategórií (Stoly, Stoličky...) z vnorenej do hlavnej
                     for child in nested_furniture.children.all():
                         child.parent = target_furniture
                         child.save()
+                    
+                    # Presun produktov
                     Product.objects.filter(category=nested_furniture).update(category=target_furniture)
+                    
+                    # Výmaz
                     nested_furniture.delete()
 
-        self.stdout.write(self.style.SUCCESS("✅ HOTOVO. Architekt dobehol úspešne."))
+            # E. Premenovanie cieľovej kategórie na niečo pekné (voliteľné)
+            target_furniture.name = "Interiérový dizajn" 
+            target_furniture.save()
+
+        self.stdout.write(self.style.SUCCESS("✅ HOTOVO. Nábytok je teraz zjednotený pod 'Interiérový dizajn'."))

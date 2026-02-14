@@ -5,7 +5,7 @@ from django.db.models import Count, Q
 from django.db import transaction
 
 class Command(BaseCommand):
-    help = 'PRECISION SORTER v6.1: ULTIMATE EDITION - Kompletné pravidlá pre celý e-shop.'
+    help = 'PRECISION SORTER v6.0: ULTIMATE EDITION - Kompletné pravidlá pre celý e-shop.'
 
     def handle(self, *args, **kwargs):
         self.stdout.write("🦁 PRECISION SORTER: Štartujem masívnu analýzu produktov...")
@@ -383,20 +383,20 @@ class Command(BaseCommand):
                     
                     if best_category: break # Našli sme zhodu, ideme na ďalší produkt
 
-                # Ak sme našli lepšiu kategóriu, než má produkt teraz, zmeníme ju
-                if best_category and product.category != best_category:
-                    product.category = best_category
-                    batch.append(product)
-                    matched += 1
-                
-                processed += 1
-                if len(batch) >= BATCH_SIZE:
-                    Product.objects.bulk_update(batch, ['category'])
-                    batch = []
-                    self.stdout.write(f"   ...analyzovaných {processed}/{total} (Pretriedené: {matched})")
-
-            if batch:
+            # Ak sme našli lepšiu kategóriu, než má produkt teraz, zmeníme ju
+            if best_category and product.category != best_category:
+                product.category = best_category
+                batch.append(product)
+                matched += 1
+            
+            processed += 1
+            if len(batch) >= BATCH_SIZE:
                 Product.objects.bulk_update(batch, ['category'])
+                batch = []
+                self.stdout.write(f"   ...analyzovaných {processed}/{total} (Pretriedené: {matched})")
+
+        if batch:
+            Product.objects.bulk_update(batch, ['category'])
         
         self.stdout.write(self.style.SUCCESS(f"✅ TRIEDENIE HOTOVÉ. Zmenená kategória u {matched} produktov."))
 
@@ -405,35 +405,32 @@ class Command(BaseCommand):
         # =========================================================================
         self.stdout.write("👁️  SMART ACTIVATOR: Analyzujem štruktúru webu...")
         
-        # 1. Reset: Všetko skryjeme (aby sme nezobrazovali prázdne)
+        # 1. Reset: Všetko skryjeme
         Category.objects.update(is_active=False)
         
-        # 2. Získame ID kategórií, v ktorých je ASPOŇ JEDEN PRODUKT
-        # (Zmenili sme logiku: stačí, že tam je produkt, nemusí mať Active Offer)
-        active_cat_ids = Product.objects.values_list('category_id', flat=True).distinct()
+        # 2. Nájdeme kategórie, ktoré majú produkty s aktívnymi ponukami
+        # (Tým vyradíme kategórie, kde sú len "mŕtve" produkty bez ceny)
+        active_cat_ids = Product.objects.filter(offers__active=True).values_list('category_id', flat=True).distinct()
         
-        # Zapneme "Leaf" kategórie (tie, čo majú produkty)
-        count_leaf = Category.objects.filter(id__in=active_cat_ids).update(is_active=True)
-        self.stdout.write(f"   -> Aktivovaných {count_leaf} koncových kategórií (majú tovar).")
-
-        # 3. Rekurzívne zapneme rodičov (Bublanie hore)
-        self.stdout.write("🌲 Budujem navigačný strom smerom nahor...")
+        # Zapneme "Leaf" kategórie (tie čo majú produkty)
+        Category.objects.filter(id__in=active_cat_ids).update(is_active=True)
         
-        parents_activated_total = 0
+        # 3. Rekurzívne zapneme rodičov (aby sa dalo preklikať v menu)
+        self.stdout.write("🌲 Budujem navigačný strom...")
+        
+        # Cyklus beží, kým nachádza neaktívnych rodičov aktívnych detí
         changed = True
         while changed:
-            # Nájdi rodičov, ktorí sú False (skrytí), ale majú aspoň jedno dieťa True (viditeľné)
-            parents_to_wake = Category.objects.filter(
+            # Nájdi rodičov, ktorí sú False, ale majú dieťa True
+            inactive_parents = Category.objects.filter(
                 is_active=False, 
                 children__is_active=True
             ).distinct()
             
-            count = parents_to_wake.count()
-            if count > 0:
-                parents_to_wake.update(is_active=True)
-                parents_activated_total += count
+            if inactive_parents.exists():
+                inactive_parents.update(is_active=True)
             else:
-                changed = False # Už nie je koho zobudiť, končíme
+                changed = False
 
         visible_count = Category.objects.filter(is_active=True).count()
-        self.stdout.write(self.style.SUCCESS(f"🎉 KOMPLET HOTOVO! Váš e-shop teraz zobrazuje {visible_count} kategórií."))
+        self.stdout.write(self.style.SUCCESS(f"🎉 KOMPLET HOTOVO! Váš e-shop teraz zobrazuje {visible_count} relevantných kategórií."))
