@@ -29,7 +29,7 @@ class Command(BaseCommand):
         CJ_WEBSITE_ID = "101646612"     
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
         
-        LIMIT = 5000
+        LIMIT = 1000
         API_URL = "https://ads.api.cj.com/query"
         
         self.stdout.write(f"⏳ Pripájam sa na CJ API ({SHOP_NAME})...")
