@@ -5,7 +5,7 @@ from django.db.models import Count, Q
 from django.db import transaction
 
 class Command(BaseCommand):
-    help = 'PRECISION SORTER v6.0: ULTIMATE EDITION - Kompletné pravidlá pre celý e-shop.'
+    help = 'PRECISION SORTER v6.2 (FULL + MEMORY SAFE): Kompletné pravidlá + bezpečné streamovanie produktov.'
 
     def handle(self, *args, **kwargs):
         self.stdout.write("🦁 PRECISION SORTER: Štartujem masívnu analýzu produktov...")
@@ -347,19 +347,21 @@ class Command(BaseCommand):
             if match:
                 target_map[rule_name] = match
 
-        # --- KROK 2: APLIKÁCIA PRAVIDIEL (TRIEDENIE) ---
-        self.stdout.write("⚙️ Spúšťam triediaci algoritmus...")
+        # --- KROK 2: APLIKÁCIA PRAVIDIEL (MEMORY SAFE TRIEDENIE) ---
+        self.stdout.write("⚙️ Spúšťam triediaci algoritmus (Memory Safe Mode)...")
         
-        products = Product.objects.all()
-        total = products.count()
+        total = Product.objects.count()
         processed = 0
         matched = 0
         
         batch = []
         BATCH_SIZE = 1000
 
+        # 🚀 OPRAVA: Používame .iterator(), aby sme nezahlili RAM
+        products_iterator = Product.objects.all().iterator(chunk_size=2000)
+
         with transaction.atomic():
-            for product in products:
+            for product in products_iterator:
                 p_name = product.name.lower()
                 best_category = None
                 
@@ -367,7 +369,7 @@ class Command(BaseCommand):
                 for rule_cat, logic in RULES.items():
                     if rule_cat not in target_map: continue
                     
-                    # 1. OUT Check (Vylučovacia logika)
+                    # 1. OUT Check
                     is_excluded = False
                     for bad_word in logic['out']:
                         if bad_word.lower() in p_name:
@@ -375,28 +377,31 @@ class Command(BaseCommand):
                             break
                     if is_excluded: continue
                     
-                    # 2. IN Check (Inkluzívna logika)
+                    # 2. IN Check
                     for keyword in logic['in']:
                         if keyword.lower() in p_name:
                             best_category = target_map[rule_cat]
                             break
                     
-                    if best_category: break # Našli sme zhodu, ideme na ďalší produkt
+                    if best_category: break 
 
-            # Ak sme našli lepšiu kategóriu, než má produkt teraz, zmeníme ju
-            if best_category and product.category != best_category:
-                product.category = best_category
-                batch.append(product)
-                matched += 1
-            
-            processed += 1
-            if len(batch) >= BATCH_SIZE:
+                # Zmena kategórie
+                if best_category and product.category != best_category:
+                    product.category = best_category
+                    batch.append(product)
+                    matched += 1
+                
+                processed += 1
+                
+                # Ukladanie po dávkach
+                if len(batch) >= BATCH_SIZE:
+                    Product.objects.bulk_update(batch, ['category'])
+                    batch = [] # Vyprázdnime RAM
+                    self.stdout.write(f"   ...analyzovaných {processed}/{total} (Pretriedené: {matched})")
+
+            # Uložíme zvyšok
+            if batch:
                 Product.objects.bulk_update(batch, ['category'])
-                batch = []
-                self.stdout.write(f"   ...analyzovaných {processed}/{total} (Pretriedené: {matched})")
-
-        if batch:
-            Product.objects.bulk_update(batch, ['category'])
         
         self.stdout.write(self.style.SUCCESS(f"✅ TRIEDENIE HOTOVÉ. Zmenená kategória u {matched} produktov."))
 
@@ -408,29 +413,41 @@ class Command(BaseCommand):
         # 1. Reset: Všetko skryjeme
         Category.objects.update(is_active=False)
         
-        # 2. Nájdeme kategórie, ktoré majú produkty s aktívnymi ponukami
-        # (Tým vyradíme kategórie, kde sú len "mŕtve" produkty bez ceny)
-        active_cat_ids = Product.objects.filter(offers__active=True).values_list('category_id', flat=True).distinct()
+        # 2. Nájdeme kategórie, ktoré majú produkty (akékoľvek)
+        active_cat_ids = Product.objects.values_list('category_id', flat=True).distinct()
         
         # Zapneme "Leaf" kategórie (tie čo majú produkty)
-        Category.objects.filter(id__in=active_cat_ids).update(is_active=True)
+        count_leaf = Category.objects.filter(id__in=active_cat_ids).update(is_active=True)
+        self.stdout.write(f"   -> Aktivovaných {count_leaf} koncových kategórií (majú tovar).")
+
+        # 3. Rekurzívne zapneme rodičov
+        self.stdout.write("🌲 Budujem navigačný strom smerom nahor...")
         
-        # 3. Rekurzívne zapneme rodičov (aby sa dalo preklikať v menu)
-        self.stdout.write("🌲 Budujem navigačný strom...")
-        
-        # Cyklus beží, kým nachádza neaktívnych rodičov aktívnych detí
         changed = True
         while changed:
             # Nájdi rodičov, ktorí sú False, ale majú dieťa True
-            inactive_parents = Category.objects.filter(
+            parents_to_wake = Category.objects.filter(
                 is_active=False, 
                 children__is_active=True
             ).distinct()
             
-            if inactive_parents.exists():
-                inactive_parents.update(is_active=True)
+            count = parents_to_wake.count()
+            if count > 0:
+                parents_to_wake.update(is_active=True)
             else:
                 changed = False
 
+        # =========================================================================
+        # 🚑 ZÁCHRANNÁ BRZDA (SAFETY FALLBACK)
+        # =========================================================================
         visible_count = Category.objects.filter(is_active=True).count()
-        self.stdout.write(self.style.SUCCESS(f"🎉 KOMPLET HOTOVO! Váš e-shop teraz zobrazuje {visible_count} relevantných kategórií."))
+        
+        if visible_count == 0:
+            self.stdout.write(self.style.WARNING("⚠️ POZOR: Automatika nenašla produkty, aktivujem aspoň hlavné menu!"))
+            root_cats = Category.objects.filter(parent=None)
+            root_cats.update(is_active=True)
+            Category.objects.filter(parent__in=root_cats).update(is_active=True)
+            final_count = Category.objects.filter(is_active=True).count()
+            self.stdout.write(self.style.SUCCESS(f"✅ Núdzovo aktivovaných {final_count} kategórií."))
+        else:
+            self.stdout.write(self.style.SUCCESS(f"🎉 KOMPLET HOTOVO! Váš e-shop zobrazuje {visible_count} kategórií."))
