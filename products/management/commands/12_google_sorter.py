@@ -13,7 +13,7 @@ class Command(BaseCommand):
         # ==============================================================================
         # 👇👇👇 SEM VLOŽ TVOJ ODKAZ Z GOOGLE SHEETS (PUBLISH TO WEB -> CSV) 👇👇👇
         # ==============================================================================
-        SHEET_URL = "SEM_VLOZ_TVhttps://docs.google.com/spreadsheets/d/e/2PACX-1vSQyXzkFCoyV5w2J36oMvrba9EhjyzrmLyBBk9UkyFpHEVYWbaFMqewAU9N91hDvUR_f-0wDseQgbKD/pub?output=csvOJ_DLHY_ODKAZ_Z_GOOGLE_SHEETS"
+        SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQyXzkFCoyV5w2J36oMvrba9EhjyzrmLyBBk9UkyFpHEVYWbaFMqewAU9N91hDvUR_f-0wDseQgbKD/pub?output=csv"
         # ==============================================================================
 
         self.stdout.write("📊 Sťahujem pravidlá z Google Sheets...")
