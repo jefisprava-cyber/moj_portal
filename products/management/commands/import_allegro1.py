@@ -20,7 +20,7 @@ class Command(BaseCommand):
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
         
         BATCH_SIZE = 500       # Bezpečná dávka pre RAM
-        MAX_TOTAL = 100000     # Koľko produktov chceme celkovo (stopka)
+        MAX_TOTAL = 1000    # Cieľový počet produktov
         API_URL = "https://ads.api.cj.com/query"
         
         self.stdout.write(f"🚀 Štartujem AUTOMATICKÝ IMPORT z {SHOP_NAME}...")
@@ -37,9 +37,8 @@ class Command(BaseCommand):
         page = 1
         
         while total_saved < MAX_TOTAL:
-            self.stdout.write(f"\n🔄 Sťahujem STRÁNKU {page} (Produkty {total_saved} - {total_saved + BATCH_SIZE})...")
+            self.stdout.write(f"\n🔄 Sťahujem STRÁNKU {page} (Dávka {BATCH_SIZE} ks)...")
 
-            # Upravené Query s podporou "page"
             query = """
             query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $page: Int, $pid: ID!) {
                 products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit, page: $page) {
@@ -98,7 +97,7 @@ class Command(BaseCommand):
                         raw_category_text = item.get('productType') or ""
                         ean = item.get('gtin') or ""
 
-                        # Hľadáme existujúci produkt (podľa EAN alebo Názvu)
+                        # Hľadáme existujúci produkt
                         product = None
                         if ean and len(ean) > 6:
                             product = Product.objects.filter(ean=ean).first()
@@ -136,17 +135,17 @@ class Command(BaseCommand):
                     except Exception: continue
 
                 total_saved += count_in_batch
-                self.stdout.write(f"   ✅ Uložených nových: {count_in_batch} (Celkovo: {total_saved})")
+                self.stdout.write(f"   ✅ Uložených v dávke: {count_in_batch} (Celkovo: {total_saved})")
                 
                 # Posun na ďalšiu stranu
                 page += 1
                 
-                # Čistenie pamäte (Aby server nepadol)
-                products_data = None
-                response = None
+                # Čistenie pamäte
+                del products_data
+                del response
                 gc.collect() 
                 
-                # Pauza pre slušnosť k API
+                # Pauza
                 time.sleep(1)
 
             except Exception as e:
