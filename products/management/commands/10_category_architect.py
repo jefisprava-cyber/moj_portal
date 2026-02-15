@@ -6,12 +6,34 @@ from django.utils.text import slugify
 from django.db import transaction
 
 class Command(BaseCommand):
-    help = 'ARCHITEKT v5.1 (FIXED): Buduje strom a bezpečne rieši unikátnosť slugov.'
+    help = 'ARCHITEKT v6.0 (CLEANER): Zmaže duplicity, zachráni produkty a postaví čistý strom.'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("🏗️  ARCHITEKT: Začínam kompletnú rekonštrukciu webu...")
+        self.stdout.write("🏗️  ARCHITEKT: Začínam rekonštrukciu webu...")
 
-        # 1. MAPA PREMENOVANIA
+        # -------------------------------------------------------
+        # 0. NUKLEÁRNE ČISTENIE (Oprava duplicít)
+        # -------------------------------------------------------
+        self.stdout.write("🧹 KROK 1: Čistím staré a duplicitné kategórie...")
+        
+        # Vytvoríme záchrannú kategóriu
+        safe_cat, _ = Category.objects.get_or_create(
+            name="NEZARADENÉ", 
+            slug="nezaradene-temp",
+            defaults={'is_active': False}
+        )
+
+        # Presunieme tam VŠETKY produkty (aby sa nezmazali s kategóriami)
+        count = Product.objects.exclude(category=safe_cat).update(category=safe_cat)
+        self.stdout.write(f"   📦 {count} produktov presunutých do bezpečia (NEZARADENÉ).")
+
+        # Zmažeme všetko okrem záchrannej kategórie
+        deleted, _ = Category.objects.exclude(id=safe_cat.id).delete()
+        self.stdout.write(f"   🗑️  Zmazaných {deleted} starých kategórií (vrátane duplicít).")
+
+        # -------------------------------------------------------
+        # 1. PRÍPRAVA MAPY PREMENOVANIA
+        # -------------------------------------------------------
         REMIX_MAP = {
             'Auto-moto': 'Motoristický svet',
             'Dom a záhrada': 'Bývanie a doplnky',
@@ -31,7 +53,7 @@ class Command(BaseCommand):
         url = "https://www.heureka.sk/direct/xml-export/shops/heureka-sekce.xml"
         
         try:
-            self.stdout.write("🌍 Sťahujem definíciu stromu...")
+            self.stdout.write("🌍 Sťahujem definíciu nového stromu...")
             response = requests.get(url)
             response.encoding = 'utf-8'
             root = ET.fromstring(response.content)
@@ -40,11 +62,8 @@ class Command(BaseCommand):
             return
 
         with transaction.atomic():
-            # Reset viditeľnosti
-            Category.objects.update(is_active=False)
-
             # -------------------------------------------------------
-            # 2. VÝSTAVBA ŠTANDARDNÉHO STROMU (S OPRAVOU SLUGOV)
+            # 2. VÝSTAVBA NOVÉHO STROMU
             # -------------------------------------------------------
             for category in root.findall('.//CATEGORY'):
                 full_path_node = category.find('CATEGORY_FULLNAME')
@@ -66,26 +85,20 @@ class Command(BaseCommand):
                     part_name = part.strip()
                     if not part_name: continue
 
-                    # --- OPRAVENÁ LOGIKA: Manuálna kontrola namiesto get_or_create ---
-                    # 1. Najprv skúsime nájsť existujúcu kategóriu podľa mena a rodiča
+                    # Hľadáme existujúcu alebo vytvoríme novú
                     cat = Category.objects.filter(name=part_name, parent=current_parent).first()
                     
                     if not cat:
-                        # 2. Ak neexistuje, musíme ju vytvoriť, ale so SLUGOM, ktorý je voľný
                         base_slug = slugify(part_name)
                         if current_parent:
-                            # Pre podkategórie skúsime pridať slug rodiča pre lepšiu unikátnosť
                             base_slug = slugify(f"{current_parent.slug}-{part_name}")[:200]
                         
                         slug = base_slug
                         counter = 1
-                        
-                        # Cyklus kontroluje, či je slug voľný v CELEJ tabuľke
                         while Category.objects.filter(slug=slug).exists():
                             slug = f"{base_slug}-{counter}"
                             counter += 1
                         
-                        # Teraz bezpečne vytvoríme
                         cat = Category.objects.create(
                             name=part_name,
                             parent=current_parent,
@@ -98,47 +111,34 @@ class Command(BaseCommand):
             self.stdout.write("✅ Strom postavený. Teraz idem zlučovať nábytok.")
 
             # -------------------------------------------------------
-            # 3. AGRESÍVNE ZJEDNOTENIE NÁBYTKU
+            # 3. ZJEDNOTENIE NÁBYTKU
             # -------------------------------------------------------
-            
             target_slug = 'interierovy-dizajn'
-            # Check if target exists properly
             target_furniture = Category.objects.filter(slug=target_slug).first()
+            
+            # Ak náhodou neexistuje (napr. chyba v Heureka feede), vytvoríme ho
             if not target_furniture:
                  target_furniture = Category.objects.create(
                     name="Interiérový dizajn",
                     parent=None,
                     slug=target_slug,
-                    is_active=True
+                    is_active=False
                 )
 
-            bad_categories_names = [
-                "Nábytok a Bývanie", "Nábytok", "Kancelária a Nábytok", "Dom a záhrada"
-            ]
+            bad_categories_names = ["Nábytok a Bývanie", "Nábytok", "Kancelária a Nábytok", "Dom a záhrada"]
 
             for bad_name in bad_categories_names:
                 bad_cats = Category.objects.filter(name__iexact=bad_name, parent=None).exclude(id=target_furniture.id)
                 for bad_cat in bad_cats:
-                    self.stdout.write(f"   🧹 Zlučujem root '{bad_cat.name}' -> 'Interiérový dizajn'")
                     for child in bad_cat.children.all():
                         child.parent = target_furniture
                         child.save()
+                    # Presun produktov
                     Product.objects.filter(category=bad_cat).update(category=target_furniture)
                     bad_cat.delete()
-
-            housing_cat = Category.objects.filter(name="Bývanie a doplnky", parent=None).first()
-            if housing_cat:
-                nested_furniture = Category.objects.filter(name="Nábytok", parent=housing_cat).first()
-                if nested_furniture:
-                    self.stdout.write("   🧹 Zlučujem vnorenú 'Bývanie -> Nábytok' -> 'Interiérový dizajn'")
-                    for child in nested_furniture.children.all():
-                        child.parent = target_furniture
-                        child.save()
-                    Product.objects.filter(category=nested_furniture).update(category=target_furniture)
-                    nested_furniture.delete()
             
             # Premenovanie na pekný názov
             target_furniture.name = "Interiérový dizajn"
             target_furniture.save()
 
-        self.stdout.write(self.style.SUCCESS("✅ HOTOVO. Architekt dobehol úspešne."))
+        self.stdout.write(self.style.SUCCESS("✅ HOTOVO. Starý bordel je preč, nový strom stojí."))
