@@ -11,7 +11,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         # ==============================================================================
-        # 👇👇👇 SEM VLOŽ TVOJ ODKAZ Z GOOGLE SHEETS (PUBLISH TO WEB -> CSV) 👇👇👇
+        # 👇👇👇 VLOŽ ODKAZ Z GOOGLE SHEETS (PUBLISH TO WEB -> CSV) 👇👇👇
         # ==============================================================================
         SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQyXzkFCoyV5w2J36oMvrba9EhjyzrmLyBBk9UkyFpHEVYWbaFMqewAU9N91hDvUR_f-0wDseQgbKD/pub?output=csv"
         # ==============================================================================
@@ -34,53 +34,76 @@ class Command(BaseCommand):
         # ------------------------------------------------------------------
         self.stdout.write("🌳 FÁZA 1: Budujem strom kategórií (vrátane L4 a L5)...")
         
-        # Mapa: ID z tabuľky -> Reálny objekt Category v databáze
-        # ID 0 je "koreň" (None)
-        parent_map = {'0': None} 
+        # Mapa: Názov kategórie -> Objekt kategórie (pre rýchle vyhľadávanie rodičov)
+        # Používame slovník { "Názov": CategoryObject }
+        category_map = {}
 
-        # Zoradíme podľa ID, aby sme vždy najprv vytvorili rodiča, až potom dieťa
-        # Predpokladáme, že v tabuľke má rodič vždy menšie ID ako dieťa, alebo sú zoradené
-        # Ak nie sú, bolo by treba viac prechodov. Pre istotu triedime podľa ID (ak je numerické).
-        try:
-            rules.sort(key=lambda x: int(x['ID']) if x['ID'].isdigit() else 999999)
-        except:
-            pass # Ak ID nie sú čísla, necháme pôvodné poradie
+        # Najprv si načítame existujúce kategórie do pamäte, aby sme nerobili zbytočné queries
+        for cat in Category.objects.all():
+            category_map[cat.name] = cat
 
         for row in rules:
             # 1. Zistíme NÁZOV (Prechádzame L1 -> L5)
             cat_name = ""
-            if row.get('L1', '').strip(): cat_name = row['L1'].strip()
-            elif row.get('L2', '').strip(): cat_name = row['L2'].strip()
-            elif row.get('L3', '').strip(): cat_name = row['L3'].strip()
-            elif row.get('L4', '').strip(): cat_name = row['L4'].strip() # <--- NOVÉ
-            elif row.get('L5', '').strip(): cat_name = row['L5'].strip() # <--- NOVÉ
+            level = 0
+            if row.get('L1', '').strip(): 
+                cat_name = row['L1'].strip()
+                level = 1
+            elif row.get('L2', '').strip(): 
+                cat_name = row['L2'].strip()
+                level = 2
+            elif row.get('L3', '').strip(): 
+                cat_name = row['L3'].strip()
+                level = 3
+            elif row.get('L4', '').strip(): 
+                cat_name = row['L4'].strip() # <--- NOVÉ
+                level = 4
+            elif row.get('L5', '').strip(): 
+                cat_name = row['L5'].strip() # <--- NOVÉ
+                level = 5
             
             if not cat_name:
                 continue
 
-            # 2. Zistíme RODIČA
-            parent_id_csv = row.get('RODIC', '0').strip()
-            parent_obj = parent_map.get(parent_id_csv)
+            # 2. Zistíme RODIČA (zo stĺpca RODIC)
+            parent_name_csv = row.get('RODIC', '').strip()
+            parent_obj = None
+
+            if parent_name_csv:
+                # Skúsime nájsť rodiča v našej mape
+                parent_obj = category_map.get(parent_name_csv)
+                
+                # Ak rodič v mape nie je (čo by sa nemalo stať, ak je tabuľka dobre zoradená),
+                # skúsime ho vytvoriť "na slepo" alebo ho nájsť v DB.
+                if not parent_obj:
+                    # Fallback: vytvoríme rodiča, ak neexistuje
+                    parent_slug = slugify(parent_name_csv)[:50]
+                    parent_obj, _ = Category.objects.get_or_create(
+                        name=parent_name_csv,
+                        defaults={'slug': parent_slug, 'is_active': False}
+                    )
+                    category_map[parent_name_csv] = parent_obj
 
             # 3. Vytvoríme alebo získame kategóriu
-            my_slug = slugify(cat_name)
-            # Unikátny slug pre istotu (ak by boli rovnaké názvy v rôznych vetvách)
+            base_slug = slugify(cat_name)[:50]
+            # Unikátny slug pre istotu
             if parent_obj:
-                my_slug = f"{parent_obj.slug}-{my_slug}"[:200] 
+                my_slug = f"{parent_obj.slug}-{base_slug}"[:200]
+            else:
+                my_slug = base_slug
 
+            # Update or Create
             category, created = Category.objects.update_or_create(
-                slug=my_slug,
+                name=cat_name,
                 defaults={
-                    'name': cat_name,
+                    'slug': my_slug,
                     'parent': parent_obj,
-                    'is_active': False # Zatiaľ skryté, aktivujeme na konci ak má produkty
+                    'is_active': False 
                 }
             )
-
-            # 4. Uložíme si mapping pre deti
-            my_id_csv = row.get('ID', '').strip()
-            if my_id_csv:
-                parent_map[my_id_csv] = category
+            
+            # Uložíme do mapy pre ďalšie použitie (ako rodiča pre ďalšie levely)
+            category_map[cat_name] = category
 
         self.stdout.write(self.style.SUCCESS("✅ Strom postavený."))
 
@@ -92,7 +115,7 @@ class Command(BaseCommand):
         total_updated = 0
 
         for row in rules:
-            # Znova zistíme názov kategórie, aby sme vedeli, kam hádzať produkty
+            # Znova zistíme názov kategórie
             cat_name = ""
             if row.get('L1', '').strip(): cat_name = row['L1'].strip()
             elif row.get('L2', '').strip(): cat_name = row['L2'].strip()
@@ -102,16 +125,18 @@ class Command(BaseCommand):
             
             if not cat_name: continue
 
-            # Nájdi ID tejto kategórie v našej mape
-            my_id_csv = row.get('ID', '').strip()
-            target_cat = parent_map.get(my_id_csv)
+            # Nájdi objekt kategórie
+            target_cat = category_map.get(cat_name)
 
             if not target_cat:
                 continue
 
             # Načítanie kľúčových slov
-            keywords_in_raw = row.get('KLUCOVE_SLOVA_IN', '')
-            keywords_out_raw = row.get('KLUCOVE_SLOVA_OUT', '')
+            keywords_in_raw = row.get('IN', '') # V tabuľke sa stĺpec volá "IN (Kľúčové slovo)" alebo len "IN"? Uprav podľa CSV.
+            keywords_out_raw = row.get('OUT', '')
+
+            # Fallback ak sa stlpec vola inak
+            if not keywords_in_raw: keywords_in_raw = row.get('IN (Kľúčové slovo)', '')
 
             if not keywords_in_raw:
                 continue
@@ -139,14 +164,12 @@ class Command(BaseCommand):
             query_out = Q()
             for kw in keywords_out: query_out |= Q(name__icontains=kw)
 
-            # Update
-            products_to_update = Product.objects.filter(final_in_query).exclude(query_out)
+            # Update - neprepíše ak už je správne
+            products_to_update = Product.objects.filter(final_in_query).exclude(query_out).exclude(category=target_cat)
             count = products_to_update.update(category=target_cat)
             
             if count > 0:
                 total_updated += count
-                # Voliteľné: Výpis pre kontrolu (spomaľuje pri tisíckach)
-                # self.stdout.write(f"   -> {cat_name}: +{count} produktov")
 
         self.stdout.write(self.style.SUCCESS(f"🏁 HOTOVO. Zatriedených {total_updated} produktov."))
         
@@ -155,9 +178,7 @@ class Command(BaseCommand):
         # ------------------------------------------------------------------
         self.stdout.write("💡 Aktivujem kategórie, ktoré majú produkty...")
         
-        # Reset všetkých na False (aby sme skryli prázdne)
-        # Pozor: Toto skryje aj kategórie z Precision Sortera, ak nemajú produkty.
-        # Ak chceš kombinovať, možno tento reset vynechaj alebo uprav.
+        # Skryjeme všetko okrem koreňových
         Category.objects.update(is_active=False)
 
         # Nájdi kategórie, ktoré majú aspoň 1 produkt
@@ -166,11 +187,14 @@ class Command(BaseCommand):
         # Aktivuj ich
         Category.objects.filter(id__in=active_ids).update(is_active=True)
 
-        # Aktivuj aj ich rodičov (aby sa dalo preklikať)
-        # Toto je jednoduchý cyklus, pre hlboký strom (L5) treba možno opakovať
-        for i in range(5): # 5x prejdeme strom hore, aby sme chytili L5->L4->L3->L2->L1
-            parents = Category.objects.filter(children__is_active=True).distinct()
-            parents.update(is_active=True)
+        # Aktivuj rodičov rekurzívne
+        changed = True
+        while changed:
+            parents = Category.objects.filter(is_active=False, children__is_active=True)
+            if parents.exists():
+                parents.update(is_active=True)
+            else:
+                changed = False
 
         visible_count = Category.objects.filter(is_active=True).count()
         self.stdout.write(self.style.SUCCESS(f"✅ Vo finále je aktívnych {visible_count} kategórií."))
