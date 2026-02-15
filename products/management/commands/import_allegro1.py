@@ -6,10 +6,10 @@ from django.utils.text import slugify
 from decimal import Decimal
 import uuid
 import time
-import gc # Garbage Collector na čistenie pamäte
+import gc
 
 class Command(BaseCommand):
-    help = 'Import Allegro - AUTOMAT (Sťahuje po 500 ks až do 100 000)'
+    help = 'Import Allegro - AUTOMAT (Sťahuje po 500 ks cez OFFSET)'
 
     def handle(self, *args, **kwargs):
         # --- NASTAVENIA ---
@@ -19,8 +19,8 @@ class Command(BaseCommand):
         CJ_WEBSITE_ID = "101646612"     
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
         
-        BATCH_SIZE = 500       # Bezpečná dávka pre RAM
-        MAX_TOTAL = 1000    # Cieľový počet produktov
+        BATCH_SIZE = 500       # Dávka
+        MAX_TOTAL = 100000     # Cieľ
         API_URL = "https://ads.api.cj.com/query"
         
         self.stdout.write(f"🚀 Štartujem AUTOMATICKÝ IMPORT z {SHOP_NAME}...")
@@ -32,16 +32,20 @@ class Command(BaseCommand):
             defaults={'name': "NEZARADENÉ", 'is_active': False}
         )
 
-        # 2. Slučka cez stránky (Paginácia)
+        # 2. Slučka
         total_saved = 0
         page = 1
         
         while total_saved < MAX_TOTAL:
-            self.stdout.write(f"\n🔄 Sťahujem STRÁNKU {page} (Dávka {BATCH_SIZE} ks)...")
+            # Vypočítame OFFSET (koľko produktov preskočiť)
+            current_offset = (page - 1) * BATCH_SIZE
+            
+            self.stdout.write(f"\n🔄 Sťahujem DÁVKU {page} (Offset: {current_offset})...")
 
+            # 👇👇👇 ZMENA: Používame 'offset' namiesto 'page' 👇👇👇
             query = """
-            query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $page: Int, $pid: ID!) {
-                products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit, page: $page) {
+            query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $offset: Int, $pid: ID!) {
+                products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit, offset: $offset) {
                     totalCount
                     resultList {
                         title
@@ -63,7 +67,7 @@ class Command(BaseCommand):
                 "companyId": CJ_COMPANY_ID,
                 "pid": CJ_WEBSITE_ID,
                 "limit": BATCH_SIZE,
-                "page": page  # Posúvame sa na ďalšiu stranu
+                "offset": current_offset  # TOTO JE TÁ OPRAVA
             }
             headers = { "Authorization": f"Bearer {CJ_TOKEN}", "Content-Type": "application/json" }
 
@@ -72,18 +76,21 @@ class Command(BaseCommand):
                 
                 if response.status_code != 200:
                     self.stdout.write(self.style.ERROR(f"❌ Chyba API: {response.status_code}"))
+                    self.stdout.write(f"   Detail: {response.text[:200]}") # Vypíše detail chyby
                     time.sleep(5)
+                    # Ak je chyba 400 trvalá, breakneme, ale skúsime pokračovať
+                    if response.status_code == 400:
+                        break
                     continue
 
                 data = response.json()
                 products_data = data.get('data', {}).get('products', {}).get('resultList', [])
                 
-                # Ak API vráti prázdny zoznam, sme na konci
                 if not products_data:
                     self.stdout.write(self.style.SUCCESS("🏁 Koniec zoznamu (API už neposlalo žiadne dáta)."))
                     break
 
-                # Spracovanie dávky
+                # Spracovanie
                 count_in_batch = 0
                 for item in products_data:
                     try:
@@ -97,7 +104,6 @@ class Command(BaseCommand):
                         raw_category_text = item.get('productType') or ""
                         ean = item.get('gtin') or ""
 
-                        # Hľadáme existujúci produkt
                         product = None
                         if ean and len(ean) > 6:
                             product = Product.objects.filter(ean=ean).first()
@@ -105,7 +111,6 @@ class Command(BaseCommand):
                             product = Product.objects.filter(name=name).first()
 
                         if product:
-                            # UPDATE
                             product.price = price
                             if product.category.slug == "nezaradene-temp":
                                  product.category = safe_cat
@@ -113,7 +118,6 @@ class Command(BaseCommand):
                             product.original_category_text = raw_category_text
                             product.save()
                         else:
-                            # CREATE
                             unique_slug = f"{slugify(name)[:40]}-{str(uuid.uuid4())[:4]}"
                             product = Product.objects.create(
                                 name=name,
@@ -137,15 +141,10 @@ class Command(BaseCommand):
                 total_saved += count_in_batch
                 self.stdout.write(f"   ✅ Uložených v dávke: {count_in_batch} (Celkovo: {total_saved})")
                 
-                # Posun na ďalšiu stranu
                 page += 1
-                
-                # Čistenie pamäte
                 del products_data
                 del response
                 gc.collect() 
-                
-                # Pauza
                 time.sleep(1)
 
             except Exception as e:
