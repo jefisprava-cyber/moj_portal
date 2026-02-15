@@ -7,21 +7,21 @@ from decimal import Decimal
 import uuid
 
 class Command(BaseCommand):
-    help = 'Import Allegro - SAFE MODE (Nevytvára kategórie)'
+    help = 'Import Allegro - SAFE MODE (Len sťahuje, netriedi)'
 
     def handle(self, *args, **kwargs):
-        # Nastavenia
+        # --- NASTAVENIA ---
         SHOP_NAME = "Allegro"
         ADVERTISER_ID = "7167444" 
         CJ_COMPANY_ID = "7864372"       
         CJ_WEBSITE_ID = "101646612"     
         CJ_TOKEN = "O2uledg8fW-ArSOgXxt2jEBB0Q"
-        LIMIT = 1000
+        LIMIT = 2000  # Môžeš zvýšiť ak chceš viac produktov
         API_URL = "https://ads.api.cj.com/query"
         
         self.stdout.write(f"⏳ Pripájam sa na CJ API ({SHOP_NAME})...")
 
-        # 1. Získame/Vytvoríme záchrannú kategóriu (Jediné miesto kam to pôjde)
+        # 1. Získame záchrannú kategóriu
         safe_cat, _ = Category.objects.get_or_create(
             slug="nezaradene-temp", 
             defaults={'name': "NEZARADENÉ", 'is_active': False}
@@ -45,7 +45,6 @@ class Command(BaseCommand):
             }
         }
         """
-
         variables = {
             "partnerIds": [ADVERTISER_ID],
             "companyId": CJ_COMPANY_ID,
@@ -76,8 +75,7 @@ class Command(BaseCommand):
                     image_url = item.get('imageLink') or ""
                     affiliate_url = item.get('linkCode', {}).get('clickUrl', "")
                     
-                    # Tu uložíme pôvodný názov kategórie (napr. "Elektronika | Počítače")
-                    # ALE nevytvárame ju!
+                    # Uložíme pôvodný text kategórie (napr. "Heureka | Elektronika | Mobily")
                     raw_category_text = item.get('productType') or ""
                     ean = item.get('gtin') or ""
 
@@ -88,13 +86,15 @@ class Command(BaseCommand):
                     if not product:
                         product = Product.objects.filter(name=name).first()
 
-                    # Uloženie
+                    # Uloženie / Update
                     if product:
                         product.price = price
-                        # Nemmeníme kategóriu existujúcemu produktu, ak už je zatriedený!
-                        # Iba ak je v nezaradených, tak ho tam necháme.
+                        # Kategóriu nemeníme, ak už je zatriedený inam ako v Nezaradené
+                        if product.category.slug == "nezaradene-temp":
+                             product.category = safe_cat
+                        
                         if image_url: product.image_url = image_url
-                        product.original_category_text = raw_category_text
+                        product.original_category_text = raw_category_text # Aktualizujeme pomocný text
                         product.save()
                     else:
                         unique_slug = f"{slugify(name)[:40]}-{str(uuid.uuid4())[:4]}"
@@ -103,7 +103,7 @@ class Command(BaseCommand):
                             slug=unique_slug,
                             description=item.get('description') or "",
                             price=price,
-                            category=safe_cat, # VŽDY ide do NEZARADENÉ
+                            category=safe_cat, # VŽDY do Nezaradené
                             image_url=image_url,
                             ean=ean[:13],
                             original_category_text=raw_category_text
@@ -115,10 +115,9 @@ class Command(BaseCommand):
                         defaults={'price': price, 'url': affiliate_url, 'active': True}
                     )
                     count += 1
-
                 except Exception: continue
 
-            self.stdout.write(self.style.SUCCESS(f"🎉 Import hotový: {count} produktov v 'NEZARADENÉ'."))
+            self.stdout.write(self.style.SUCCESS(f"🎉 Import hotový: {count} produktov."))
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Chyba: {e}"))
