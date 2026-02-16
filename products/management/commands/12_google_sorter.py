@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.utils.text import slugify
 
 class Command(BaseCommand):
-    help = 'GOOGLE SORTER FINAL v3: Optimalizované triedenie s výpisom a viditeľným stromom.'
+    help = 'GOOGLE SORTER TURBO BULK: Načíta všetky zmeny do pamäte a zapíše ich naraz.'
 
     def handle(self, *args, **kwargs):
         # ==============================================================================
@@ -32,19 +32,20 @@ class Command(BaseCommand):
             return
 
         # ------------------------------------------------------------------
-        # FÁZA 1: BUDOVANIE STROMU KATEGÓRIÍ (vrátane L4 a L5)
+        # FÁZA 1: BUDOVANIE STROMU KATEGÓRIÍ (L1-L5)
         # ------------------------------------------------------------------
-        self.stdout.write("🌳 FÁZA 1: Budujem strom kategórií (L1-L5)...")
+        self.stdout.write("🌳 FÁZA 1: Budujem strom kategórií...")
         
-        # Mapa: Názov kategórie -> Objekt kategórie (pre rýchlosť)
-        category_map = {}
+        category_map = {} # Názov -> Objekt
+        category_id_map = {} # Názov -> ID (pre fázu 2)
 
-        # Načítame existujúce kategórie do pamäte
+        # Načítame existujúce
         for cat in Category.objects.all():
             category_map[cat.name] = cat
+            category_id_map[cat.name] = cat.id
 
         for row in rules:
-            # 1. Zistíme NÁZOV (L1 -> L5)
+            # 1. Zistíme NÁZOV
             cat_name = ""
             if row.get('L1', '').strip(): cat_name = row['L1'].strip()
             elif row.get('L2', '').strip(): cat_name = row['L2'].strip()
@@ -60,52 +61,49 @@ class Command(BaseCommand):
 
             if parent_name_csv:
                 parent_obj = category_map.get(parent_name_csv)
-                
-                # Fallback: ak rodič neexistuje, vytvoríme ho
                 if not parent_obj:
                     parent_slug = slugify(parent_name_csv)[:50]
+                    # Rodiča vytvoríme hneď ako AKTÍVNEHO
                     parent_obj, _ = Category.objects.get_or_create(
                         name=parent_name_csv,
-                        defaults={
-                            'slug': parent_slug, 
-                            'is_active': True # Rodič musí byť viditeľný
-                        }
+                        defaults={'slug': parent_slug, 'is_active': True}
                     )
                     category_map[parent_name_csv] = parent_obj
+                    category_id_map[parent_name_csv] = parent_obj.id
 
-            # 3. Vytvoríme/Aktualizujeme kategóriu
+            # 3. Vytvoríme/Update kategórie
             base_slug = slugify(cat_name)[:50]
             my_slug = f"{parent_obj.slug}-{base_slug}"[:200] if parent_obj else base_slug
 
-            # DÔLEŽITÉ: is_active=True znamená, že kategória bude hneď viditeľná na webe!
+            # Taktiež kategóriu vytvárame hneď ako AKTÍVNU
             category, created = Category.objects.update_or_create(
                 name=cat_name,
                 defaults={
                     'slug': my_slug,
                     'parent': parent_obj,
-                    'is_active': True 
+                    'is_active': True
                 }
             )
             category_map[cat_name] = category
+            category_id_map[cat_name] = category.id
 
-        self.stdout.write(self.style.SUCCESS("✅ Strom postavený (všetky kategórie sú nastavené ako viditeľné)."))
+        self.stdout.write(self.style.SUCCESS("✅ Strom postavený."))
 
         # ------------------------------------------------------------------
-        # FÁZA 2: TRIEDENIE PRODUKTOV
+        # FÁZA 2: PRÍPRAVA DÁT V PAMÄTI (RAM)
         # ------------------------------------------------------------------
-        self.stdout.write("🌪️  FÁZA 2: Triedim produkty podľa kľúčových slov...")
+        self.stdout.write("🧠 FÁZA 2: Analyzujem produkty (Bulk Logic)...")
 
-        total_updated = 0
+        # Slovník: { product_id : new_category_id }
+        product_updates_map = {}
+        
         total_rules = len(rules)
 
-        # Používame enumerate, aby sme videli číslo riadku
         for i, row in enumerate(rules, 1):
-            
-            # --- VÝPIS PRIEBEHU (aby si videl, že to nezamrzlo) ---
-            if i % 20 == 0:
-                self.stdout.write(f"⏳ Spracovávam pravidlo {i}/{total_rules}...")
+            if i % 50 == 0:
+                self.stdout.write(f"⏳ Analyzujem pravidlo {i}/{total_rules}...")
 
-            # Znova zistíme cieľovú kategóriu
+            # Zistenie cieľovej kategórie
             cat_name = ""
             if row.get('L1', '').strip(): cat_name = row['L1'].strip()
             elif row.get('L2', '').strip(): cat_name = row['L2'].strip()
@@ -114,61 +112,63 @@ class Command(BaseCommand):
             elif row.get('L5', '').strip(): cat_name = row['L5'].strip()
             
             if not cat_name: continue
+            
+            target_cat_id = category_id_map.get(cat_name)
+            if not target_cat_id: continue
 
-            # Rýchly lookup v mape (nevoláme DB)
-            target_cat = category_map.get(cat_name)
-            if not target_cat: continue
-
-            # Načítanie kľúčových slov
+            # Kľúčové slová
             keywords_in_raw = row.get('IN', '') or row.get('IN (Kľúčové slovo)', '')
             keywords_out_raw = row.get('OUT', '')
 
             if not keywords_in_raw: continue
 
-            # Rozdelenie slov
             keywords_in = [w.strip() for w in keywords_in_raw.split(',') if w.strip()]
             keywords_out = [w.strip() for w in keywords_out_raw.split(',') if w.strip()]
 
             if not keywords_in: continue
 
-            # --- TVORBA QUERY (Optimalizovaná) ---
+            # --- RÝCHLE ČÍTANIE (READ ONLY) ---
             
-            # 1. IN podmienka (Názov OR Pôvodná kategória)
             query_in = Q()
             for kw in keywords_in:
-                # Ak máš nastavené db_index=True v models.py, toto bude rýchle
                 query_in |= Q(name__icontains=kw) | Q(original_category_text__icontains=kw)
 
-            # 2. OUT podmienka (Vylučovacie slová)
             query_out = Q()
             for kw in keywords_out:
                 query_out |= Q(name__icontains=kw)
 
-            # 3. UPDATE
-            # Vyberieme produkty, ktoré spĺňajú IN, nespĺňajú OUT a nie sú už tam
-            products_to_update = Product.objects.filter(query_in).exclude(query_out).exclude(category=target_cat)
+            # Získame len IDčká produktov, ktoré sedia na pravidlo
+            matched_ids = Product.objects.filter(query_in).exclude(query_out).exclude(category_id=target_cat_id).values_list('id', flat=True)
+
+            # Uložíme do mapy v pamäti
+            for pid in matched_ids:
+                product_updates_map[pid] = target_cat_id
+
+        # ------------------------------------------------------------------
+        # FÁZA 3: HROMADNÝ ZÁPIS (BULK UPDATE)
+        # ------------------------------------------------------------------
+        count_to_update = len(product_updates_map)
+        self.stdout.write(self.style.WARNING(f"💾 FÁZA 3: Začínam hromadný zápis {count_to_update} produktov..."))
+
+        if count_to_update > 0:
+            # Pripravíme objekty na update
+            batch = []
+            for pid, new_cat_id in product_updates_map.items():
+                batch.append(Product(id=pid, category_id=new_cat_id))
             
-            count = products_to_update.update(category=target_cat)
+            # Django Bulk Update - toto je ten zázrak
+            # batch_size=1000 znamená, že to pošle do DB po 1000 kusoch
+            Product.objects.bulk_update(batch, ['category'], batch_size=1000)
             
-            if count > 0:
-                total_updated += count
+            self.stdout.write(self.style.SUCCESS(f"✅ Úspešne presunutých {count_to_update} produktov."))
+        else:
+            self.stdout.write("✨ Žiadne zmeny neboli potrebné.")
 
         end_time = time.time()
         duration = end_time - start_time
+        self.stdout.write(self.style.SUCCESS(f"🏁 KOMPLETNE HOTOVO za {duration:.2f} sekúnd."))
 
-        self.stdout.write(self.style.SUCCESS(f"🏁 HOTOVO za {duration:.2f} sekúnd."))
-        self.stdout.write(self.style.SUCCESS(f"📦 Celkovo presunutých produktov: {total_updated}"))
-        
-        # ------------------------------------------------------------------
-        # FÁZA 3: FINÁLNE ZOBRAZENIE
-        # ------------------------------------------------------------------
-        # Pôvodný kód tu skrýval prázdne kategórie. 
-        # Teraz to vynecháme, aby si videl celú novú štruktúru na webe.
-        
-        # self.stdout.write("🧹 Skrývanie prázdnych kategórií je vypnuté (VIDÍŠ VŠETKO).")
-        
-        # Pre istotu ešte raz potvrdíme, že všetko je aktívne
-        # Category.objects.update(is_active=True) 
-        
-        visible_count = Category.objects.filter(is_active=True).count()
-        self.stdout.write(self.style.SUCCESS(f"✅ Na webe je teraz viditeľných {visible_count} kategórií."))
+        # Finálny check viditeľnosti
+        # Všetky kategórie by mali byť viditeľné, lebo sme ich tak vytvorili vo FÁZE 1
+        visible = Category.objects.filter(is_active=True).count()
+        self.stdout.write(f"👁️  Viditeľných kategórií: {visible}")

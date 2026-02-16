@@ -6,7 +6,7 @@ import random
 
 # --- KATEGÓRIE (Stromová štruktúra) ---
 class Category(models.Model):
-    name = models.CharField(max_length=200, verbose_name="Názov kategórie")
+    name = models.CharField(max_length=200, verbose_name="Názov kategórie", db_index=True)
     slug = models.SlugField(unique=True, blank=True, max_length=255)
     
     parent = models.ForeignKey(
@@ -18,21 +18,26 @@ class Category(models.Model):
         verbose_name="Nadradená kategória"
     )
 
-    is_active = models.BooleanField(default=False, verbose_name="Viditeľná na webe")
+    is_active = models.BooleanField(default=True, verbose_name="Viditeľná na webe")
 
     class Meta:
         verbose_name = "Kategória"
         verbose_name_plural = "Kategórie"
-        ordering = ('parent__name', 'name',)
+        ordering = ('name',) # Zoradenie podľa abecedy
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            # Vytvoríme základný slug
+            base_slug = slugify(self.name)
+            self.slug = base_slug
+            
+            # Ak už existuje, pridáme náhodné číslo, aby bol unikátny
             if Category.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
-                self.slug = f"{self.slug}-{random.randint(100, 999)}"
+                self.slug = f"{base_slug}-{random.randint(100, 999)}"
         super().save(*args, **kwargs)
 
     def __str__(self):
+        # Rekurzívne vypíše celú cestu: Auto-moto -> Kvapaliny -> Oleje
         full_path = [self.name]
         k = self.parent
         while k is not None:
@@ -42,7 +47,7 @@ class Category(models.Model):
 
 # --- PRODUKTY ---
 class Product(models.Model):
-    # 👇 PRIDANÉ db_index=True PRE RÝCHLE VYHĽADÁVANIE
+    # 👇 PRIDANÉ db_index=True PRE RÝCHLE VYHĽADÁVANIE (Optimalizácia pre 3500 pravidiel)
     name = models.CharField(max_length=255, db_index=True)
     slug = models.SlugField(unique=True, blank=True, max_length=255)
     description = models.TextField(blank=True)
@@ -54,7 +59,6 @@ class Product(models.Model):
     # 👇 PRIDANÉ db_index=True AJ TU
     original_category_text = models.CharField(max_length=500, blank=True, null=True, db_index=True)
     
-    # ... zvyšok ostáva rovnaký ...
     is_oversized = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     brand = models.CharField(max_length=100, blank=True, null=True)
@@ -90,7 +94,7 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
-# --- PARAMETRE PRODUKTOV ---
+# --- OSTATNÉ MODELY (Bez zmien) ---
 class ProductParameter(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='parameters')
     name = models.CharField(max_length=100, db_index=True)
@@ -99,7 +103,6 @@ class ProductParameter(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.name}: {self.value}"
 
-# --- PONUKY (Offers) ---
 class Offer(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='offers')
     shop_name = models.CharField(max_length=100)
@@ -113,7 +116,6 @@ class Offer(models.Model):
     def __str__(self):
         return f"{self.shop_name} - {self.product.name} ({self.price} €)"
 
-# --- PLÁNOVAČ ---
 class PlannerItem(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     session_key = models.CharField(max_length=40, null=True, blank=True)
@@ -124,7 +126,6 @@ class PlannerItem(models.Model):
     def __str__(self):
         return f"{self.quantity}x {self.product.name}"
 
-# --- BALÍČKY ---
 class Bundle(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -135,7 +136,6 @@ class Bundle(models.Model):
     def __str__(self):
         return self.name
 
-# --- ULOŽENÉ PLÁNY ---
 class SavedPlan(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_plans')
     name = models.CharField(max_length=200, default="Môj projekt")
@@ -152,7 +152,6 @@ class SavedPlanItem(models.Model):
     def __str__(self):
         return f"{self.product.name} ({self.quantity}x)"
 
-# --- HISTÓRIA CIEN ---
 class PriceHistory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')
     min_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -165,7 +164,6 @@ class PriceHistory(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.min_price} € ({self.date})"
 
-# --- RECENZIE ---
 class Review(models.Model):
     product = models.ForeignKey(Product, related_name='reviews', on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
