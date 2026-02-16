@@ -42,7 +42,8 @@ class Category(models.Model):
 
 # --- PRODUKTY ---
 class Product(models.Model):
-    name = models.CharField(max_length=255)
+    # 👇 PRIDANÉ db_index=True PRE RÝCHLE VYHĽADÁVANIE
+    name = models.CharField(max_length=255, db_index=True)
     slug = models.SlugField(unique=True, blank=True, max_length=255)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Cena od")
@@ -50,9 +51,10 @@ class Product(models.Model):
     ean = models.CharField(max_length=13, blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     
-    # 👇 TOTO JE KĽÚČOVÉ POLE PRE SMART MAPPER 👇
-    original_category_text = models.CharField(max_length=500, blank=True, null=True)
+    # 👇 PRIDANÉ db_index=True AJ TU
+    original_category_text = models.CharField(max_length=500, blank=True, null=True, db_index=True)
     
+    # ... zvyšok ostáva rovnaký ...
     is_oversized = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     brand = models.CharField(max_length=100, blank=True, null=True)
