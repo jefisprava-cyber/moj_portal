@@ -47,11 +47,11 @@ class Command(BaseCommand):
         for row in rules:
             # 1. Zistíme NÁZOV
             cat_name = ""
-            if row.get('L1', '').strip(): cat_name = row['L1'].strip()
-            elif row.get('L2', '').strip(): cat_name = row['L2'].strip()
-            elif row.get('L3', '').strip(): cat_name = row['L3'].strip()
+            if row.get('L5', '').strip(): cat_name = row['L5'].strip()
             elif row.get('L4', '').strip(): cat_name = row['L4'].strip()
-            elif row.get('L5', '').strip(): cat_name = row['L5'].strip()
+            elif row.get('L3', '').strip(): cat_name = row['L3'].strip()
+            elif row.get('L2', '').strip(): cat_name = row['L2'].strip()
+            elif row.get('L1', '').strip(): cat_name = row['L1'].strip()
             
             if not cat_name: continue
 
