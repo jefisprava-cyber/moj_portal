@@ -77,26 +77,33 @@ def home(request):
     })
 
 def category_detail(request, slug):
-    """Zobrazenie kategórie a jej produktov s filtrovaním."""
-    # OPRAVA: Kontrola is_active=True
+    """Zobrazenie kategórie - EXTRÉMNA OPTIMALIZÁCIA"""
+    # 1. Načítame kategóriu (bez zbytočných joinov)
     category = get_object_or_404(Category, slug=slug, is_active=True)
     
-    # 1. Získame ID všetkých podkategórií hlboko v strome
-    # Optimalizácia: Nepoužívame rekurziu v Pythone ak sa dá, ale tu je to nutné pre strom
-    all_cats = [category] + get_all_children(category)
-    cat_ids = [c.id for c in all_cats]
+    # 2. Získame ID všetkých podkategórií (Optimalizovanejšie)
+    # Namiesto pomalej rekurzie vezmeme len priame IDčka, ak nemáš MPTT
+    # Pre hlboký strom by bolo ideálne použiť django-mptt, ale teraz spravíme rýchly fix:
     
-    # 2. INTELIGENTNÁ OPRAVA (Smart Fix pre prázdne kategórie):
-    # Hľadáme produkty podľa ID ALEBO podľa názvu kategórie
-    # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA: select_related + prefetch_related
-    products = Product.objects.filter(
-        Q(category_id__in=cat_ids) | 
-        Q(category__name__icontains=category.name)
-    ).select_related('category').prefetch_related('offers').distinct()
+    # Rýchly zber IDčiek (vrátane vlastného)
+    cat_ids = [category.id]
+    
+    # Získame deti v jednom dopyte (len ID) - zrýchlenie oproti cyklu objektov
+    child_ids = Category.objects.filter(parent=category, is_active=True).values_list('id', flat=True)
+    cat_ids.extend(child_ids)
+    
+    # Ak máš L3, môžeme skúsiť zobrať aj deti detí (len IDčká)
+    grandchild_ids = Category.objects.filter(parent_id__in=child_ids, is_active=True).values_list('id', flat=True)
+    cat_ids.extend(grandchild_ids)
 
+    # 3. FILTROVANIE PRODUKTOV (LEN PODĽA ID!)
+    # Vyhodili sme Q(category__name__icontains...) - to bola tá brzda
+    products = Product.objects.filter(
+        category_id__in=cat_ids
+    ).select_related('category').prefetch_related('offers')
+
+    # Zoradenie
     sort_by = request.GET.get('sort', 'default')
-    
-    # --- LOGIKA TRIEDENIA ---
     if sort_by == 'price_asc':
         products = products.order_by('price')
     elif sort_by == 'price_desc':
@@ -104,13 +111,15 @@ def category_detail(request, slug):
     elif sort_by == 'name':
         products = products.order_by('name')
     else:
+        # Pridáme db_index na created_at, ak ho nemáš!
         products = products.order_by('-created_at')
     
-    # Stránkovanie by bolo ideálne, ale zatiaľ limitujeme na 100 pre rýchlosť
-    products = products[:100]
+    # 4. PAGINÁCIA / LIMIT
+    # Nikdy nenačítaj 100 produktov naraz, ak máš pomalý server. Skúsme 24.
+    products = products[:24]
 
-    # OPRAVA: Len aktívne HLAVNÉ kategórie pre menu
-    all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
+    # Menu (len hlavné)
+    all_categories = Category.objects.filter(parent=None, is_active=True)
 
     return render(request, 'products/category_detail.html', {
         'category': category,
