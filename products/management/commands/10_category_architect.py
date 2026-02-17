@@ -1,28 +1,40 @@
 from django.core.management.base import BaseCommand
-from products.models import Category, Product
-from django.db import transaction
+from products.models import Category
+from django.db import connection, transaction
 
 class Command(BaseCommand):
-    help = 'ARCHITEKT: Nukleárne čistenie. Zmaže všetko okrem produktov.'
+    help = 'ARCHITEKT TURBO: Bezpečné SQL čistenie s transakčnou poistkou.'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("☢️  ARCHITEKT: Začínam čistenie databázy...")
+        self.stdout.write("☢️  ARCHITEKT: Začínam SQL čistenie...")
 
+        # Použijeme transakciu = Ak nastane chyba, všetko sa vráti späť
         with transaction.atomic():
-            # 1. Vytvoríme/Získame záchrannú kategóriu
+            
+            # 1. Vytvoríme/Získame záchrannú kategóriu (cez Django ORM = bezpečné)
             safe_cat, _ = Category.objects.get_or_create(
                 slug="nezaradene-temp",
-                defaults={'name': "NEZARADENÉ", 'is_active': False}
+                defaults={'name': "NEZARADENÉ (IMPORT)", 'is_active': False}
             )
+            safe_id = safe_cat.id
 
-            # 2. Presunieme TAM všetky produkty (aby sme o ne neprišli)
-            # Produkty sa "odpoja" od starých kategórií
-            total_products = Product.objects.count()
-            Product.objects.all().update(category=safe_cat)
-            self.stdout.write(f"📦 {total_products} produktov presunutých do bezpečia (NEZARADENÉ).")
+            with connection.cursor() as cursor:
+                # 2. ZACHRÁNIŤ PRODUKTY
+                self.stdout.write("📦 Presúvam produkty do bezpečia...")
+                cursor.execute(
+                    "UPDATE products_product SET category_id = %s", 
+                    [safe_id]
+                )
+                
+                # 3. ROZPOJIŤ STROM (Aby neboli chyby pri mazaní rodičov)
+                self.stdout.write("🪓 Ruším väzby rodič-dieťa...")
+                cursor.execute("UPDATE products_category SET parent_id = NULL")
 
-            # 3. Zmažeme VŠETKY ostatné kategórie
-            deleted_count, _ = Category.objects.exclude(id=safe_cat.id).delete()
-            self.stdout.write(f"🗑️  Zmazaných {deleted_count} starých kategórií.")
+                # 4. ZMAZAŤ STARÉ KATEGÓRIE (Všetko okrem záchrannej)
+                self.stdout.write("🔥 Mažem staré kategórie...")
+                cursor.execute(
+                    "DELETE FROM products_category WHERE id != %s", 
+                    [safe_id]
+                )
 
-        self.stdout.write(self.style.SUCCESS("✅ HOTOVO. Stôl je čistý. Teraz spusti import alebo triedič."))
+        self.stdout.write(self.style.SUCCESS("✅ HOTOVO. Databáza je čistá a bezpečná."))
