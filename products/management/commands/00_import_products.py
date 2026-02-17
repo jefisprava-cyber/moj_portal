@@ -17,10 +17,10 @@ from django.db import transaction
 RUN_XML_IMPORT = True    # XML Feedy
 RUN_CJ_IMPORT = True     # CJ API (Allegro, Asko...)
 
-# ⚠️ TESTOVACÍ LIMIT 500 PRODUKTOV
-LIMIT_PER_CJ_ADVERTISER = 1000    # Max 500 produktov z jedného CJ obchodu
-LIMIT_XML_PRODUCTS = 1000         # Max 500 produktov z jedného XML feedu
-BATCH_SIZE_CJ = 500              # Sťahujeme po 500 ks (jedna dávka vybaví celý limit)
+# ⚠️ LIMITY (Nastavené na 500 pre rýchly test, pre ostrú prevádzku zvýš na 15000)
+LIMIT_PER_CJ_ADVERTISER = 2000    
+LIMIT_XML_PRODUCTS = 2000         
+BATCH_SIZE_CJ = 500              
 
 # ==========================================
 # 1. KONFIGURÁCIA XML FEEDOV
@@ -33,7 +33,6 @@ XML_FEEDS = [
     {"name": "Efarby", "url": "https://mika.venalio.com/feeds/heureka?websiteLanguageId=1&secretKey=s9ybmxreylrjvtfxr93znxro78e0mscnods8f77d&tagLinks=0"},
     {"name": "Protein.sk", "url": "https://www.protein.sk/feed/heureka.xml"},
     {"name": "Dizajnove Doplnky", "url": "https://www.dizajnove-doplnky.sk/heureka.xml"},
-    # 👇 PRIDANÉ NOVÉ XML
     {"name": "Svet-svietidiel.sk", "url": "https://feeds.mergado.com/svet-svietidiel-sk-heureka-sk-2-f5937a18cc9c2f1e6dec0b725e85ef87.xml"}
 ]
 
@@ -41,20 +40,18 @@ XML_FEEDS = [
 # 2. KONFIGURÁCIA CJ (Allegro, Asko...)
 # ==========================================
 CJ_CONFIG = {
-    "token": "O2uledg8fW-ArSOgXxt2jEBB0Q", # Tvoj Token
+    "token": "O2uledg8fW-ArSOgXxt2jEBB0Q", 
     "cid": "7864372",    # Company ID
     "pid": "101646612",  # Web ID
     
+    # manual_cat tu slúži UŽ LEN ako textová pomôcka pre Sorter (nebude to názov kategórie v DB)
     "advertisers": [
-        # Pôvodné (bez Unizdrav)
         {"name": "Allegro.sk", "id": "7167444", "manual_cat": "Nákupné centrum"},
         {"name": "Gorila.sk", "id": "5284767", "manual_cat": "Knihy a Zábava"},
         {"name": "MojaLekaren.sk", "id": "5154184", "manual_cat": "Zdravie a Lieky"},
         {"name": "KancelarskeStolicky", "id": "5493235", "manual_cat": "Kancelária a Nábytok"},
         {"name": "Nazuby.eu", "id": "4322334", "manual_cat": "Zdravie a Lieky"},
         {"name": "Asko Nábytok", "id": "4920522", "manual_cat": "Nábytok a Bývanie"},
-        
-        # 👇 PRIDANÉ NOVÉ OBCHODY
         {"name": "Raj hračiek", "id": "7260722", "manual_cat": "Hračky a deti"},
         {"name": "Roboticky-vysavac", "id": "5352874", "manual_cat": "Domáce spotrebiče"},
         {"name": "XXXLutz", "id": "5547578", "manual_cat": "Nábytok a Bývanie"}
@@ -62,11 +59,19 @@ CJ_CONFIG = {
 }
 
 class Command(BaseCommand):
-    help = 'Univerzálny Importér (XML + CJ API) - TEST MODE (Limit 500)'
+    help = 'Univerzálny Importér - VŠETKO DO NEZARADENÉ'
 
     def handle(self, *args, **options):
-        self.stdout.write("🚀 ŠTARTUJEM TESTOVACÍ IMPORT (Limit 500/shop)...")
+        self.stdout.write("🚀 ŠTARTUJEM IMPORT (Cieľ: Jedna kategória NEZARADENÉ)...")
         
+        # --- VYTVORENIE JEDNEJ SPOLOČNEJ KATEGÓRIE ---
+        # is_active=False znamená, že bordel nebude vidieť na webe, kým ho neroztriediš.
+        self.fallback_cat, _ = Category.objects.get_or_create(
+            name="NEZARADENÉ (IMPORT)", 
+            defaults={'slug': 'nezaradene-import', 'is_active': False}
+        )
+        self.stdout.write(f"📦 Všetky produkty pôjdu do: {self.fallback_cat.name}")
+
         # 1. XML FEEDY
         if RUN_XML_IMPORT:
             self.stdout.write("\n📡 --- FÁZA 1: XML FEEDY ---")
@@ -75,14 +80,14 @@ class Command(BaseCommand):
                     self.import_xml_feed(feed["url"], feed["name"])
                 except Exception as e:
                     self.stdout.write(self.style.ERROR(f"❌ Chyba {feed['name']}: {e}"))
-                gc.collect() # Čistenie RAM po každom feede
+                gc.collect() 
         
         # 2. CJ API
         if RUN_CJ_IMPORT:
-            self.stdout.write("\n📡 --- FÁZA 2: CJ API (Allegro, Asko, XXXLutz...) ---")
+            self.stdout.write("\n📡 --- FÁZA 2: CJ API ---")
             self.import_cj_products()
         
-        self.stdout.write(self.style.SUCCESS("\n🎉 TESTOVACÍ IMPORT DOKONČENÝ."))
+        self.stdout.write(self.style.SUCCESS("\n🎉 IMPORT DOKONČENÝ."))
 
 
     def import_xml_feed(self, url, shop_name):
@@ -93,18 +98,10 @@ class Command(BaseCommand):
         try:
             with urllib.request.urlopen(req, context=context) as response:
                 try: tree = ET.parse(response)
-                except: 
-                    self.stdout.write(self.style.ERROR(f"❌ Chyba parsovania XML {shop_name}"))
-                    return
+                except: return
 
                 root = tree.getroot()
-                # Skúsime rôzne formáty XML (Heureka, Google, RSS)
                 items = root.findall('.//item') or root.findall('.//SHOPITEM') or root.findall('channel/item')
-                
-                default_cat, _ = Category.objects.get_or_create(
-                    name="Nezaradené XML", 
-                    defaults={'slug': 'nezaradene-xml', 'is_active': True}
-                )
                 
                 count = 0
                 with transaction.atomic():
@@ -125,7 +122,6 @@ class Command(BaseCommand):
                             except: continue
 
                             xml_cat = item.findtext('CATEGORYTEXT', '') or item.findtext('g:product_type', '')
-                            # Čistíme kategóriu
                             clean_cat = xml_cat.replace('|', '>').split('>')[-1].strip()
                             
                             ean = item.findtext('EAN') or item.findtext('g:gtin')
@@ -141,7 +137,7 @@ class Command(BaseCommand):
                                     'price': price, 
                                     'image_url': img_url, 
                                     'ean': ean[:13] if ean else None, 
-                                    'category': default_cat, 
+                                    'category': self.fallback_cat,  # <--- VŠETKO SEM
                                     'is_oversized': False,
                                     'original_category_text': xml_cat[:499] if xml_cat else clean_cat[:499]
                                 }
@@ -168,14 +164,8 @@ class Command(BaseCommand):
             adv_id = advertiser["id"]
             manual_cat_name = advertiser["manual_cat"]
             
-            self.stdout.write(f"⏳ CJ: Pripájam sa na {adv_name} (Limit: {LIMIT_PER_CJ_ADVERTISER})...")
+            self.stdout.write(f"⏳ CJ: Pripájam sa na {adv_name}...")
             
-            # Záchranná kategória (hneď aktívna)
-            base_category, _ = Category.objects.get_or_create(
-                name=manual_cat_name, 
-                defaults={'slug': slugify(manual_cat_name), 'is_active': True}
-            )
-
             total_imported_adv = 0
             page = 1
             
@@ -212,7 +202,6 @@ class Command(BaseCommand):
                     response = requests.post(cj_url, json={'query': query, 'variables': variables}, headers=headers, timeout=30)
                     
                     if response.status_code != 200:
-                        self.stdout.write(self.style.ERROR(f"   ❌ HTTP {response.status_code}"))
                         if response.status_code == 400: break
                         time.sleep(2)
                         continue
@@ -220,8 +209,7 @@ class Command(BaseCommand):
                     data = response.json()
                     products_list = data.get('data', {}).get('products', {}).get('resultList', [])
                     
-                    if not products_list:
-                        break # Žiadne ďalšie produkty
+                    if not products_list: break
 
                     count_in_batch = 0
                     
@@ -237,11 +225,11 @@ class Command(BaseCommand):
                                 
                                 price_val = Decimal(price_info.get('amount'))
 
-                                # Dôležité polia pre Sorter
                                 raw_category_text = item.get('productType') or ""
                                 ean = item.get('gtin') or ""
                                 
-                                # Kombinácia: Kategória z feedu + Názov obchodu (pre filtrovanie v Exceli)
+                                # Dôležité: Do textu uložíme "Hračky" aj názov eshopu, aby Sorter vedel, čo to je!
+                                # Ale fyzicky produkt skončí v NEZARADENÉ.
                                 final_orig_text = f"{manual_cat_name} | {adv_name} | {raw_category_text}"
 
                                 product, _ = Product.objects.update_or_create(
@@ -251,7 +239,7 @@ class Command(BaseCommand):
                                         'description': item.get('description', '')[:5000],
                                         'price': price_val,
                                         'image_url': item.get('imageLink', ''),
-                                        'category': base_category, 
+                                        'category': self.fallback_cat,  # <--- VŠETKO SEM
                                         'is_oversized': False,
                                         'ean': ean[:13],
                                         'original_category_text': final_orig_text[:499]
@@ -267,7 +255,7 @@ class Command(BaseCommand):
                             except: continue
 
                     total_imported_adv += count_in_batch
-                    self.stdout.write(f"   -> Dávka {page}: {count_in_batch} ks (Spolu {adv_name}: {total_imported_adv})")
+                    self.stdout.write(f"   -> Dávka {page}: {count_in_batch} ks")
                     
                     page += 1
                     gc.collect()
@@ -276,4 +264,4 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.ERROR(f"   ❌ Chyba: {e}"))
                     break
 
-            self.stdout.write(self.style.SUCCESS(f" ✅ {adv_name}: Hotovo. {total_imported_adv} produktov."))
+            self.stdout.write(self.style.SUCCESS(f" ✅ {adv_name}: {total_imported_adv} ks."))
