@@ -51,7 +51,7 @@ class Product(models.Model):
     name = models.CharField(max_length=255, db_index=True)
     slug = models.SlugField(unique=True, blank=True, max_length=255)
     description = models.TextField(blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Cena od")
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Cena od.")
     image_url = models.URLField(max_length=1000, blank=True, null=True)
     ean = models.CharField(max_length=13, blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
