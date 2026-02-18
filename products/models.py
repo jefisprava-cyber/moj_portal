@@ -18,26 +18,22 @@ class Category(models.Model):
         verbose_name="Nadradená kategória"
     )
 
-    is_active = models.BooleanField(default=True, verbose_name="Viditeľná na webe")
+    is_active = models.BooleanField(default=True, verbose_name="Viditeľná na webe", db_index=True) # Pridaný index pre rýchlejšie filtrovanie
 
     class Meta:
         verbose_name = "Kategória"
         verbose_name_plural = "Kategórie"
-        ordering = ('name',) # Zoradenie podľa abecedy
+        ordering = ('name',) 
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            # Vytvoríme základný slug
             base_slug = slugify(self.name)
             self.slug = base_slug
-            
-            # Ak už existuje, pridáme náhodné číslo, aby bol unikátny
             if Category.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
                 self.slug = f"{base_slug}-{random.randint(100, 999)}"
         super().save(*args, **kwargs)
 
     def __str__(self):
-        # Rekurzívne vypíše celú cestu: Auto-moto -> Kvapaliny -> Oleje
         full_path = [self.name]
         k = self.parent
         while k is not None:
@@ -47,21 +43,30 @@ class Category(models.Model):
 
 # --- PRODUKTY ---
 class Product(models.Model):
-    # 👇 PRIDANÉ db_index=True PRE RÝCHLE VYHĽADÁVANIE (Optimalizácia pre 3500 pravidiel)
     name = models.CharField(max_length=255, db_index=True)
     slug = models.SlugField(unique=True, blank=True, max_length=255)
     description = models.TextField(blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Cena od.")
-    image_url = models.URLField(max_length=1000, blank=True, null=True)
-    ean = models.CharField(max_length=13, blank=True, null=True)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     
-    # 👇 PRIDANÉ db_index=True AJ TU
+    # 👇 INDEX PRE ZORADENIE PODĽA CENY
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Cena od.", db_index=True)
+    
+    image_url = models.URLField(max_length=1000, blank=True, null=True)
+    
+    # 👇 INDEX PRE VYHĽADÁVANIE PODĽA EAN
+    ean = models.CharField(max_length=13, blank=True, null=True, db_index=True)
+    
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products', db_index=True)
+    
     original_category_text = models.CharField(max_length=500, blank=True, null=True, db_index=True)
     
     is_oversized = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    brand = models.CharField(max_length=100, blank=True, null=True)
+    
+    # 👇 INDEX PRE "NAJNOVŠIE"
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    
+    # 👇 INDEX PRE FILTROVANIE ZNAČIEK
+    brand = models.CharField(max_length=100, blank=True, null=True, db_index=True)
+    
     average_rating = models.FloatField(default=0.0)
     review_count = models.IntegerField(default=0)
 
