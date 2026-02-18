@@ -7,7 +7,17 @@
         <h1 class="text-3xl font-black text-gray-900">
             Výsledky pre: <span class="text-blue-600">"{{ search_query|default:query }}"</span>
         </h1>
-        <p class="text-gray-500 mt-2">Našli sme {{ products|length }} produktov.</p>
+        
+        {% if not error_message %}
+            <p class="text-gray-500 mt-2">Našli sme {{ products|length }} produktov.</p>
+        {% endif %}
+
+        {% if error_message %}
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-4 mb-6 relative shadow-sm" role="alert">
+            <strong class="font-bold"><i class="fa fa-exclamation-circle"></i> Pozor:</strong>
+            <span class="block sm:inline ml-1">{{ error_message }}</span>
+        </div>
+        {% endif %}
     </div>
 
     {% if products %}
@@ -43,7 +53,7 @@
                 </a>
 
                 <div class="text-blue-600 font-black text-lg mb-4">
-                    {{ product.price }} €
+                    {{ product.price|floatformat:2 }} €
                 </div>
                 
                 <div class="flex items-center justify-between mt-auto">
@@ -55,7 +65,10 @@
         </div>
         {% endfor %}
     </div>
+    
     {% else %}
+    
+    {% if not error_message %}
     <div class="bg-gray-50 rounded-2xl p-12 text-center">
         <div class="text-gray-300 text-6xl mb-4"><i class="fa fa-search"></i></div>
         <h2 class="text-xl font-bold text-gray-800 mb-2">Nenašli sme žiadne produkty</h2>
@@ -64,6 +77,8 @@
             Zobraziť všetky produkty
         </a>
     </div>
+    {% endif %}
+
     {% endif %}
 
 </div>

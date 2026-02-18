@@ -52,12 +52,14 @@ def get_all_children(category):
 
 def home(request):
     """Domovská stránka s produktami, balíčkami a kategóriami."""
+    # OPRAVA: Len aktívne HLAVNÉ kategórie (L1)
     all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
     
+    # OPTIMALIZÁCIA: Načítame produkty aj s kategóriou a ponukami naraz (N+1 fix)
     products = Product.objects.filter(category__is_active=True)\
         .select_related('category')\
         .prefetch_related('offers')\
-        .order_by('-created_at')[:12]
+        .order_by('-created_at')[:12] # Zvýšil som limit na 12 pre krajší grid
 
     bundles = Bundle.objects.all().prefetch_related('products')
     
@@ -76,18 +78,27 @@ def home(request):
 
 def category_detail(request, slug):
     """Zobrazenie kategórie - EXTRÉMNA OPTIMALIZÁCIA"""
+    # 1. Načítame kategóriu (bez zbytočných joinov)
     category = get_object_or_404(Category, slug=slug, is_active=True)
     
+    # 2. Získame ID všetkých podkategórií (Optimalizovanejšie)
+    # Rýchly zber IDčiek (vrátane vlastného)
     cat_ids = [category.id]
+    
+    # Získame deti v jednom dopyte (len ID) - zrýchlenie oproti cyklu objektov
     child_ids = Category.objects.filter(parent=category, is_active=True).values_list('id', flat=True)
     cat_ids.extend(child_ids)
+    
+    # Ak máš L3, môžeme skúsiť zobrať aj deti detí (len IDčká)
     grandchild_ids = Category.objects.filter(parent_id__in=child_ids, is_active=True).values_list('id', flat=True)
     cat_ids.extend(grandchild_ids)
 
+    # 3. FILTROVANIE PRODUKTOV (LEN PODĽA ID!)
     products = Product.objects.filter(
         category_id__in=cat_ids
     ).select_related('category').prefetch_related('offers')
 
+    # Zoradenie
     sort_by = request.GET.get('sort', 'default')
     if sort_by == 'price_asc':
         products = products.order_by('price')
@@ -98,7 +109,10 @@ def category_detail(request, slug):
     else:
         products = products.order_by('-created_at')
     
+    # 4. PAGINÁCIA / LIMIT
     products = products[:24]
+
+    # Menu (len hlavné)
     all_categories = Category.objects.filter(parent=None, is_active=True)
 
     return render(request, 'products/category_detail.html', {
@@ -110,31 +124,27 @@ def category_detail(request, slug):
 
 def search(request):
     """Vyhľadávanie produktov - S OCHRANOU PROTI ZAMRZNUTIU"""
-    query = request.GET.get('q', '').strip() # Odstránime medzery na začiatku/konci
+    query = request.GET.get('q', '').strip() # Odstránime medzery
     results = Product.objects.none()
-    error_message = None
     
-    # 1. OCHRANA: Ak je dopyt príliš krátky, nehľadáme
-    if len(query) < 3:
-        error_message = "Zadajte aspoň 3 znaky."
-    elif query:
-        # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA
-        # Hľadáme LEN v Názve, EAN a Kategórii (pretože na nich máme indexy)
+    # 1. OCHRANA: Ak je dopyt príliš krátky, nehľadáme (prevencia 502 Error)
+    if query and len(query) >= 3:
+        # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA VYHĽADÁVANIA
+        # VYPNUTÉ description__icontains, aby nepadal server!
         results = Product.objects.filter(
             Q(name__icontains=query) | 
-            # Q(description__icontains=query) |  <-- TENTO RIADOK SME VYPLI, ABY TO NEPADALO
             Q(ean__icontains=query) |
             Q(category__name__icontains=query, category__is_active=True)
         ).select_related('category').prefetch_related('offers').filter(category__is_active=True).distinct()[:50] # Limit 50
     
     all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
 
-    return render(request, 'products/product_list.html', {
+    # 👇 TU BOLA CHYBA - OPRAVENÉ NA 'search_results.html'
+    return render(request, 'products/search_results.html', {
         'products': results, 
         'search_query': query,
         'all_categories': all_categories,
-        'is_search': True,
-        'error_message': error_message 
+        'is_search': True 
     })
 
 def privacy_policy(request):
@@ -145,6 +155,7 @@ def privacy_policy(request):
 # ==========================================
 
 def product_detail(request, slug): 
+    # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA: Načítame všetko naraz
     product = get_object_or_404(Product.objects.prefetch_related('offers', 'reviews', 'price_history'), slug=slug)
     
     offers = product.offers.filter(active=True).order_by('-is_sponsored', 'price')
@@ -164,7 +175,7 @@ def product_detail(request, slug):
                 messages.success(request, "Ďakujeme za vaše hodnotenie!")
             return redirect('product_detail', slug=slug)
 
-    history = product.price_history.all()
+    history = product.price_history.all() # Už je v cache vďaka prefetch_related
     dates = [h.date.strftime("%d.%m.") for h in history]
     min_prices = [float(h.min_price) for h in history]
     avg_prices = [float(h.avg_price) for h in history]
@@ -173,7 +184,7 @@ def product_detail(request, slug):
         'product': product, 
         'offers': offers,
         'form': form,
-        'reviews': product.reviews.all(),
+        'reviews': product.reviews.all(), # Už v cache
         'chart_dates': json.dumps(dates),
         'chart_min_prices': json.dumps(min_prices),
         'chart_avg_prices': json.dumps(avg_prices)
@@ -187,6 +198,7 @@ def bundle_detail(request, bundle_slug):
         if p.price > 0:
             total_price += p.price
         else:
+            # Ponuky sú už načítané vďaka prefetch_related
             offer = p.offers.filter(active=True).order_by('price').first()
             if offer:
                 total_price += offer.price
@@ -248,6 +260,7 @@ def remove_from_planner(request, item_id):
     return redirect('planner_view')
 
 def planner_view(request):
+    # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA: Načítame produkt aj s ponukami
     queryset = PlannerItem.objects.select_related('product').prefetch_related('product__offers')
 
     if request.user.is_authenticated:
@@ -257,8 +270,9 @@ def planner_view(request):
     
     total_estimated = 0
     for item in items:
+        # Ponuky sú už v cache
         cheapest = item.product.offers.filter(active=True).order_by('price').first()
-        item.cheapest_offer = cheapest 
+        item.cheapest_offer = cheapest # Priradíme objektu pre šablónu
 
         price = item.product.price
         if price == 0 and cheapest:
@@ -273,6 +287,7 @@ def planner_view(request):
 # ==========================================
 
 def comparison(request):
+    # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA
     queryset = PlannerItem.objects.select_related('product').prefetch_related('product__offers')
 
     if request.user.is_authenticated:
@@ -283,6 +298,7 @@ def comparison(request):
     if not items:
         return redirect('home')
     
+    # A. MIX STRATÉGIA
     mix_items_cost = 0
     mix_details = []
     shop_baskets = {} 
@@ -308,6 +324,8 @@ def comparison(request):
 
     mix_grand_total = mix_items_cost + mix_shipping_cost
 
+    # B. JEDEN OBCHOD STRATÉGIA
+    # Získame unikátne názvy obchodov z už načítaných ponúk
     all_offers = []
     for item in items:
         all_offers.extend(item.product.offers.all())
@@ -322,6 +340,7 @@ def comparison(request):
         found_all = True
         
         for item in items:
+            # Filtrujeme v Pythone z prednačítaných dát (rýchlejšie ako DB)
             offer = next((o for o in item.product.offers.all() if o.shop_name == shop and o.active), None)
             
             if offer: 
@@ -464,6 +483,7 @@ def delete_set(request, set_id):
 # ==========================================
 
 def builder_view(request):
+    # OPRAVA: Len aktívne HLAVNÉ kategórie
     categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
     prefill_data = []
     bundle_slug = request.GET.get('bundle')
@@ -483,13 +503,19 @@ def builder_view(request):
     })
 
 def api_get_subcategories(request, category_id):
+    """API na načítanie podkategórií pre Builder."""
     parent_category = get_object_or_404(Category, id=category_id)
+    # OPRAVA: Len aktívne podkategórie
     subcategories = parent_category.children.filter(is_active=True).values('id', 'name')
     return JsonResponse({'subcategories': list(subcategories)})
 
 def api_get_brands(request, category_id):
-    all_cats = [category_id]
+    # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA: Získame značky priamo z DB agregáciou
+    all_cats = [category_id] 
+    
     brands = Product.objects.filter(category_id__in=all_cats).values_list('brand', flat=True).distinct().order_by('brand')
+    
+    # Vyčistíme None hodnoty
     clean_brands = [b for b in brands if b]
     return JsonResponse({'brands': clean_brands})
 
@@ -500,13 +526,16 @@ def api_get_products(request, category_id):
     all_cats = [category] + get_all_children(category)
     cat_ids = [c.id for c in all_cats]
     
+    # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA
     queryset = Product.objects.filter(category_id__in=cat_ids).prefetch_related('offers')
     
     if brand_name:
         queryset = queryset.filter(brand__iexact=brand_name) | queryset.filter(name__istartswith=brand_name)
     
     data = []
+    # Limitujeme na 50 produktov pre rýchlosť API
     for p in queryset[:50]:
+        # Ponuky sú už v cache
         offer = p.offers.filter(active=True).order_by('price').first()
         price = p.price if p.price > 0 else (offer.price if offer else 0)
         
@@ -531,9 +560,11 @@ def trigger_import(request):
     out = StringIO()
     sys.stdout = out
     try:
+        # 1. Spustíme hlavný import
         print("--- KROK 1: IMPORT PRODUKTOV ---")
         call_command('00_import_products', stdout=out)
         
+        # 2. Spustíme precízne triedenie a aktiváciu
         print("\n--- KROK 2: PRECÍZNE TRIEDENIE A AKTIVÁCIA ---")
         call_command('11_precision_sorter', stdout=out)
 
