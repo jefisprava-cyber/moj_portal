@@ -118,10 +118,11 @@ def search(request):
     if len(query) < 3:
         error_message = "Zadajte aspoň 3 znaky."
     elif query:
-        # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA VYHĽADÁVANIA
+        # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA
+        # Hľadáme LEN v Názve, EAN a Kategórii (pretože na nich máme indexy)
         results = Product.objects.filter(
             Q(name__icontains=query) | 
-            Q(description__icontains=query) |
+            # Q(description__icontains=query) |  <-- TENTO RIADOK SME VYPLI, ABY TO NEPADALO
             Q(ean__icontains=query) |
             Q(category__name__icontains=query, category__is_active=True)
         ).select_related('category').prefetch_related('offers').filter(category__is_active=True).distinct()[:50] # Limit 50
@@ -133,7 +134,7 @@ def search(request):
         'search_query': query,
         'all_categories': all_categories,
         'is_search': True,
-        'error_message': error_message # Pridané pre zobrazenie chyby v šablóne
+        'error_message': error_message 
     })
 
 def privacy_policy(request):
