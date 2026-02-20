@@ -1,7 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Product, Category, Offer, PlannerItem, Bundle, SavedPlan, SavedPlanItem, Review
 from .forms import ReviewForm
-# 👇 Pridané funkcie pre bodovanie (Case, When...)
 from django.db.models import Min, Q, Sum, Max, Prefetch, Case, When, Value, IntegerField
 from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
@@ -9,6 +8,8 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.core.management import call_command
+# 👇 OPRAVA 1: Import pre Cache pamäť
+from django.core.cache import cache
 import json 
 import sys
 from io import StringIO
@@ -44,12 +45,23 @@ def get_all_children(category):
                 stack.append(child)
     return descendants
 
+# 👇 OPRAVA 2: Funkcia, ktorá drží menu v rýchlej pamäti 24 hodín
+def get_cached_categories():
+    """Získa hlavné kategórie z rýchlej pamäte (Cache), aby sa nezaťažovala databáza."""
+    categories = cache.get('all_main_categories')
+    if not categories:
+        # Ak menu nie je v pamäti, stiahneme ho a uložíme na 86400 sekúnd (24 hodín)
+        categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
+        cache.set('all_main_categories', categories, 86400)
+    return categories
+
 # ==========================================
 # 1. HLAVNÉ STRÁNKY
 # ==========================================
 
 def home(request):
-    all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
+    # 👇 OPRAVA 3: Použijeme rýchlu pamäť namiesto databázy
+    all_categories = get_cached_categories()
     
     products = Product.objects.filter(category__is_active=True)\
         .select_related('category')\
@@ -96,7 +108,9 @@ def category_detail(request, slug):
         products = products.order_by('-created_at')
     
     products = products[:24]
-    all_categories = Category.objects.filter(parent=None, is_active=True)
+    
+    # 👇 Použitie Cache
+    all_categories = get_cached_categories()
 
     return render(request, 'products/category_detail.html', {
         'category': category,
@@ -105,7 +119,6 @@ def category_detail(request, slug):
         'sort_by': sort_by
     })
 
-# 👇 ÚPLNE NOVÁ FUNKCIA SEARCH (Uprataná a presná)
 def search(request):
     """Vyhľadávanie produktov - TOP RELEVANCIA + SLOVENČINA"""
     query = request.GET.get('q', '').strip()
@@ -116,7 +129,6 @@ def search(request):
         if query: 
             error_message = "Zadajte aspoň 3 znaky."
     else:
-        # 1. Rýchle stiahnutie kategórií
         matching_categories = list(Category.objects.filter(
             name__icontains=query, 
             is_active=True
@@ -124,9 +136,8 @@ def search(request):
 
         active_cat_ids = list(Category.objects.filter(is_active=True).values_list('id', flat=True))
         
-        # --- 🇸🇰 SLOVENSKÝ HACK (Preklepy a diakritika) ---
         q_lower = query.lower()
-        alt_query = query # Zastupuje slovo s diakritikou (ak existuje)
+        alt_query = query 
         
         name_filters = Q(name__icontains=query)
         
@@ -140,7 +151,6 @@ def search(request):
             alt_query = q_lower.replace("postel", "posteľ")
             name_filters |= Q(name__icontains=alt_query)
 
-        # 2. Hľadanie a bodovanie produktov
         results = Product.objects.filter(
             category_id__in=active_cat_ids
         ).filter(
@@ -148,33 +158,27 @@ def search(request):
             Q(ean__icontains=query) |
             Q(category_id__in=matching_categories)
         ).annotate(
-            # ALGORITMUS RELEVANCIE (Zoradí to od najpresnejšieho po najmenej presné)
             relevance=Case(
                 When(name__iexact=query, then=Value(1)),
                 When(name__iexact=alt_query, then=Value(1)),
-                
-                # 🔹 SAMOSTATNÉ SLOVO (napr. "Stol drevený" alebo "Rozťahovací stôl")
                 When(name__istartswith=f"{query} ", then=Value(2)),
                 When(name__istartswith=f"{alt_query} ", then=Value(2)),
                 When(name__icontains=f" {query} ", then=Value(3)),
                 When(name__icontains=f" {alt_query} ", then=Value(3)),
                 When(name__endswith=f" {query}", then=Value(4)),
                 When(name__endswith=f" {alt_query}", then=Value(4)),
-
-                # 🔹 SÚČASŤ INÉHO SLOVA (napr. "Stolná lampa" -> odsunuté na spodok!)
                 When(name__istartswith=query, then=Value(5)),
                 When(name__istartswith=alt_query, then=Value(5)),
                 When(name__icontains=query, then=Value(6)),
                 When(name__icontains=alt_query, then=Value(6)),
-                
-                # 🔹 EAN
                 When(ean__icontains=query, then=Value(7)),
                 default=Value(8),
                 output_field=IntegerField(),
             )
         ).select_related('category').prefetch_related('offers').order_by('relevance', '-created_at')[:50]
     
-    all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
+    # 👇 Použitie Cache
+    all_categories = get_cached_categories()
 
     return render(request, 'products/search_results.html', {
         'products': results, 
@@ -511,7 +515,8 @@ def delete_set(request, set_id):
 # ==========================================
 
 def builder_view(request):
-    categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
+    # 👇 Použitie Cache
+    categories = get_cached_categories()
     prefill_data = []
     bundle_slug = request.GET.get('bundle')
     if bundle_slug:
@@ -530,6 +535,7 @@ def builder_view(request):
     })
 
 def api_get_subcategories(request, category_id):
+    """API na načítanie podkategórií pre Builder."""
     parent_category = get_object_or_404(Category, id=category_id)
     subcategories = parent_category.children.filter(is_active=True).values('id', 'name')
     return JsonResponse({'subcategories': list(subcategories)})
