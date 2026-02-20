@@ -10,6 +10,7 @@ from django.http import JsonResponse, HttpResponse
 from django.core.management import call_command
 # 👇 OPRAVA 1: Import pre Cache pamäť
 from django.core.cache import cache
+from django.template.loader import render_to_string
 import json 
 import sys
 from io import StringIO
@@ -107,16 +108,39 @@ def category_detail(request, slug):
     else:
         products = products.order_by('-created_at')
     
-    products = products[:24]
+    # --- RÝCHLA PAGINÁCIA BEZ COUNT() ---
+    try:
+        page = int(request.GET.get('page', 1))
+    except ValueError:
+        page = 1
+        
+    per_page = 24
+    offset = (page - 1) * per_page
     
-    # 👇 Použitie Cache
+    # Trik: Vypýtame si 25 produktov. Ak ich príde 25, vieme, že je aj ďalšia strana.
+    products_list = list(products[offset:offset + per_page + 1])
+    
+    has_next = len(products_list) > per_page
+    if has_next:
+        products_list = products_list[:per_page] # Zahodíme ten 25. produkt
+        
     all_categories = get_cached_categories()
 
+    # --- AJAX ODPOVEĎ (Keď niekto klikne na Zobraziť ďalšie) ---
+    if request.GET.get('ajax') == '1':
+        # Vykreslíme len čistý HTML kód pre nové kartičky produktov
+        from django.template.loader import render_to_string # Import priamo tu pre istotu
+        html = render_to_string('products/partials/product_grid.html', {'products': products_list}, request=request)
+        return JsonResponse({'html': html, 'has_next': has_next})
+
+    # Štandardné načítanie celej stránky
     return render(request, 'products/category_detail.html', {
         'category': category,
-        'products': products,
+        'products': products_list,
         'all_categories': all_categories,
-        'sort_by': sort_by
+        'sort_by': sort_by,
+        'has_next': has_next,
+        'next_page': page + 1
     })
 
 def search(request):

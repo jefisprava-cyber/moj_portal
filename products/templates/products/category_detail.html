@@ -5,7 +5,6 @@
 {% block content %}
 <div class="bg-gray-50 min-h-screen pb-20">
     
-    <!-- BREADCRUMBS -->
     <div class="bg-white border-b border-gray-200 sticky top-20 z-30 shadow-sm">
         <div class="container mx-auto px-6 py-3">
             <nav class="flex text-sm text-gray-500 overflow-x-auto whitespace-nowrap items-center">
@@ -29,7 +28,6 @@
     <div class="container mx-auto px-6 py-8">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
             
-            <!-- BOČNÝ PANEL -->
             <aside class="hidden md:block col-span-1">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-36">
                     <div class="bg-slate-50 p-4 border-b border-gray-100">
@@ -56,7 +54,6 @@
                                         {% endif %}
                                     </a>
                                     
-                                    <!-- Rozbalené podkategórie v menu -->
                                     {% if cat.slug == category.slug or cat.slug == category.parent.slug %}
                                         {% if cat.children.exists %}
                                         <ul class="ml-4 mt-1 border-l-2 border-blue-100 pl-2 space-y-1">
@@ -88,19 +85,13 @@
                 </div>
             </aside>
 
-            <!-- HLAVNÝ OBSAH -->
             <main class="col-span-1 md:col-span-3">
                 
-                <!-- Nadpis a filter -->
                 <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                     <div>
                         <h1 class="text-3xl font-black text-gray-900">{{ category.name }}</h1>
                         <p class="text-gray-500 text-sm mt-1">
-                            {% if products %}
-                                Nájdených <span class="font-bold text-gray-900">{{ products.count }}</span> produktov
-                            {% else %}
-                                Prezeráte kategóriu {{ category.name }}
-                            {% endif %}
+                            Prezeráte si produkty z kategórie
                         </p>
                     </div>
                     
@@ -115,7 +106,6 @@
                     </form>
                 </div>
 
-                <!-- KARTY PODKATEGÓRIÍ (BEZ POČTU KS) -->
                 {% if category.children.exists %}
                 <div class="mb-10">
                     <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -131,7 +121,6 @@
                                 <h3 class="font-bold text-sm text-gray-800 group-hover:text-blue-700 leading-tight line-clamp-2">
                                     {{ child.name }}
                                 </h3>
-                                <!-- Počet produktov odstránený -->
                             </a>
                             {% endif %}
                         {% endfor %}
@@ -139,69 +128,73 @@
                 </div>
                 {% endif %}
 
-                <!-- PRODUKTY -->
                 {% if products %}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {% for product in products %}
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition duration-300 overflow-hidden flex flex-col h-full group">
-                        
-                        <div class="h-52 p-6 flex items-center justify-center bg-gray-50 group-hover:bg-white transition relative">
-                            {% if product.is_oversized %}
-                            <span class="absolute top-3 left-3 bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-orange-200 shadow-sm z-10">
-                                <i class="fa fa-truck"></i> Nadrozmer
-                            </span>
-                            {% endif %}
-                            
-                            <img src="{{ product.get_image }}" 
-                                 loading="lazy"
-                                 alt="{{ product.name }}" 
-                                 class="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition duration-500"
-                                 onerror="this.onerror=null;this.src='https://placehold.co/300x300?text=Bez+obrazka';">
-                                                             
-                        </div>
-                        
-                        <div class="p-5 flex-grow flex flex-col border-t border-gray-50">
-                            {% if product.category %}
-                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-wider truncate">{{ product.category.name }}</p>
-                            {% endif %}
-                            
-                            <h3 class="font-bold text-gray-900 mb-2 leading-snug group-hover:text-blue-600 transition line-clamp-2" title="{{ product.name }}">
-                                <a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a>
-                            </h3>
-
-                            <div class="flex items-center gap-1 mb-3">
-                                <div class="flex text-yellow-400 text-xs">
-                                    {% if product.average_rating > 0 %}
-                                        <i class="fa fa-star"></i>
-                                    {% else %}
-                                        <i class="far fa-star text-gray-300"></i>
-                                    {% endif %}
-                                </div>
-                                <span class="text-xs font-bold text-gray-600">{{ product.average_rating|default:"0.0" }}</span>
-                                <span class="text-[10px] text-gray-400">({{ product.review_count|default:"0" }} hodnotení)</span>
-                            </div>
-                            
-                            <div class="mt-auto pt-4 flex items-end justify-between border-t border-gray-50">
-                                <div>
-                                    <span class="text-xs text-gray-400 block mb-0.5 font-medium">Cena od</span>
-                                    <span class="text-xl font-black text-blue-700">
-                                        {% if product.price > 0 %}
-                                            {{ product.price }} €
-                                        {% else %}
-                                            <span class="text-sm text-gray-500">Zistite v obchode</span>
-                                        {% endif %}
-                                    </span>
-                                </div>
-                                
-                                <a href="{% url 'add_to_planner' product.id %}" rel="nofollow" class="w-10 h-10 bg-gray-50 text-gray-600 rounded-lg flex items-center justify-center hover:bg-green-500 hover:text-white transition shadow-sm" title="Pridať do zoznamu">
-                                    <i class="fa fa-plus"></i>
-                                </a>
-
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="product-list">
+                    {% include 'products/partials/product_grid.html' %}
                 </div>
+                
+                {% if has_next %}
+                <div class="text-center mt-12 mb-8" id="load-more-container">
+                    <button id="load-more-btn" 
+                            data-page="{{ next_page }}" 
+                            data-url="{% url 'category_detail' category.slug %}"
+                            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 shadow-md flex items-center justify-center mx-auto gap-2">
+                        <span>Zobraziť ďalšie produkty</span>
+                        <svg id="load-spinner" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </button>
+                </div>
+                {% endif %}
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const loadMoreBtn = document.getElementById('load-more-btn');
+                    
+                    if (loadMoreBtn) {
+                        loadMoreBtn.addEventListener('click', function() {
+                            const btn = this;
+                            const url = btn.getAttribute('data-url');
+                            const page = btn.getAttribute('data-page');
+                            
+                            const urlParams = new URLSearchParams(window.location.search);
+                            const sort = urlParams.get('sort') || 'default';
+                            
+                            btn.querySelector('span').textContent = 'Načítavam...';
+                            btn.querySelector('#load-spinner').classList.remove('hidden');
+                            btn.disabled = true;
+                            btn.classList.add('opacity-75', 'cursor-not-allowed');
+
+                            fetch(`${url}?page=${page}&sort=${sort}&ajax=1`, {
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                document.getElementById('product-list').insertAdjacentHTML('beforeend', data.html);
+                                
+                                if (data.has_next) {
+                                    btn.setAttribute('data-page', parseInt(page) + 1);
+                                    btn.querySelector('span').textContent = 'Zobraziť ďalšie produkty';
+                                    btn.querySelector('#load-spinner').classList.add('hidden');
+                                    btn.disabled = false;
+                                    btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                } else {
+                                    document.getElementById('load-more-container').remove();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Chyba:', error);
+                                btn.querySelector('span').textContent = 'Chyba siete. Skúste znova.';
+                                btn.querySelector('#load-spinner').classList.add('hidden');
+                                btn.disabled = false;
+                            });
+                        });
+                    }
+                });
+                </script>
                 
                 {% else %}
                 <div class="text-center py-24 bg-white rounded-2xl border-2 border-dashed border-gray-200">
@@ -211,7 +204,6 @@
                     <h2 class="text-xl font-bold text-gray-800 mb-2">Žiadne produkty sa nenašli</h2>
                     <p class="text-gray-500 max-w-sm mx-auto mb-6">V tejto kategórii momentálne nemáme žiadne produkty alebo nezodpovedajú filtrom.</p>
                     
-                    <!-- Zobraz tlačidlo späť len ak nemá podkategórie, aby to nebolo mätúce -->
                     {% if not category.children.exists %}
                         <a href="{% url 'home' %}" class="inline-block bg-blue-600 text-white font-bold px-6 py-3 rounded-full hover:bg-blue-700 transition shadow-lg shadow-blue-200">
                             Späť na domov
