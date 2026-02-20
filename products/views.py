@@ -123,24 +123,15 @@ def category_detail(request, slug):
     })
 
 def search(request):
-    """Vyhľadávanie - ULTRA SAFE MODE (Záchranný režim)"""
+    """TEST PRAVDY - Úplné obídenie databázy"""
     query = request.GET.get('q', '').strip()
+    
+    # ⚡️ NEHĽADÁME NIČ. Vraciame prázdny zoznam.
     results = Product.objects.none()
-    error_message = None
     
-    # 1. Ochrana dĺžky slova
-    if len(query) < 3:
-        if query: 
-            error_message = "Zadajte aspoň 3 znaky."
-    else:
-        # ⚡️ NAJJEDNODUCHŠÍ DOPYT NA SVETE
-        # Žiadne 'OR' (Q objekty), žiadne prehľadávanie kategórií. Len čistý názov.
-        results = Product.objects.filter(
-            name__icontains=query,
-            category__is_active=True
-        ).select_related('category').prefetch_related('offers')[:50]
-    
-    # Taktiež sme vypli "prefetch_related" na menu, aby sme ušetrili ďalšiu RAM
+    # ⚡️ TÚTO HLÁŠKU MUSÍŠ VIDIEŤ NA WEBE!
+    error_message = "DIAGNOSTIKA: Ak vidíte túto hlášku, zmeny sa úspešne nahrali na server."
+
     all_categories = Category.objects.filter(parent=None, is_active=True)
 
     return render(request, 'products/search_results.html', {
@@ -150,7 +141,7 @@ def search(request):
         'is_search': True,
         'error_message': error_message
     })
-
+    
 
 def privacy_policy(request):
     return render(request, 'pages/gdpr.html')
