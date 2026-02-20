@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Product, Category, Offer, PlannerItem, Bundle, SavedPlan, SavedPlanItem, Review
 from .forms import ReviewForm
-from django.db.models import Min, Q, Sum, Max, Prefetch
+# 👇 OPRAVA 1: Pridané Case, When, Value, IntegerField pre relevanciu
+from django.db.models import Min, Q, Sum, Max, Prefetch, Case, When, Value, IntegerField
 from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
@@ -121,8 +122,10 @@ def category_detail(request, slug):
         'all_categories': all_categories,
         'sort_by': sort_by
     })
+
+# 👇 OPRAVA 2: Inteligentné zoradenie (Relevancia)
 def search(request):
-    """Vyhľadávanie produktov - RÝCHLA A BEZPEČNÁ VERZIA"""
+    """Vyhľadávanie produktov - INTELIGENTNÉ ZORADENIE (Relevancia)"""
     query = request.GET.get('q', '').strip()
     results = Product.objects.none()
     error_message = None
@@ -131,7 +134,7 @@ def search(request):
         if query: 
             error_message = "Zadajte aspoň 3 znaky."
     else:
-        # 1. Bleskové zistenie ID kategórií (vytvorí čistý zoznam čísel)
+        # KROK 1: Nájdeme kategórie (bleskovo)
         matching_categories = list(Category.objects.filter(
             name__icontains=query, 
             is_active=True
@@ -139,14 +142,23 @@ def search(request):
 
         active_cat_ids = list(Category.objects.filter(is_active=True).values_list('id', flat=True))
         
-        # 2. Rýchle hľadanie (bez padania databázy)
+        # KROK 2: Nájdeme a ZOBODUJEME produkty
         results = Product.objects.filter(
             category_id__in=active_cat_ids
         ).filter(
             Q(name__icontains=query) | 
             Q(ean__icontains=query) |
             Q(category_id__in=matching_categories)
-        ).select_related('category').prefetch_related('offers')[:50]
+        ).annotate(
+            # ALGORITMUS RELEVANCIE (1 = najlepšie, 4 = najhoršie)
+            relevance=Case(
+                When(name__istartswith=query, then=Value(1)),
+                When(name__icontains=query, then=Value(2)),
+                When(ean__icontains=query, then=Value(3)),
+                default=Value(4),
+                output_field=IntegerField(),
+            )
+        ).select_related('category').prefetch_related('offers').order_by('relevance', '-created_at')[:50]
     
     all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
 
