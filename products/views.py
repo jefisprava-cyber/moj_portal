@@ -8,7 +8,6 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.core.management import call_command
-# 👇 OPRAVA 1: Import pre Cache pamäť
 from django.core.cache import cache
 from django.template.loader import render_to_string
 import json 
@@ -46,12 +45,10 @@ def get_all_children(category):
                 stack.append(child)
     return descendants
 
-# 👇 OPRAVA 2: Funkcia, ktorá drží menu v rýchlej pamäti 24 hodín
 def get_cached_categories():
     """Získa hlavné kategórie z rýchlej pamäte (Cache), aby sa nezaťažovala databáza."""
     categories = cache.get('all_main_categories')
     if not categories:
-        # Ak menu nie je v pamäti, stiahneme ho a uložíme na 86400 sekúnd (24 hodín)
         categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
         cache.set('all_main_categories', categories, 86400)
     return categories
@@ -61,7 +58,6 @@ def get_cached_categories():
 # ==========================================
 
 def home(request):
-    # 👇 OPRAVA 3: Použijeme rýchlu pamäť namiesto databázy
     all_categories = get_cached_categories()
     
     products = Product.objects.filter(category__is_active=True)\
@@ -117,23 +113,19 @@ def category_detail(request, slug):
     per_page = 24
     offset = (page - 1) * per_page
     
-    # Trik: Vypýtame si 25 produktov. Ak ich príde 25, vieme, že je aj ďalšia strana.
     products_list = list(products[offset:offset + per_page + 1])
     
     has_next = len(products_list) > per_page
     if has_next:
-        products_list = products_list[:per_page] # Zahodíme ten 25. produkt
+        products_list = products_list[:per_page] 
         
     all_categories = get_cached_categories()
 
-    # --- AJAX ODPOVEĎ (Keď niekto klikne na Zobraziť ďalšie) ---
     if request.GET.get('ajax') == '1':
-        # Vykreslíme len čistý HTML kód pre nové kartičky produktov
-        from django.template.loader import render_to_string # Import priamo tu pre istotu
+        from django.template.loader import render_to_string 
         html = render_to_string('products/partials/product_grid.html', {'products': products_list}, request=request)
         return JsonResponse({'html': html, 'has_next': has_next})
 
-    # Štandardné načítanie celej stránky
     return render(request, 'products/category_detail.html', {
         'category': category,
         'products': products_list,
@@ -144,10 +136,12 @@ def category_detail(request, slug):
     })
 
 def search(request):
-    """Vyhľadávanie produktov - TOP RELEVANCIA + SLOVENČINA"""
+    """Vyhľadávanie produktov - TOP RELEVANCIA + LOAD MORE PAGINÁCIA"""
     query = request.GET.get('q', '').strip()
-    results = Product.objects.none()
     error_message = None
+    products_list = []
+    has_next = False
+    page = 1
     
     if len(query) < 3:
         if query: 
@@ -175,6 +169,7 @@ def search(request):
             alt_query = q_lower.replace("postel", "posteľ")
             name_filters |= Q(name__icontains=alt_query)
 
+        # Základný dopyt bez obmedzenia počtu
         results = Product.objects.filter(
             category_id__in=active_cat_ids
         ).filter(
@@ -199,17 +194,39 @@ def search(request):
                 default=Value(8),
                 output_field=IntegerField(),
             )
-        ).select_related('category').prefetch_related('offers').order_by('relevance', '-created_at')[:50]
-    
-    # 👇 Použitie Cache
+        ).select_related('category').prefetch_related('offers').order_by('relevance', '-created_at')
+        
+        # --- RÝCHLA PAGINÁCIA ---
+        try:
+            page = int(request.GET.get('page', 1))
+        except ValueError:
+            page = 1
+            
+        per_page = 24
+        offset = (page - 1) * per_page
+        
+        products_list = list(results[offset:offset + per_page + 1])
+        
+        has_next = len(products_list) > per_page
+        if has_next:
+            products_list = products_list[:per_page] 
+            
+        # --- AJAX ODPOVEĎ ---
+        if request.GET.get('ajax') == '1':
+            from django.template.loader import render_to_string 
+            html = render_to_string('products/partials/product_grid.html', {'products': products_list}, request=request)
+            return JsonResponse({'html': html, 'has_next': has_next})
+
     all_categories = get_cached_categories()
 
     return render(request, 'products/search_results.html', {
-        'products': results, 
+        'products': products_list, 
         'search_query': query,
         'all_categories': all_categories,
         'is_search': True,
-        'error_message': error_message
+        'error_message': error_message,
+        'has_next': has_next,
+        'next_page': page + 1
     })
 
 def privacy_policy(request):
@@ -539,7 +556,6 @@ def delete_set(request, set_id):
 # ==========================================
 
 def builder_view(request):
-    # 👇 Použitie Cache
     categories = get_cached_categories()
     prefill_data = []
     bundle_slug = request.GET.get('bundle')
@@ -559,7 +575,6 @@ def builder_view(request):
     })
 
 def api_get_subcategories(request, category_id):
-    """API na načítanie podkategórií pre Builder."""
     parent_category = get_object_or_404(Category, id=category_id)
     subcategories = parent_category.children.filter(is_active=True).values('id', 'name')
     return JsonResponse({'subcategories': list(subcategories)})

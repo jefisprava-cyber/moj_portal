@@ -7,10 +7,6 @@
         <h1 class="text-3xl font-black text-gray-900">
             Výsledky pre: <span class="text-blue-600">"{{ search_query }}"</span>
         </h1>
-        
-        {% if not error_message %}
-            <p class="text-gray-500 mt-2">Našli sme {{ products|length }} produktov.</p>
-        {% endif %}
 
         {% if error_message %}
         <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-4 mb-6 relative shadow-sm" role="alert">
@@ -21,50 +17,75 @@
     </div>
 
     {% if products %}
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {% for product in products %}
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-md transition group">
-            
-            <a href="{% url 'product_detail' product.slug %}" class="h-48 p-4 flex items-center justify-center bg-white relative">
-                <img src="{{ product.get_image }}" 
-                     loading="lazy" 
-                     alt="{{ product.name }}" 
-                     class="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition duration-500"
-                     onerror="this.onerror=null;this.src='https://placehold.co/300x300?text=Bez+obrazka';">
-                                     
-                {% if product.is_oversized %}
-                <span class="absolute top-2 right-2 bg-orange-100 text-orange-600 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
-                    Veľké
-                </span>
-                {% endif %}
-            </a>
-
-            <div class="p-5 flex-grow flex flex-col border-t border-gray-50">
-                <div class="text-xs text-gray-400 mb-1 uppercase tracking-widest font-bold">
-                    {% if product.category %}
-                        {{ product.category.name }}
-                    {% else %}
-                        Nezaradené
-                    {% endif %}
-                </div>
-                
-                <a href="{% url 'product_detail' product.slug %}" class="font-bold text-gray-900 mb-2 leading-tight flex-grow hover:text-blue-600 transition line-clamp-2">
-                    {{ product.name }}
-                </a>
-
-                <div class="text-blue-600 font-black text-lg mb-4">
-                    {{ product.price|floatformat:2 }} €
-                </div>
-                
-                <div class="flex items-center justify-between mt-auto">
-                    <a href="{% url 'add_to_planner' product.id %}" rel="nofollow" class="w-full bg-gray-900 hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg transition text-center text-sm flex items-center justify-center gap-2">
-                        <i class="fa fa-plus"></i> Do plánu
-                    </a>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+    
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="product-list">
+        {% include 'products/partials/product_grid.html' %}
     </div>
+    
+    {% if has_next %}
+    <div class="text-center mt-12 mb-8" id="load-more-container">
+        <button id="load-more-btn" 
+                data-page="{{ next_page }}" 
+                data-url="{% url 'search' %}?q={{ search_query }}"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 shadow-md flex items-center justify-center mx-auto gap-2">
+            <span>Zobraziť ďalšie výsledky</span>
+            <svg id="load-spinner" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </button>
+    </div>
+    {% endif %}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', function() {
+                const btn = this;
+                // V data-url už máme ?q=slovo, takže page musíme pridať cez &
+                const url = btn.getAttribute('data-url');
+                const page = btn.getAttribute('data-page');
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const sort = urlParams.get('sort') || 'default';
+                
+                btn.querySelector('span').textContent = 'Načítavam...';
+                btn.querySelector('#load-spinner').classList.remove('hidden');
+                btn.disabled = true;
+                btn.classList.add('opacity-75', 'cursor-not-allowed');
+
+                // Keďže v url už JE otáznik (?q=niečo), ďalšie parametre lepíme cez ampersand "&"
+                fetch(`${url}&page=${page}&sort=${sort}&ajax=1`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('product-list').insertAdjacentHTML('beforeend', data.html);
+                    
+                    if (data.has_next) {
+                        btn.setAttribute('data-page', parseInt(page) + 1);
+                        btn.querySelector('span').textContent = 'Zobraziť ďalšie výsledky';
+                        btn.querySelector('#load-spinner').classList.add('hidden');
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                    } else {
+                        document.getElementById('load-more-container').remove();
+                    }
+                })
+                .catch(error => {
+                    console.error('Chyba:', error);
+                    btn.querySelector('span').textContent = 'Chyba siete. Skúste znova.';
+                    btn.querySelector('#load-spinner').classList.add('hidden');
+                    btn.disabled = false;
+                });
+            });
+        }
+    });
+    </script>
     
     {% else %}
     
