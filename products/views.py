@@ -123,30 +123,38 @@ def category_detail(request, slug):
     })
 
 def search(request):
-    """Vyhľadávanie produktov - EXTRÉMNA RÝCHLOSŤ (Bez JOIN pasce)"""
+    """Vyhľadávanie produktov - NAJBEZPEČNEJŠIA VERZIA (Úplne bez JOINov v OR)"""
     query = request.GET.get('q', '').strip()
     results = Product.objects.none()
     error_message = None
     
     # 1. OCHRANA: Ak je dopyt príliš krátky
     if len(query) < 3:
-        if query: # Vypíše chybu len ak užívateľ reálne niečo zadal
+        if query: 
             error_message = "Zadajte aspoň 3 znaky."
     else:
-        # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA VYHĽADÁVANIA (Rozdelené na 2 kroky)
-        
-        # Krok A: Bleskovo nájdeme IDčka kategórií, ktoré obsahujú hľadané slovo
-        matching_categories = Category.objects.filter(
+        # Krok A: Stiahneme ID aktívnych kategórií, ktoré obsahujú hľadané slovo
+        # Convertujeme to na python LIST, aby sme z toho urobili čisté čísla.
+        # Takto si Django ani databáza nebudú komplikovať život.
+        matching_categories = list(Category.objects.filter(
             name__icontains=query, 
             is_active=True
-        ).values_list('id', flat=True)
+        ).values_list('id', flat=True))
         
-        # Krok B: Hľadáme produkty bez "JOIN" pasce
+        # Stiahneme všetky aktívne kategórie (opäť ako python list čísel)
+        active_cat_ids = list(Category.objects.filter(is_active=True).values_list('id', flat=True))
+
+        # Krok B: Hľadáme produkty
+        # - Musí patriť do aktívnej kategórie
+        # - A SÚČASNE (Názov obsahuje slovo OR EAN obsahuje slovo OR Kategória obsahuje slovo)
+        # - Vyhodený .distinct(), aby to bolo bleskové
         results = Product.objects.filter(
+            category_id__in=active_cat_ids
+        ).filter(
             Q(name__icontains=query) | 
             Q(ean__icontains=query) |
             Q(category_id__in=matching_categories)
-        ).select_related('category').prefetch_related('offers').filter(category__is_active=True).distinct()[:50]
+        ).select_related('category').prefetch_related('offers')[:50]
     
     all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
 
