@@ -121,18 +121,34 @@ def category_detail(request, slug):
         'all_categories': all_categories,
         'sort_by': sort_by
     })
-
 def search(request):
-    """TEST PRAVDY - Úplné obídenie databázy"""
+    """Vyhľadávanie produktov - RÝCHLA A BEZPEČNÁ VERZIA"""
     query = request.GET.get('q', '').strip()
-    
-    # ⚡️ NEHĽADÁME NIČ. Vraciame prázdny zoznam.
     results = Product.objects.none()
+    error_message = None
     
-    # ⚡️ TÚTO HLÁŠKU MUSÍŠ VIDIEŤ NA WEBE!
-    error_message = "DIAGNOSTIKA: Ak vidíte túto hlášku, zmeny sa úspešne nahrali na server."
+    if len(query) < 3:
+        if query: 
+            error_message = "Zadajte aspoň 3 znaky."
+    else:
+        # 1. Bleskové zistenie ID kategórií (vytvorí čistý zoznam čísel)
+        matching_categories = list(Category.objects.filter(
+            name__icontains=query, 
+            is_active=True
+        ).values_list('id', flat=True))
 
-    all_categories = Category.objects.filter(parent=None, is_active=True)
+        active_cat_ids = list(Category.objects.filter(is_active=True).values_list('id', flat=True))
+        
+        # 2. Rýchle hľadanie (bez padania databázy)
+        results = Product.objects.filter(
+            category_id__in=active_cat_ids
+        ).filter(
+            Q(name__icontains=query) | 
+            Q(ean__icontains=query) |
+            Q(category_id__in=matching_categories)
+        ).select_related('category').prefetch_related('offers')[:50]
+    
+    all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
 
     return render(request, 'products/search_results.html', {
         'products': results, 
@@ -141,7 +157,7 @@ def search(request):
         'is_search': True,
         'error_message': error_message
     })
-    
+  
 
 def privacy_policy(request):
     return render(request, 'pages/gdpr.html')
