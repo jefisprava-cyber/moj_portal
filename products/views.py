@@ -123,40 +123,25 @@ def category_detail(request, slug):
     })
 
 def search(request):
-    """Vyhľadávanie produktov - NAJBEZPEČNEJŠIA VERZIA (Úplne bez JOINov v OR)"""
+    """Vyhľadávanie - ULTRA SAFE MODE (Záchranný režim)"""
     query = request.GET.get('q', '').strip()
     results = Product.objects.none()
     error_message = None
     
-    # 1. OCHRANA: Ak je dopyt príliš krátky
+    # 1. Ochrana dĺžky slova
     if len(query) < 3:
         if query: 
             error_message = "Zadajte aspoň 3 znaky."
     else:
-        # Krok A: Stiahneme ID aktívnych kategórií, ktoré obsahujú hľadané slovo
-        # Convertujeme to na python LIST, aby sme z toho urobili čisté čísla.
-        # Takto si Django ani databáza nebudú komplikovať život.
-        matching_categories = list(Category.objects.filter(
-            name__icontains=query, 
-            is_active=True
-        ).values_list('id', flat=True))
-        
-        # Stiahneme všetky aktívne kategórie (opäť ako python list čísel)
-        active_cat_ids = list(Category.objects.filter(is_active=True).values_list('id', flat=True))
-
-        # Krok B: Hľadáme produkty
-        # - Musí patriť do aktívnej kategórie
-        # - A SÚČASNE (Názov obsahuje slovo OR EAN obsahuje slovo OR Kategória obsahuje slovo)
-        # - Vyhodený .distinct(), aby to bolo bleskové
+        # ⚡️ NAJJEDNODUCHŠÍ DOPYT NA SVETE
+        # Žiadne 'OR' (Q objekty), žiadne prehľadávanie kategórií. Len čistý názov.
         results = Product.objects.filter(
-            category_id__in=active_cat_ids
-        ).filter(
-            Q(name__icontains=query) | 
-            Q(ean__icontains=query) |
-            Q(category_id__in=matching_categories)
+            name__icontains=query,
+            category__is_active=True
         ).select_related('category').prefetch_related('offers')[:50]
     
-    all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
+    # Taktiež sme vypli "prefetch_related" na menu, aby sme ušetrili ďalšiu RAM
+    all_categories = Category.objects.filter(parent=None, is_active=True)
 
     return render(request, 'products/search_results.html', {
         'products': results, 
@@ -165,6 +150,7 @@ def search(request):
         'is_search': True,
         'error_message': error_message
     })
+
 
 def privacy_policy(request):
     return render(request, 'pages/gdpr.html')
