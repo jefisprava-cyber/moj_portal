@@ -123,28 +123,39 @@ def category_detail(request, slug):
     })
 
 def search(request):
-    """Vyhľadávanie produktov - S OCHRANOU PROTI ZAMRZNUTIU"""
-    query = request.GET.get('q', '').strip() # Odstránime medzery
+    """Vyhľadávanie produktov - EXTRÉMNA RÝCHLOSŤ (Bez JOIN pasce)"""
+    query = request.GET.get('q', '').strip()
     results = Product.objects.none()
+    error_message = None
     
-    # 1. OCHRANA: Ak je dopyt príliš krátky, nehľadáme (prevencia 502 Error)
-    if query and len(query) >= 3:
-        # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA VYHĽADÁVANIA
-        # VYPNUTÉ description__icontains, aby nepadal server!
+    # 1. OCHRANA: Ak je dopyt príliš krátky
+    if len(query) < 3:
+        if query: # Vypíše chybu len ak užívateľ reálne niečo zadal
+            error_message = "Zadajte aspoň 3 znaky."
+    else:
+        # ⚡️⚡️⚡️ TURBO OPTIMALIZÁCIA VYHĽADÁVANIA (Rozdelené na 2 kroky)
+        
+        # Krok A: Bleskovo nájdeme IDčka kategórií, ktoré obsahujú hľadané slovo
+        matching_categories = Category.objects.filter(
+            name__icontains=query, 
+            is_active=True
+        ).values_list('id', flat=True)
+        
+        # Krok B: Hľadáme produkty bez "JOIN" pasce
         results = Product.objects.filter(
             Q(name__icontains=query) | 
             Q(ean__icontains=query) |
-            Q(category__name__icontains=query, category__is_active=True)
-        ).select_related('category').prefetch_related('offers').filter(category__is_active=True).distinct()[:50] # Limit 50
+            Q(category_id__in=matching_categories)
+        ).select_related('category').prefetch_related('offers').filter(category__is_active=True).distinct()[:50]
     
     all_categories = Category.objects.filter(parent=None, is_active=True).prefetch_related('children')
 
-    # 👇 TU BOLA CHYBA - OPRAVENÉ NA 'search_results.html'
     return render(request, 'products/search_results.html', {
         'products': results, 
         'search_query': query,
         'all_categories': all_categories,
-        'is_search': True 
+        'is_search': True,
+        'error_message': error_message
     })
 
 def privacy_policy(request):
