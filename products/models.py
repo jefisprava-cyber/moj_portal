@@ -58,6 +58,9 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products', db_index=True)
     
     original_category_text = models.CharField(max_length=500, blank=True, null=True, db_index=True)
+
+    # 👇 NOVÉ: Magický zámok pre kategóriu (Chráni pred Google Sorterom a Importom)
+    is_category_locked = models.BooleanField(default=False, verbose_name="Kategória uzamknutá (AI)", db_index=True)
     
     is_oversized = models.BooleanField(default=False)
     

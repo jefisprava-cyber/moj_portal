@@ -118,7 +118,8 @@ class Command(BaseCommand):
         self.stdout.write("🧠 FÁZA 2: Triedim produkty (Bezpečný režim)...")
 
         # Získame len IDčka (to nezaberie pamäť)
-        all_ids = Product.objects.all().values_list('id', flat=True).order_by('id')
+        # 👇 UPRAVENÉ: Ignorujeme produkty, ktoré majú is_category_locked=True od AI
+        all_ids = Product.objects.filter(is_category_locked=False).values_list('id', flat=True).order_by('id')
         paginator = Paginator(all_ids, BATCH_SIZE)
         
         total_matched = 0
