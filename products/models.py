@@ -188,3 +188,4 @@ class Review(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.product.recalculate_rating()
+        
