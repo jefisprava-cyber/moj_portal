@@ -61,6 +61,9 @@ class Product(models.Model):
 
     # 👇 NOVÉ: Magický zámok pre kategóriu (Chráni pred Google Sorterom a Importom)
     is_category_locked = models.BooleanField(default=False, verbose_name="Kategória uzamknutá (AI)", db_index=True)
+
+    # 👇 NOVÉ 2.0: Skóre istoty (0-100%). Podľa tohto budeme filtrovať odpad pre AI.
+    category_confidence = models.FloatField(default=0.0, db_index=True)
     
     is_oversized = models.BooleanField(default=False)
     
