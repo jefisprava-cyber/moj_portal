@@ -12,8 +12,12 @@ class OfferInline(admin.TabularInline):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'ean', 'is_oversized')
-    list_filter = ('category', 'is_oversized')
+    # 👇 PRIDANÉ: category_confidence a is_category_locked do tabuľky
+    list_display = ('name', 'category', 'ean', 'category_confidence', 'is_category_locked', 'is_oversized')
+    
+    # 👇 PRIDANÉ: is_category_locked do pravého filtra, aby si vedel filtrovať zamknuté/nezamknuté
+    list_filter = ('is_category_locked', 'category', 'is_oversized')
+    
     search_fields = ('name', 'ean')
     inlines = [OfferInline]
 
