@@ -1,47 +1,50 @@
-import time
+import os
 import json
 import requests
-import os
 from django.core.management.base import BaseCommand
 from products.models import Product, Category
 from django.db import transaction
 
-# 👇 VLOŽ SEM SVOJ KĽÚČ OD OPENAI (začína sa na sk-...)
+# Bezpečne natiahne kľúč z prostredia Renderu
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 class Command(BaseCommand):
-    help = 'AI SORTER: Inteligentne roztriedi a uzamkne problematické produkty.'
+    help = 'AI SORTER 2.0: Inteligentne roztriedi odpad s nízkym skóre a vyhodí maďarčinu do koša.'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write(self.style.SUCCESS("🤖 Štartujem AI Kontrolóra..."))
+        self.stdout.write(self.style.SUCCESS("🤖 Štartujem AI Kontrolóra (Verzia 2.0)..."))
 
-        if OPENAI_API_KEY == "sk-tvoj-tajny-kluc-vloz-sem":
-            self.stdout.write(self.style.ERROR("❌ CHYBA: Zabudol si vložiť OpenAI API kľúč do skriptu!"))
+        if not OPENAI_API_KEY:
+            self.stdout.write(self.style.ERROR("❌ CHYBA: API kľúč nenájdený v prostredí (OPENAI_API_KEY)."))
             return
 
-        # 1. ZÍSKAME VŠETKY KATEGÓRIE (Pre kontext pre AI)
-        self.stdout.write("📦 Sťahujem zoznam tvojich kategórií pre AI...")
-        categories = Category.objects.filter(is_active=True).values('id', 'name')
+        # 1. Nájdenie kategórie KÔŠ (Uisti sa, že si ju vytvoril na webe)
+        trash_cat = Category.objects.filter(name__icontains="Kôš").first()
+        if not trash_cat:
+            self.stdout.write(self.style.ERROR("❌ CHYBA: Nenašiel som kategóriu, ktorá obsahuje slovo 'Kôš'. Vytvor ju v administrácii!"))
+            return
         
-        # Vytvoríme čistý textový zoznam: "ID: 55 - Smartfóny"
+        self.stdout.write(f"🗑️ Kôš na odpad nájdený: ID {trash_cat.id} - {trash_cat.name}")
+
+        # 2. Získame platné kategórie (BEZ NEZARADENÝCH A BEZ KOŠA)
+        self.stdout.write("📦 Sťahujem čistý zoznam kategórií pre AI (bez 'Nezaradených')...")
+        categories = Category.objects.filter(is_active=True).exclude(name__icontains="nezaradené").exclude(id=trash_cat.id).values('id', 'name')
+        
         cat_list_text = "\n".join([f"ID: {c['id']} - {c['name']}" for c in categories])
 
-        # 2. NÁJDEME PROBLÉMOVÉ PRODUKTY
-        # Hľadáme produkty, ktoré ešte NIE SÚ ZAMKNUTÉ a sú v kategórii s názvom "NEZARADENÉ"
-        # (Tu si to môžeš neskôr zmeniť, ak budeš chcieť kontrolovať iné kategórie)
+        # 3. Nájdenie podozrivých produktov (Tých, kde mal ENGINE menej ako 30% istotu a nie sú zamknuté)
         suspect_products = Product.objects.filter(
             is_category_locked=False,
-            category__name__icontains="nezaradené" 
-        )[:50] # Zoberieme naraz max 50 produktov (aby sme nepreťažili API)
+            category_confidence__lt=30.0
+        )[:50]
 
-        total_suspects = suspect_products.count()
+        total_suspects = len(suspect_products)
         if total_suspects == 0:
-            self.stdout.write(self.style.SUCCESS("✅ Nenašiel som žiadne problémové produkty na kontrolu."))
+            self.stdout.write(self.style.SUCCESS("✅ E-shop je dokonale uprataný! Nenašiel som žiadne produkty s nízkym skóre."))
             return
 
-        self.stdout.write(f"🔍 Našiel som {total_suspects} produktov. Posielam do OpenAI...")
+        self.stdout.write(f"🔍 Našiel som {total_suspects} produktov s nízkym skóre. Posielam do OpenAI...")
 
-        # 3. PRÍPRAVA DÁT PRE AI
         products_data = []
         for p in suspect_products:
             products_data.append({
@@ -50,22 +53,22 @@ class Command(BaseCommand):
                 "original_supplier_category": p.original_category_text or "Neznáma"
             })
 
-        # 4. VOLÁME OPENAI API
+        # 4. EXTRÉMNE PRÍSNY PROMPT PRE AI
         prompt = f"""
-        Si expert na e-commerce a tvojou úlohou je zatriediť produkty do presných kategórií môjho e-shopu.
+        Si expert na e-commerce. Tvojou úlohou je zatriediť ťažké a problémové produkty do presných kategórií môjho e-shopu.
         
-        Tu je zoznam mojich platných kategórií vo formáte (ID - Názov):
+        Tu je zoznam mojich platných kategórií (ID - Názov):
         {cat_list_text}
         
-        Tu je pole produktov vo formáte JSON:
+        ŠPECIÁLNE PRAVIDLO:
+        Ak je názov produktu v cudzom jazyku (maďarčina, chorvátčina, atď.), nedáva absolútne zmysel, alebo sa volá 'Produkt bez názvu' či iný odpad, priraď mu STRIKTNE ID {trash_cat.id} (Kôš). Do mojich normálnych kategórií priradzuj len jasné, slovenské/české a legitímne produkty.
+        
+        Tu sú produkty vo formáte JSON:
         {json.dumps(products_data, ensure_ascii=False)}
         
-        Tvoja úloha:
-        Pre každý produkt nájdi najvhodnejšiu kategóriu z môjho zoznamu.
-        Vráť mi striktne iba JSON pole v takomto formáte a nič iné (žiadny sprievodný text):
+        Vráť mi striktne iba JSON pole v tomto formáte a nič iné (žiadny sprievodný text ani formátovanie):
         [
-            {{"product_id": 123, "category_id": 45}},
-            {{"product_id": 124, "category_id": 89}}
+            {{"product_id": 123, "category_id": 45}}
         ]
         """
 
@@ -75,9 +78,9 @@ class Command(BaseCommand):
         }
 
         payload = {
-            "model": "gpt-4o-mini", # Najlacnejší a veľmi rýchly model
+            "model": "gpt-4o-mini",
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.0 # Chceme presnosť, nie kreativitu
+            "temperature": 0.0
         }
 
         try:
@@ -88,12 +91,11 @@ class Command(BaseCommand):
             result = response.json()
             ai_text = result['choices'][0]['message']['content']
             
-            # Očistenie odpovede, ak by AI náhodou pridala do odpovede formátovanie (napr. ```json)
+            # Očistenie od backtickov, keby si ich AI vymyslela
             ai_text = ai_text.replace("```json", "").replace("```", "").strip()
             
             sorted_data = json.loads(ai_text)
 
-            # 5. ULOŽENIE DO DATABÁZY
             self.stdout.write("💾 Ukladám zmeny do databázy a ZAMYKÁM produkty...")
             
             updated_count = 0
@@ -102,14 +104,21 @@ class Command(BaseCommand):
                     try:
                         product = Product.objects.get(id=item['product_id'])
                         product.category_id = item['category_id']
-                        product.is_category_locked = True # 🔒 TU SA ZAMKNE!
-                        product.save(update_fields=['category', 'is_category_locked'])
+                        product.is_category_locked = True
+                        product.category_confidence = 100.0 # Po AI sme si už istí na 100%
+                        product.save(update_fields=['category', 'is_category_locked', 'category_confidence'])
+                        
+                        # Pekný výpis do terminálu
+                        if item['category_id'] == trash_cat.id:
+                            self.stdout.write(f"   -> 🗑️ (Kôš) {product.name}")
+                        else:
+                            self.stdout.write(f"   -> ✅ (Roztriedené) {product.name} -> ID {item['category_id']}")
+                        
                         updated_count += 1
-                        self.stdout.write(f"   -> {product.name} presunutý do kategórie ID {item['category_id']}")
                     except Exception as ex:
-                        self.stdout.write(self.style.WARNING(f"⚠️ Nepodarilo sa uložiť produkt {item.get('product_id')}: {ex}"))
+                        self.stdout.write(self.style.WARNING(f"⚠️ Chyba ukladania pre ID {item.get('product_id')}: {ex}"))
 
-            self.stdout.write(self.style.SUCCESS(f"🎉 HOTOVO! Úspešne roztriedených a zamknutých {updated_count} produktov."))
+            self.stdout.write(self.style.SUCCESS(f"🎉 HOTOVO! AI roztriedila a zamkla {updated_count} produktov."))
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Nastala chyba pri spojení s AI alebo pri spracovaní: {e}"))
+            self.stdout.write(self.style.ERROR(f"❌ Nastala chyba pri spojení s AI: {e}"))
