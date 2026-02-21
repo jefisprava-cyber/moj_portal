@@ -1,12 +1,13 @@
 import time
 import json
 import requests
+import os
 from django.core.management.base import BaseCommand
 from products.models import Product, Category
 from django.db import transaction
 
 # 👇 VLOŽ SEM SVOJ KĽÚČ OD OPENAI (začína sa na sk-...)
-OPENAI_API_KEY = "sk-tvoj-tajny-kluc-vloz-sem"
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 class Command(BaseCommand):
     help = 'AI SORTER: Inteligentne roztriedi a uzamkne problematické produkty.'
