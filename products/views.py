@@ -157,23 +157,24 @@ def search(request):
         q_lower = query.lower()
         alt_query = query 
         
-        name_filters = Q(name__icontains=query)
+        # 👇 TOTO JE TEN RAKETOVÝ POHON (Namiesto name__icontains)
+        search_filter = Q(search_vector=query)
         
         if "stol" in q_lower: 
             alt_query = q_lower.replace("stol", "stôl")
-            name_filters |= Q(name__icontains=alt_query)
+            search_filter |= Q(search_vector=alt_query)
         elif "skrin" in q_lower: 
             alt_query = q_lower.replace("skrin", "skriň")
-            name_filters |= Q(name__icontains=alt_query)
+            search_filter |= Q(search_vector=alt_query)
         elif "postel" in q_lower: 
             alt_query = q_lower.replace("postel", "posteľ")
-            name_filters |= Q(name__icontains=alt_query)
+            search_filter |= Q(search_vector=alt_query)
 
-        # Základný dopyt bez obmedzenia počtu
+        # Základný dopyt s novým bleskovým filtrom
         results = Product.objects.filter(
             category_id__in=active_cat_ids
         ).filter(
-            name_filters | 
+            search_filter | 
             Q(ean__icontains=query) |
             Q(category_id__in=matching_categories)
         ).annotate(
