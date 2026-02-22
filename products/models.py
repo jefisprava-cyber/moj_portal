@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify 
 from django.db.models import Avg
+from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.indexes import GinIndex
 import random
 
 # --- KATEGÓRIE (Stromová štruktúra) ---
@@ -65,6 +67,9 @@ class Product(models.Model):
     # 👇 NOVÉ 2.0: Skóre istoty (0-100%). Podľa tohto budeme filtrovať odpad pre AI.
     category_confidence = models.FloatField(default=0.0, db_index=True)
     
+    # 👇 NOVÉ 3.0: PostgreSQL Full-Text Search vektor
+    search_vector = SearchVectorField(null=True, blank=True)
+    
     is_oversized = models.BooleanField(default=False)
     
     # 👇 INDEX PRE "NAJNOVŠIE"
@@ -75,6 +80,12 @@ class Product(models.Model):
     
     average_rating = models.FloatField(default=0.0)
     review_count = models.IntegerField(default=0)
+
+    # 👇 NOVÉ: Vytvorenie extrémne rýchleho GIN indexu pre search_vector
+    class Meta:
+        indexes = [
+            GinIndex(fields=['search_vector'], name='product_search_idx'),
+        ]
 
     @property
     def get_image(self):
@@ -188,4 +199,3 @@ class Review(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         self.product.recalculate_rating()
-        

@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles', # Toto je nutné pre CSS
     'django.contrib.sitemaps',
     'products',
+    'django.contrib.postgres',
 ]
 
 MIDDLEWARE = [
