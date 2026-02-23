@@ -19,8 +19,8 @@ RUN_XML_IMPORT = True    # XML Feedy
 RUN_CJ_IMPORT = True     # CJ API (Allegro, Asko...)
 
 # ⚠️ LIMITY
-LIMIT_PER_CJ_ADVERTISER = 50000    
-LIMIT_XML_PRODUCTS = 50000         
+LIMIT_PER_CJ_ADVERTISER = 100000    
+LIMIT_XML_PRODUCTS = 100000         
 BATCH_SIZE_CJ = 500              
 
 # ==========================================
