@@ -27,12 +27,12 @@ BATCH_SIZE_CJ = 500
 # 1. KONFIGURÁCIA XML FEEDOV
 # ==========================================
 XML_FEEDS = [
-    {"name": "Mobilonline", "url": "https://www.mobilonline.sk/files/comparator/303c51/42/heureka.xml"},
-    {"name": "E-spotrebiče", "url": "http://www.e-spotrebice.sk/datafeed/dognet.xml"},
-    {"name": "4Home", "url": "https://www.4home.sk/export/google-products.xml"},
+    # {"name": "Mobilonline", "url": "https://www.mobilonline.sk/files/comparator/303c51/42/heureka.xml"},
+    # {"name": "E-spotrebiče", "url": "http://www.e-spotrebice.sk/datafeed/dognet.xml"},
+    # {"name": "4Home", "url": "https://www.4home.sk/export/google-products.xml"},
     {"name": "Insportline", "url": "https://www.insportline.sk/xml_feed_heureka_new.php"},
     {"name": "Efarby", "url": "https://mika.venalio.com/feeds/heureka?websiteLanguageId=1&secretKey=s9ybmxreylrjvtfxr93znxro78e0mscnods8f77d&tagLinks=0"},
-    {"name": "Protein.sk", "url": "https://www.protein.sk/feed/heureka.xml"},
+    # {"name": "Protein.sk", "url": "https://www.protein.sk/feed/heureka.xml"},
     {"name": "Dizajnove Doplnky", "url": "https://www.dizajnove-doplnky.sk/heureka.xml"},
     {"name": "Svet-svietidiel.sk", "url": "https://feeds.mergado.com/svet-svietidiel-sk-heureka-sk-2-f5937a18cc9c2f1e6dec0b725e85ef87.xml"}
 ]
@@ -47,13 +47,13 @@ CJ_CONFIG = {
     
     "advertisers": [
         {"name": "Allegro.sk", "id": "7167444", "manual_cat": "Nákupné centrum"},
-        {"name": "Gorila.sk", "id": "5284767", "manual_cat": "Knihy a Zábava"},
-        {"name": "MojaLekaren.sk", "id": "5154184", "manual_cat": "Zdravie a Lieky"},
-        {"name": "KancelarskeStolicky", "id": "5493235", "manual_cat": "Kancelária a Nábytok"},
-        {"name": "Nazuby.eu", "id": "4322334", "manual_cat": "Zdravie a Lieky"},
+        # {"name": "Gorila.sk", "id": "5284767", "manual_cat": "Knihy a Zábava"},
+        # {"name": "MojaLekaren.sk", "id": "5154184", "manual_cat": "Zdravie a Lieky"},
+        # {"name": "KancelarskeStolicky", "id": "5493235", "manual_cat": "Kancelária a Nábytok"},
+        # {"name": "Nazuby.eu", "id": "4322334", "manual_cat": "Zdravie a Lieky"},
         {"name": "Asko Nábytok", "id": "4920522", "manual_cat": "Nábytok a Bývanie"},
-        {"name": "Raj hračiek", "id": "7260722", "manual_cat": "Hračky a deti"},
-        {"name": "Roboticky-vysavac", "id": "5352874", "manual_cat": "Domáce spotrebiče"},
+        # {"name": "Raj hračiek", "id": "7260722", "manual_cat": "Hračky a deti"},
+        # {"name": "Roboticky-vysavac", "id": "5352874", "manual_cat": "Domáce spotrebiče"},
         {"name": "XXXLutz", "id": "5547578", "manual_cat": "Nábytok a Bývanie"}
     ]
 }
