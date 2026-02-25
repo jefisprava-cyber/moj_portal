@@ -7,8 +7,9 @@ import time
 import gc
 from decimal import Decimal
 from django.core.management.base import BaseCommand
+from django.core.management import call_command  # 👇 PRIDANÉ pre Pipeline
 from django.utils.text import slugify
-from products.models import Product, Category, Offer, ProductParameter
+from products.models import Product, Category, Offer
 from django.db import transaction
 
 # ==========================================
@@ -17,9 +18,9 @@ from django.db import transaction
 RUN_XML_IMPORT = True    # XML Feedy
 RUN_CJ_IMPORT = True     # CJ API (Allegro, Asko...)
 
-# ⚠️ LIMITY (Nastavené na 500 pre rýchly test, pre ostrú prevádzku zvýš na 15000)
-LIMIT_PER_CJ_ADVERTISER = 2000    
-LIMIT_XML_PRODUCTS = 2000         
+# ⚠️ LIMITY
+LIMIT_PER_CJ_ADVERTISER = 100000    
+LIMIT_XML_PRODUCTS = 100000         
 BATCH_SIZE_CJ = 500              
 
 # ==========================================
@@ -41,10 +42,9 @@ XML_FEEDS = [
 # ==========================================
 CJ_CONFIG = {
     "token": "O2uledg8fW-ArSOgXxt2jEBB0Q", 
-    "cid": "7864372",    # Company ID
-    "pid": "101646612",  # Web ID
+    "cid": "7864372",    
+    "pid": "101646612",  
     
-    # manual_cat tu slúži UŽ LEN ako textová pomôcka pre Sorter (nebude to názov kategórie v DB)
     "advertisers": [
         {"name": "Allegro.sk", "id": "7167444", "manual_cat": "Nákupné centrum"},
         {"name": "Gorila.sk", "id": "5284767", "manual_cat": "Knihy a Zábava"},
@@ -59,20 +59,16 @@ CJ_CONFIG = {
 }
 
 class Command(BaseCommand):
-    help = 'Univerzálny Importér - VŠETKO DO NEZARADENÉ'
+    help = 'PIPELINE IMPORT: Stiahne dáta a odovzdá ich Engine Sorteru'
 
     def handle(self, *args, **options):
-        self.stdout.write("🚀 ŠTARTUJEM IMPORT (Cieľ: Jedna kategória NEZARADENÉ)...")
+        self.stdout.write("🚀 ŠTARTUJEM PIPELINE IMPORT (Fáza 1 a 2)...")
         
-        # --- VYTVORENIE JEDNEJ SPOLOČNEJ KATEGÓRIE ---
-        # is_active=False znamená, že bordel nebude vidieť na webe, kým ho neroztriediš.
         self.fallback_cat, _ = Category.objects.get_or_create(
             name="NEZARADENÉ (IMPORT)", 
             defaults={'slug': 'nezaradene-import', 'is_active': False}
         )
-        self.stdout.write(f"📦 Všetky produkty pôjdu do: {self.fallback_cat.name}")
 
-        # 1. XML FEEDY
         if RUN_XML_IMPORT:
             self.stdout.write("\n📡 --- FÁZA 1: XML FEEDY ---")
             for feed in XML_FEEDS:
@@ -82,12 +78,16 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.ERROR(f"❌ Chyba {feed['name']}: {e}"))
                 gc.collect() 
         
-        # 2. CJ API
         if RUN_CJ_IMPORT:
             self.stdout.write("\n📡 --- FÁZA 2: CJ API ---")
             self.import_cj_products()
         
-        self.stdout.write(self.style.SUCCESS("\n🎉 IMPORT DOKONČENÝ."))
+        # 👇 PIPELINE MÁGIA: Automatické spustenie triedenia
+        self.stdout.write(self.style.SUCCESS("\n🎉 IMPORT DOKONČENÝ. Odovzdávam štafetu ENGINE SORTER-u..."))
+        try:
+            call_command('15_engine_sorter')
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"❌ Chyba pri spúšťaní Engine Sortera: {e}"))
 
 
     def import_xml_feed(self, url, shop_name):
@@ -129,19 +129,33 @@ class Command(BaseCommand):
                             url_link = item.findtext('URL') or item.findtext('link') or item.findtext('g:link') or ""
                             desc = item.findtext('DESCRIPTION', '') or item.findtext('description', '') or ""
 
-                            product, _ = Product.objects.update_or_create(
-                                name=name[:255],
-                                defaults={
-                                    'slug': slugify(f"{shop_name}-{name}-{ean}"[:200]),
-                                    'description': desc[:5000], 
-                                    'price': price, 
-                                    'image_url': img_url, 
-                                    'ean': ean[:13] if ean else None, 
-                                    'category': self.fallback_cat,  # <--- VŠETKO SEM
-                                    'is_oversized': False,
-                                    'original_category_text': xml_cat[:499] if xml_cat else clean_cat[:499]
-                                }
-                            )
+                            # 👇 BEZPEČNÝ UPDATE (Nemení kategóriu, ak je zamknutá)
+                            product = Product.objects.filter(name=name[:255]).first()
+                            if product:
+                                product.slug = slugify(f"{shop_name}-{name}-{ean}"[:200])
+                                product.description = desc[:5000]
+                                product.price = price
+                                product.image_url = img_url
+                                if ean: product.ean = ean[:13]
+                                product.original_category_text = xml_cat[:499] if xml_cat else clean_cat[:499]
+                                
+                                if not getattr(product, 'is_category_locked', False):
+                                    product.category = self.fallback_cat
+                                    product.category_confidence = 0.0
+                                product.save()
+                            else:
+                                product = Product.objects.create(
+                                    name=name[:255],
+                                    slug=slugify(f"{shop_name}-{name}-{ean}"[:200]),
+                                    description=desc[:5000],
+                                    price=price,
+                                    image_url=img_url,
+                                    ean=ean[:13] if ean else None,
+                                    category=self.fallback_cat,
+                                    category_confidence=0.0,
+                                    is_oversized=False,
+                                    original_category_text=xml_cat[:499] if xml_cat else clean_cat[:499]
+                                )
 
                             Offer.objects.update_or_create(
                                 product=product, shop_name=shop_name,
@@ -227,24 +241,35 @@ class Command(BaseCommand):
 
                                 raw_category_text = item.get('productType') or ""
                                 ean = item.get('gtin') or ""
-                                
-                                # Dôležité: Do textu uložíme "Hračky" aj názov eshopu, aby Sorter vedel, čo to je!
-                                # Ale fyzicky produkt skončí v NEZARADENÉ.
                                 final_orig_text = f"{manual_cat_name} | {adv_name} | {raw_category_text}"
 
-                                product, _ = Product.objects.update_or_create(
-                                    name=name[:255],
-                                    defaults={
-                                        'slug': slugify(f"cj-{adv_name}-{name}"[:200]), 
-                                        'description': item.get('description', '')[:5000],
-                                        'price': price_val,
-                                        'image_url': item.get('imageLink', ''),
-                                        'category': self.fallback_cat,  # <--- VŠETKO SEM
-                                        'is_oversized': False,
-                                        'ean': ean[:13],
-                                        'original_category_text': final_orig_text[:499]
-                                    }
-                                )
+                                # 👇 BEZPEČNÝ UPDATE
+                                product = Product.objects.filter(name=name[:255]).first()
+                                if product:
+                                    product.slug = slugify(f"cj-{adv_name}-{name}"[:200])
+                                    product.description = item.get('description', '')[:5000]
+                                    product.price = price_val
+                                    product.image_url = item.get('imageLink', '')
+                                    if ean: product.ean = ean[:13]
+                                    product.original_category_text = final_orig_text[:499]
+                                    
+                                    if not getattr(product, 'is_category_locked', False):
+                                        product.category = self.fallback_cat
+                                        product.category_confidence = 0.0
+                                    product.save()
+                                else:
+                                    product = Product.objects.create(
+                                        name=name[:255],
+                                        slug=slugify(f"cj-{adv_name}-{name}"[:200]),
+                                        description=item.get('description', '')[:5000],
+                                        price=price_val,
+                                        image_url=item.get('imageLink', ''),
+                                        category=self.fallback_cat,
+                                        category_confidence=0.0,
+                                        is_oversized=False,
+                                        ean=ean[:13] if ean else None,
+                                        original_category_text=final_orig_text[:499]
+                                    )
                                 
                                 Offer.objects.update_or_create(
                                     product=product,

@@ -7,25 +7,27 @@ import time
 import gc
 from decimal import Decimal
 from django.core.management.base import BaseCommand
-from django.core.management import call_command  # 👇 PRIDANÉ pre Pipeline
+from django.core.management import call_command
 from django.utils.text import slugify
 from products.models import Product, Category, Offer
 from django.db import transaction
 
 # ==========================================
-# 🎛️ HLAVNÉ VYPÍNAČE A LIMITY (TEST MODE)
+# 🎯 ŠPECIALIZÁCIA (Zameranie e-shopu)
 # ==========================================
-RUN_XML_IMPORT = True    # XML Feedy
-RUN_CJ_IMPORT = True     # CJ API (Allegro, Asko...)
+TARGET_KEYWORDS = ["elektronika", "mobil", "smartfon", "televizor", "notebook", "pc", "sluchadla", "audio"]
+
+# ==========================================
+# 🎛️ HLAVNÉ VYPÍNAČE A LIMITY
+# ==========================================
+RUN_XML_IMPORT = True    
+RUN_CJ_IMPORT = True     
 
 # ⚠️ LIMITY
 LIMIT_PER_CJ_ADVERTISER = 100000    
 LIMIT_XML_PRODUCTS = 100000         
 BATCH_SIZE_CJ = 500              
 
-# ==========================================
-# 1. KONFIGURÁCIA XML FEEDOV
-# ==========================================
 XML_FEEDS = [
     {"name": "Mobilonline", "url": "https://www.mobilonline.sk/files/comparator/303c51/42/heureka.xml"},
     {"name": "E-spotrebiče", "url": "http://www.e-spotrebice.sk/datafeed/dognet.xml"},
@@ -37,14 +39,10 @@ XML_FEEDS = [
     {"name": "Svet-svietidiel.sk", "url": "https://feeds.mergado.com/svet-svietidiel-sk-heureka-sk-2-f5937a18cc9c2f1e6dec0b725e85ef87.xml"}
 ]
 
-# ==========================================
-# 2. KONFIGURÁCIA CJ (Allegro, Asko...)
-# ==========================================
 CJ_CONFIG = {
     "token": "O2uledg8fW-ArSOgXxt2jEBB0Q", 
     "cid": "7864372",    
     "pid": "101646612",  
-    
     "advertisers": [
         {"name": "Allegro.sk", "id": "7167444", "manual_cat": "Nákupné centrum"},
         {"name": "Gorila.sk", "id": "5284767", "manual_cat": "Knihy a Zábava"},
@@ -59,10 +57,12 @@ CJ_CONFIG = {
 }
 
 class Command(BaseCommand):
-    help = 'PIPELINE IMPORT: Stiahne dáta a odovzdá ich Engine Sorteru'
+    help = 'SMART SYNC PIPELINE: Inteligentná aktualizácia bez preťaženia'
 
     def handle(self, *args, **options):
-        self.stdout.write("🚀 ŠTARTUJEM PIPELINE IMPORT (Fáza 1 a 2)...")
+        self.stdout.write("🚀 ŠTARTUJEM SMART SYNC IMPORT (Iba nové produkty a aktualizácia cien)...")
+        if TARGET_KEYWORDS:
+            self.stdout.write(self.style.WARNING(f"🎯 ZAPNUTÝ FILTER! Sťahujem len: {', '.join(TARGET_KEYWORDS)}"))
         
         self.fallback_cat, _ = Category.objects.get_or_create(
             name="NEZARADENÉ (IMPORT)", 
@@ -82,13 +82,11 @@ class Command(BaseCommand):
             self.stdout.write("\n📡 --- FÁZA 2: CJ API ---")
             self.import_cj_products()
         
-        # 👇 PIPELINE MÁGIA: Automatické spustenie triedenia
         self.stdout.write(self.style.SUCCESS("\n🎉 IMPORT DOKONČENÝ. Odovzdávam štafetu ENGINE SORTER-u..."))
         try:
             call_command('15_engine_sorter')
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Chyba pri spúšťaní Engine Sortera: {e}"))
-
 
     def import_xml_feed(self, url, shop_name):
         self.stdout.write(f"⏳ XML: Sťahujem {shop_name}...")
@@ -97,77 +95,96 @@ class Command(BaseCommand):
         
         try:
             with urllib.request.urlopen(req, context=context) as response:
-                try: tree = ET.parse(response)
-                except: return
-
-                root = tree.getroot()
-                items = root.findall('.//item') or root.findall('.//SHOPITEM') or root.findall('channel/item')
+                count_new = 0
+                count_updated = 0
                 
-                count = 0
-                with transaction.atomic():
-                    for item in items:
-                        if count >= LIMIT_XML_PRODUCTS: break
+                for event, item in ET.iterparse(response, events=('end',)):
+                    tag_name = item.tag.split('}')[-1].lower() 
+                    
+                    if tag_name in ['item', 'shopitem']:
+                        if (count_new + count_updated) >= LIMIT_XML_PRODUCTS: 
+                            break
+                            
                         try:
-                            name = item.findtext('PRODUCTNAME') or item.findtext('title') or item.findtext('g:title')
-                            price_str = item.findtext('PRICE_VAT') or item.findtext('PRICE') or item.findtext('g:price')
-                            
-                            if not price_str:
-                                for child in item:
-                                    if 'price' in child.tag: price_str = child.text
+                            def get_text(element, search_tags):
+                                for child in element:
+                                    if child.tag.split('}')[-1].lower() in search_tags:
+                                        return child.text
+                                return None
 
-                            if not name or not price_str: continue
+                            name = get_text(item, ['productname', 'title'])
+                            xml_cat = get_text(item, ['categorytext', 'product_type']) or ""
                             
+                            if not name:
+                                item.clear()
+                                continue
+
+                            if TARGET_KEYWORDS:
+                                check_text = (name + " " + xml_cat).lower()
+                                if not any(kw in check_text for kw in TARGET_KEYWORDS):
+                                    item.clear()
+                                    continue
+                                    
+                            price_str = get_text(item, ['price_vat', 'price'])
+                            if not price_str: 
+                                item.clear()
+                                continue
+                                
                             price_str_clean = price_str.replace(',', '.').replace('EUR', '').replace('€', '').strip()
                             try: price = Decimal(price_str_clean)
-                            except: continue
+                            except: 
+                                item.clear()
+                                continue
 
-                            xml_cat = item.findtext('CATEGORYTEXT', '') or item.findtext('g:product_type', '')
-                            clean_cat = xml_cat.replace('|', '>').split('>')[-1].strip()
-                            
-                            ean = item.findtext('EAN') or item.findtext('g:gtin')
-                            img_url = item.findtext('IMGURL', '') or item.findtext('image_link', '') or item.findtext('g:image_link', '')
-                            url_link = item.findtext('URL') or item.findtext('link') or item.findtext('g:link') or ""
-                            desc = item.findtext('DESCRIPTION', '') or item.findtext('description', '') or ""
+                            url_link = get_text(item, ['url', 'link']) or ""
 
-                            # 👇 BEZPEČNÝ UPDATE (Nemení kategóriu, ak je zamknutá)
-                            product = Product.objects.filter(name=name[:255]).first()
-                            if product:
-                                product.slug = slugify(f"{shop_name}-{name}-{ean}"[:200])
-                                product.description = desc[:5000]
-                                product.price = price
-                                product.image_url = img_url
-                                if ean: product.ean = ean[:13]
-                                product.original_category_text = xml_cat[:499] if xml_cat else clean_cat[:499]
+                            with transaction.atomic():
+                                product = Product.objects.filter(name=name[:255]).first()
+                                if product:
+                                    # SMART SYNC: Produkt existuje, updatujeme IBA cenu!
+                                    if product.price != price:
+                                        product.price = price
+                                        product.save(update_fields=['price'])
+                                    
+                                    Offer.objects.update_or_create(
+                                        product=product, shop_name=shop_name,
+                                        defaults={'price': price, 'url': url_link, 'active': True}
+                                    )
+                                    count_updated += 1
+                                else:
+                                    # NOVÝ PRODUKT: Ukladáme kompletne všetko
+                                    clean_cat = xml_cat.replace('|', '>').split('>')[-1].strip()
+                                    ean = get_text(item, ['ean', 'gtin'])
+                                    img_url = get_text(item, ['imgurl', 'image_link']) or ""
+                                    desc = get_text(item, ['description']) or ""
+
+                                    product = Product.objects.create(
+                                        name=name[:255],
+                                        slug=slugify(f"{shop_name}-{name}-{ean}"[:200]),
+                                        description=desc[:5000],
+                                        price=price,
+                                        image_url=img_url,
+                                        ean=ean[:13] if ean else None,
+                                        category=self.fallback_cat,
+                                        category_confidence=0.0,
+                                        is_oversized=False,
+                                        original_category_text=xml_cat[:499] if xml_cat else clean_cat[:499]
+                                    )
+                                    Offer.objects.update_or_create(
+                                        product=product, shop_name=shop_name,
+                                        defaults={'price': price, 'url': url_link, 'active': True}
+                                    )
+                                    count_new += 1
                                 
-                                if not getattr(product, 'is_category_locked', False):
-                                    product.category = self.fallback_cat
-                                    product.category_confidence = 0.0
-                                product.save()
-                            else:
-                                product = Product.objects.create(
-                                    name=name[:255],
-                                    slug=slugify(f"{shop_name}-{name}-{ean}"[:200]),
-                                    description=desc[:5000],
-                                    price=price,
-                                    image_url=img_url,
-                                    ean=ean[:13] if ean else None,
-                                    category=self.fallback_cat,
-                                    category_confidence=0.0,
-                                    is_oversized=False,
-                                    original_category_text=xml_cat[:499] if xml_cat else clean_cat[:499]
-                                )
-
-                            Offer.objects.update_or_create(
-                                product=product, shop_name=shop_name,
-                                defaults={'price': price, 'url': url_link, 'active': True}
-                            )
-                            count += 1
-                        except: continue
+                        except Exception: 
+                            pass
+                        
+                        item.clear()
                 
-                self.stdout.write(self.style.SUCCESS(f'   ✅ {shop_name}: {count} produktov.'))
+                self.stdout.write(self.style.SUCCESS(f'   ✅ {shop_name}: Nové: {count_new} | Aktualizované: {count_updated}'))
+                
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Chyba XML {shop_name}: {e}"))
-
 
     def import_cj_products(self):
         cj_url = "https://ads.api.cj.com/query"
@@ -180,15 +197,16 @@ class Command(BaseCommand):
             
             self.stdout.write(f"⏳ CJ: Pripájam sa na {adv_name}...")
             
-            total_imported_adv = 0
+            total_new = 0
+            total_updated = 0
             page = 1
             
-            while total_imported_adv < LIMIT_PER_CJ_ADVERTISER:
+            while (total_new + total_updated) < LIMIT_PER_CJ_ADVERTISER:
                 current_offset = (page - 1) * BATCH_SIZE_CJ
                 
                 query = """
-                query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $offset: Int, $pid: ID!) {
-                    products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit, offset: $offset) {
+                query products($partnerIds: [ID!], $companyId: ID!, $limit: Int, $offset: Int, $pid: ID!, $keywords: [String!]) {
+                    products(partnerIds: $partnerIds, companyId: $companyId, limit: $limit, offset: $offset, keywords: $keywords) {
                         resultList {
                             title
                             description
@@ -211,6 +229,9 @@ class Command(BaseCommand):
                     "limit": BATCH_SIZE_CJ,
                     "offset": current_offset
                 }
+                
+                if TARGET_KEYWORDS:
+                    variables["keywords"] = TARGET_KEYWORDS
 
                 try:
                     response = requests.post(cj_url, json={'query': query, 'variables': variables}, headers=headers, timeout=30)
@@ -225,7 +246,8 @@ class Command(BaseCommand):
                     
                     if not products_list: break
 
-                    count_in_batch = 0
+                    batch_new = 0
+                    batch_updated = 0
                     
                     with transaction.atomic():
                         for item in products_list:
@@ -239,25 +261,24 @@ class Command(BaseCommand):
                                 
                                 price_val = Decimal(price_info.get('amount'))
 
-                                raw_category_text = item.get('productType') or ""
-                                ean = item.get('gtin') or ""
-                                final_orig_text = f"{manual_cat_name} | {adv_name} | {raw_category_text}"
-
-                                # 👇 BEZPEČNÝ UPDATE
                                 product = Product.objects.filter(name=name[:255]).first()
                                 if product:
-                                    product.slug = slugify(f"cj-{adv_name}-{name}"[:200])
-                                    product.description = item.get('description', '')[:5000]
-                                    product.price = price_val
-                                    product.image_url = item.get('imageLink', '')
-                                    if ean: product.ean = ean[:13]
-                                    product.original_category_text = final_orig_text[:499]
+                                    # SMART SYNC: Updatujeme len cenu
+                                    if product.price != price_val:
+                                        product.price = price_val
+                                        product.save(update_fields=['price'])
                                     
-                                    if not getattr(product, 'is_category_locked', False):
-                                        product.category = self.fallback_cat
-                                        product.category_confidence = 0.0
-                                    product.save()
+                                    Offer.objects.update_or_create(
+                                        product=product, shop_name=adv_name,
+                                        defaults={'price': price_val, 'url': item.get('linkCode', {}).get('clickUrl', ''), 'active': True}
+                                    )
+                                    batch_updated += 1
                                 else:
+                                    # NOVÝ PRODUKT
+                                    raw_category_text = item.get('productType') or ""
+                                    ean = item.get('gtin') or ""
+                                    final_orig_text = f"{manual_cat_name} | {adv_name} | {raw_category_text}"
+
                                     product = Product.objects.create(
                                         name=name[:255],
                                         slug=slugify(f"cj-{adv_name}-{name}"[:200]),
@@ -270,17 +291,16 @@ class Command(BaseCommand):
                                         ean=ean[:13] if ean else None,
                                         original_category_text=final_orig_text[:499]
                                     )
-                                
-                                Offer.objects.update_or_create(
-                                    product=product,
-                                    shop_name=adv_name,
-                                    defaults={'price': price_val, 'url': item.get('linkCode', {}).get('clickUrl', ''), 'active': True}
-                                )
-                                count_in_batch += 1
+                                    Offer.objects.update_or_create(
+                                        product=product, shop_name=adv_name,
+                                        defaults={'price': price_val, 'url': item.get('linkCode', {}).get('clickUrl', ''), 'active': True}
+                                    )
+                                    batch_new += 1
                             except: continue
 
-                    total_imported_adv += count_in_batch
-                    self.stdout.write(f"   -> Dávka {page}: {count_in_batch} ks")
+                    total_new += batch_new
+                    total_updated += batch_updated
+                    self.stdout.write(f"   -> Dávka {page}: {batch_new} nových, {batch_updated} aktualizovaných")
                     
                     page += 1
                     gc.collect()
@@ -289,4 +309,4 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.ERROR(f"   ❌ Chyba: {e}"))
                     break
 
-            self.stdout.write(self.style.SUCCESS(f" ✅ {adv_name}: {total_imported_adv} ks."))
+            self.stdout.write(self.style.SUCCESS(f" ✅ {adv_name}: {total_new} nových | {total_updated} aktualizovaných."))

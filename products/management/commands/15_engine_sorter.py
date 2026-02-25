@@ -6,24 +6,20 @@ import gc
 import unicodedata
 import re
 from django.core.management.base import BaseCommand
+from django.core.management import call_command
 from products.models import Product, Category
 from django.utils.text import slugify
 from django.core.paginator import Paginator
 
 class Command(BaseCommand):
-    help = 'ENTERPRISE ENGINE: Normalizácia textu + Scoring systém + Confidence Score'
+    help = 'ENTERPRISE ENGINE: Smart Sync (Triedi len nové produkty z NEZARADENÉ)'
 
     def normalize_text(self, text):
-        """Kriticky dôležité: Odstráni diakritiku, dá malé písmená a vyčistí znaky."""
         if not text:
             return ""
-        # 1. Malé písmená
         text = str(text).lower()
-        # 2. Odstránenie diakritiky (mäkčene, dĺžne)
         text = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
-        # 3. Ponechá len písmená, čísla a medzery
         text = re.sub(r'[^a-z0-9\s]', ' ', text)
-        # 4. Zmaže viacnásobné medzery
         return ' '.join(text.split())
 
     def handle(self, *args, **kwargs):
@@ -33,6 +29,24 @@ class Command(BaseCommand):
         start_time = time.time()
         self.stdout.write(self.style.SUCCESS("🚀 Štartujem ENTERPRISE CATEGORY MATCH ENGINE..."))
         
+        # --- ZISŤUJEME, ČI MÁME VÔBEC ČO ROBIŤ (SMART SYNC) ---
+        fallback_cat = Category.objects.filter(slug='nezaradene-import').first()
+        if fallback_cat:
+            all_ids = list(Product.objects.filter(category=fallback_cat).values_list('id', flat=True).order_by('id'))
+        else:
+            all_ids = []
+            
+        if not all_ids:
+            self.stdout.write(self.style.SUCCESS("✅ Žiadne nové neroztriedené produkty. Sorter nemá čo robiť."))
+            self.stdout.write(self.style.SUCCESS("\n🔍 ODOVZDÁVAM ŠTAFETU: Štartujem aktualizáciu vyhľadávania (16_update_search)..."))
+            try:
+                call_command('16_update_search')
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"❌ Chyba pri spúšťaní Update Search: {e}"))
+            return
+            
+        self.stdout.write(f"🔎 Našiel som {len(all_ids)} NOVÝCH produktov na roztriedenie...")
+
         # --- STIAHNUTIE PRAVIDIEL ---
         try:
             response = requests.get(SHEET_URL)
@@ -76,7 +90,6 @@ class Command(BaseCommand):
             target_cat = parent_obj
             if not target_cat: continue
 
-            # Normalizujeme všetky kľúčové slová z tabuľky!
             in_raw = row.get('IN') or row.get('IN (Kľúčové slovo)') or ""
             out_raw = row.get('OUT') or ""
             must_raw = row.get('MUST') or ""
@@ -100,9 +113,7 @@ class Command(BaseCommand):
         self.stdout.write("⚙️ Pravidlá znormalizované. Idem skórovať produkty...")
 
         # --- SCORING ALGORITMUS (BODOVANIE) ---
-        all_ids = Product.objects.filter(is_category_locked=False).values_list('id', flat=True).order_by('id')
         paginator = Paginator(all_ids, BATCH_SIZE)
-        
         total_matched = 0
 
         for page_num in paginator.page_range:
@@ -113,49 +124,39 @@ class Command(BaseCommand):
             updates = []
 
             for p in products_batch:
-                # 1. Spojenie a normalizácia textu produktu
                 raw_text = f"{p.name} {p.original_category_text or ''} {p.brand or ''}"
                 product_text = self.normalize_text(raw_text)
                 
                 best_score = -9999
                 best_cat_id = None
 
-                # 2. Testovanie proti všetkým pravidlám
                 for rule in processed_rules:
                     score = 0
                     
-                    # A) OUT pravidlo: Ak obsahuje zakázané slovo, dostane -100 bodov a okamžite letí von
                     if any(bad in product_text for bad in rule['out'] if bad):
                         score -= 100
                         continue 
 
-                    # B) MUST pravidlo: Musí mať aspoň jedno z týchto slov, inak padá
                     if rule['must']:
                         if not any(good in product_text for good in rule['must'] if good):
                             continue
 
-                    # C) IN pravidlo: +10 bodov za každé nájdené slovo
                     matches = 0
                     for key in rule['in']:
                         if key and key in product_text:
                             matches += 1
                             score += 10
-                            # Bonus za presný match značky
                             if p.brand and self.normalize_text(p.brand) == key:
                                 score += 15
 
                     if matches > 0:
-                        score += rule['priority'] # Prirátame prioritu ako bonus
+                        score += rule['priority'] 
                         
-                        # Ak je toto skóre zatiaľ najlepšie, uložíme ho ako víťaza
                         if score > best_score:
                             best_score = score
                             best_cat_id = rule['id']
 
-                # 3. Vyhodnotenie víťaza a Confidence Score
                 if best_cat_id:
-                    # Výpočet istoty (Confidence): Každý +10 bodový zásah je zhruba 25% istota
-                    # Max istota je 100% (napr. 4 zhody)
                     confidence = min(max(best_score * 2.5, 10.0), 100.0)
                     
                     if p.category_id != best_cat_id or p.category_confidence != confidence:
@@ -163,7 +164,6 @@ class Command(BaseCommand):
                         p.category_confidence = confidence
                         updates.append(p)
                 else:
-                    # Nenašlo sa nič, confidence je 0
                     if p.category_confidence != 0.0:
                         p.category_confidence = 0.0
                         updates.append(p)
@@ -179,3 +179,9 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"🎉 HOTOVO! Prekategorizovaných a obodovaných {total_matched} produktov."))
         self.stdout.write(f"🏁 Celkový čas: {time.time() - start_time:.2f} s")
         
+        # 👇 PIPELINE MÁGIA: Automatické spustenie vyhľadávacieho indexu
+        self.stdout.write(self.style.SUCCESS("\n🔍 ODOVZDÁVAM ŠTAFETU: Štartujem aktualizáciu vyhľadávania (16_update_search)..."))
+        try:
+            call_command('16_update_search')
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"❌ Chyba pri spúšťaní Update Search: {e}"))
