@@ -30,7 +30,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("🚀 Štartujem ENTERPRISE CATEGORY MATCH ENGINE..."))
         
         # --- ZISŤUJEME, ČI MÁME VÔBEC ČO ROBIŤ (SMART SYNC) ---
-        fallback_cat = Category.objects.filter(slug='nezaradene-import').first()
+        fallback_cat = Category.objects.filter(name='NEZARADENÉ (IMPORT)').first()
         if fallback_cat:
             all_ids = list(Product.objects.filter(category=fallback_cat).values_list('id', flat=True).order_by('id'))
         else:
