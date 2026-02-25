@@ -4,7 +4,7 @@ from products.models import Product
 from django.contrib.postgres.search import SearchVector
 
 class Command(BaseCommand):
-    help = 'Naplní GIN index (search_vector) ultra-bezpečne podľa ID.'
+    help = 'Naplní GIN index (search_vector) ultra-bezpečne podľa ID s chladením procesora.'
 
     def handle(self, *args, **kwargs):
         self.stdout.write("🚀 Štartujem ULTRA bezpečné budovanie registra po malých krokoch...")
@@ -44,6 +44,10 @@ class Command(BaseCommand):
             
             if updated > 0:
                 self.stdout.write(f"   🔄 Spracované ID {current_min} až {current_max} (Zatiaľ hotovo: {total_updated} ks)...")
+            
+            # 👇 BEZPEČNOSTNÁ BRZDA (Chladenie CPU)
+            # Každých 1000 produktov si server na 2 sekundy odfúkne
+            time.sleep(2)
 
         self.stdout.write(self.style.SUCCESS(f"🎉 HOTOVO! Zaindexovaných {total_updated} produktov."))
         self.stdout.write(f"🏁 Celkový čas: {time.time() - start_time:.2f} s")
