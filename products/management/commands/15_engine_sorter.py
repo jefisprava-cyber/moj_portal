@@ -12,7 +12,7 @@ from django.utils.text import slugify
 from django.core.paginator import Paginator
 
 class Command(BaseCommand):
-    help = 'ENTERPRISE ENGINE: Smart Sync (Triedi len nové produkty z NEZARADENÉ)'
+    help = 'ENTERPRISE ENGINE: Full Scan (Oprava kategórií) + Presné celé slová'
 
     def normalize_text(self, text):
         if not text:
@@ -27,17 +27,21 @@ class Command(BaseCommand):
         BATCH_SIZE = 1000  
 
         start_time = time.time()
-        self.stdout.write(self.style.SUCCESS("🚀 Štartujem ENTERPRISE CATEGORY MATCH ENGINE..."))
+        self.stdout.write(self.style.SUCCESS("🚀 Štartujem ENTERPRISE CATEGORY MATCH ENGINE (Full Scan & Celé slová)..."))
         
-        # --- ZISŤUJEME, ČI MÁME VÔBEC ČO ROBIŤ (SMART SYNC) ---
-        fallback_cat = Category.objects.filter(name='NEZARADENÉ (IMPORT)').first()
-        if fallback_cat:
-            all_ids = list(Product.objects.filter(category=fallback_cat).values_list('id', flat=True).order_by('id'))
-        else:
-            all_ids = []
+        # --- ZISŤUJEME, ČI MÁME VÔBEC ČO ROBIŤ ---
+        # 👇 ZAKOMENTOVANÝ SMART SYNC - Zapni, keď bude všetko upratané
+        # fallback_cat = Category.objects.filter(name='NEZARADENÉ (IMPORT)').first()
+        # if fallback_cat:
+        #     all_ids = list(Product.objects.filter(category=fallback_cat).values_list('id', flat=True).order_by('id'))
+        # else:
+        #     all_ids = []
+            
+        # 👇 ZAPNUTÝ FULL SCAN: Zoberie VŠETKY odomknuté produkty, aby opravil zlé zaradenia
+        all_ids = list(Product.objects.filter(is_category_locked=False).values_list('id', flat=True).order_by('id'))
             
         if not all_ids:
-            self.stdout.write(self.style.SUCCESS("✅ Žiadne nové neroztriedené produkty. Sorter nemá čo robiť."))
+            self.stdout.write(self.style.SUCCESS("✅ Žiadne produkty na roztriedenie. Sorter nemá čo robiť."))
             self.stdout.write(self.style.SUCCESS("\n🔍 ODOVZDÁVAM ŠTAFETU: Štartujem aktualizáciu vyhľadávania (16_update_search)..."))
             try:
                 call_command('16_update_search')
@@ -45,7 +49,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f"❌ Chyba pri spúšťaní Update Search: {e}"))
             return
             
-        self.stdout.write(f"🔎 Našiel som {len(all_ids)} NOVÝCH produktov na roztriedenie...")
+        self.stdout.write(f"🔎 Našiel som {len(all_ids)} produktov na roztriedenie/opravu...")
 
         # --- STIAHNUTIE PRAVIDIEL ---
         try:
@@ -127,23 +131,27 @@ class Command(BaseCommand):
                 raw_text = f"{p.name} {p.original_category_text or ''} {p.brand or ''}"
                 product_text = self.normalize_text(raw_text)
                 
+                # 👇 KĽÚČOVÁ ZMENA: Obalíme text medzerami na hľadanie celých slov!
+                padded_text = f" {product_text} "
+                
                 best_score = -9999
                 best_cat_id = None
 
                 for rule in processed_rules:
                     score = 0
                     
-                    if any(bad in product_text for bad in rule['out'] if bad):
+                    # Hľadáme presné slová obalené medzerami
+                    if any(f" {bad} " in padded_text for bad in rule['out'] if bad):
                         score -= 100
                         continue 
 
                     if rule['must']:
-                        if not any(good in product_text for good in rule['must'] if good):
+                        if not any(f" {good} " in padded_text for good in rule['must'] if good):
                             continue
 
                     matches = 0
                     for key in rule['in']:
-                        if key and key in product_text:
+                        if key and f" {key} " in padded_text:
                             matches += 1
                             score += 10
                             if p.brand and self.normalize_text(p.brand) == key:
