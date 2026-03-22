@@ -12,7 +12,7 @@ from django.utils.text import slugify
 from django.core.paginator import Paginator
 
 class Command(BaseCommand):
-    help = 'ENTERPRISE ENGINE: Full Scan (Oprava kategórií) + Presné celé slová'
+    help = 'ENTERPRISE ENGINE: Full Scan (Oprava kategórií) + Presné celé slová + HEUREKA LOGIKA'
 
     def normalize_text(self, text):
         if not text:
@@ -27,10 +27,10 @@ class Command(BaseCommand):
         BATCH_SIZE = 1000  
 
         start_time = time.time()
-        self.stdout.write(self.style.SUCCESS("🚀 Štartujem ENTERPRISE CATEGORY MATCH ENGINE (Full Scan & Celé slová)..."))
+        self.stdout.write(self.style.SUCCESS("🚀 Štartujem ENTERPRISE CATEGORY MAPPER (Full Scan & Celé slová)..."))
         
         # --- ZISŤUJEME, ČI MÁME VÔBEC ČO ROBIŤ ---
-        # 👇 ZAKOMENTOVANÝ SMART SYNC - Zapni, keď bude všetko upratané
+        # 👇 ZAKOMENTOVANÝ SMART SYNC - Zapni, keď bude všetko upratané (odkomentuj tieto 4 riadky)
         # fallback_cat = Category.objects.filter(name='NEZARADENÉ (IMPORT)').first()
         # if fallback_cat:
         #     all_ids = list(Product.objects.filter(category=fallback_cat).values_list('id', flat=True).order_by('id'))
@@ -90,7 +90,7 @@ class Command(BaseCommand):
                     )
                     cat_cache[cache_key] = cat
                     parent_obj = cat
-
+                    
             target_cat = parent_obj
             if not target_cat: continue
 
@@ -128,10 +128,12 @@ class Command(BaseCommand):
             updates = []
 
             for p in products_batch:
-                raw_text = f"{p.name} {p.original_category_text or ''} {p.brand or ''}"
+                # 👇 KĽÚČOVÁ ZMENA 1: HEUREKA MAPOVAČ! 
+                # Úplne sme vyhodili p.name a p.brand. Kontroluje sa IBA dodávateľská kategória.
+                raw_text = p.original_category_text or ""
                 product_text = self.normalize_text(raw_text)
                 
-                # 👇 KĽÚČOVÁ ZMENA: Obalíme text medzerami na hľadanie celých slov!
+                # 👇 Obalíme text medzerami na hľadanie celých slov!
                 padded_text = f" {product_text} "
                 
                 best_score = -9999
@@ -154,8 +156,6 @@ class Command(BaseCommand):
                         if key and f" {key} " in padded_text:
                             matches += 1
                             score += 10
-                            if p.brand and self.normalize_text(p.brand) == key:
-                                score += 15
 
                     if matches > 0:
                         score += rule['priority'] 
@@ -187,7 +187,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"🎉 HOTOVO! Prekategorizovaných a obodovaných {total_matched} produktov."))
         self.stdout.write(f"🏁 Celkový čas: {time.time() - start_time:.2f} s")
         
-        # 👇 PIPELINE MÁGIA: Automatické spustenie vyhľadávacieho indexu
+        # 👇 TESTOVACÍ REŽIM: AI Sorter je odpojený
+        self.stdout.write(self.style.SUCCESS("\n🛑 TESTOVACÍ REŽIM: AI Sorter (13) sa nespustí automaticky."))
+        self.stdout.write(self.style.WARNING("👉 Teraz si môžeš v administrácii skontrolovať kategóriu 'NEZARADENÉ (IMPORT)'."))
+        self.stdout.write(self.style.WARNING("👉 Keď budeš pripravený dotriediť zvyšok, spusti: python manage.py 13_ai_sorter"))
+        
+        # Ale vyhľadávač (16) spustíme, aby upratané produkty už boli na webe funkčné
         self.stdout.write(self.style.SUCCESS("\n🔍 ODOVZDÁVAM ŠTAFETU: Štartujem aktualizáciu vyhľadávania (16_update_search)..."))
         try:
             call_command('16_update_search')
