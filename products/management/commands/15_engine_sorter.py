@@ -30,10 +30,13 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("🚀 Štartujem ENTERPRISE CATEGORY MAPPER (Full Scan & Celé slová)..."))
         
         # --- ZISŤUJEME, ČI MÁME VÔBEC ČO ROBIŤ ---
-        # 👇 ZAKOMENTOVANÝ SMART SYNC - Zapni, keď bude všetko upratané (odkomentuj tieto 4 riadky)
-        # fallback_cat = Category.objects.filter(name='NEZARADENÉ (IMPORT)').first()
+        # Potrebujeme získať ID krabice NEZARADENÉ, aby sme tam mohli vyhadzovať odpad
+        fallback_cat = Category.objects.filter(name='NEZARADENÉ (IMPORT)').first()
+        fallback_id = fallback_cat.id if fallback_cat else None
+
+        # 👇 Ak chceš neskôr zapnúť SMART SYNC (len nové produkty), odkomentuj toto a zakomentuj FULL SCAN:
         # if fallback_cat:
-        #     all_ids = list(Product.objects.filter(category=fallback_cat).values_list('id', flat=True).order_by('id'))
+        #     all_ids = list(Product.objects.filter(category=fallback_cat, is_category_locked=False).values_list('id', flat=True).order_by('id'))
         # else:
         #     all_ids = []
             
@@ -128,12 +131,11 @@ class Command(BaseCommand):
             updates = []
 
             for p in products_batch:
-                # 👇 KĽÚČOVÁ ZMENA 1: HEUREKA MAPOVAČ! 
-                # Úplne sme vyhodili p.name a p.brand. Kontroluje sa IBA dodávateľská kategória.
+                # 👇 Číta sa IBA dodávateľská kategória
                 raw_text = p.original_category_text or ""
                 product_text = self.normalize_text(raw_text)
                 
-                # 👇 Obalíme text medzerami na hľadanie celých slov!
+                # 👇 Obalíme text medzerami na hľadanie celých slov
                 padded_text = f" {product_text} "
                 
                 best_score = -9999
@@ -142,7 +144,6 @@ class Command(BaseCommand):
                 for rule in processed_rules:
                     score = 0
                     
-                    # Hľadáme presné slová obalené medzerami
                     if any(f" {bad} " in padded_text for bad in rule['out'] if bad):
                         score -= 100
                         continue 
@@ -172,7 +173,9 @@ class Command(BaseCommand):
                         p.category_confidence = confidence
                         updates.append(p)
                 else:
-                    if p.category_confidence != 0.0:
+                    # 👇 KĽÚČOVÁ OPRAVA: Ak Mapovač nenájde zhodu, produkt MUSÍME fyzicky presunúť do NEZARADENÉ
+                    if fallback_id and (p.category_id != fallback_id or p.category_confidence != 0.0):
+                        p.category_id = fallback_id
                         p.category_confidence = 0.0
                         updates.append(p)
 
